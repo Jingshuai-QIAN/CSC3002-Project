@@ -158,6 +158,18 @@ struct TextObject {
 
 
 /**
+ * EntranceArea represents a building entrance area from TMJ object layers
+ */
+struct EntranceArea {
+    float x = 0.f;       ///< X position in pixels
+    float y = 0.f;       ///< Y position in pixels
+    float width = 0.f;   ///< Width in pixels
+    float height = 0.f;  ///< Height in pixels
+    std::string name;    ///< Optional name identifier
+};
+
+
+/**
  * TMJMap represents a complete map loaded from a TMJ (Tiled Map JSON) file.
  * 
  * This structure contains all the necessary data to render a tile-based map,
@@ -170,9 +182,11 @@ struct TMJMap {
     int tileWidth      = 0;       ///< Single tile world grid width in pixels
     int tileHeight     = 0;       ///< Single tile world grid height in pixels
 
-    std::vector<TilesetInfo> tilesets;     ///< Collection of tilesets used by this map
-    std::vector<sf::Sprite>  tiles;        ///< All visible layer tiles converted to sprites in render order
-    std::vector<TextObject>  textObjects;  ///< Text objects from object layers
+    std::vector<TilesetInfo> tilesets;       ///< Collection of tilesets used by this map
+    std::vector<sf::Sprite>  tiles;          ///< All visible layer tiles converted to sprites in render order
+
+    std::vector<TextObject>  textObjects;    ///< Text objects from object layers
+    std::vector<EntranceArea> entranceAreas; ///< Entrance areas
 
     // Spawn point in pixel coordinates (origin at top-left corner)
     std::optional<float> spawnX;  ///< X-coordinate of player spawn point (pixels from left)
@@ -824,6 +838,43 @@ static bool loadTMJ(const std::string& path, TMJMap& map, int extrude = 1) {
         }
     }
 
+    // Process entrance areas from object layers
+    map.entranceAreas.clear();
+
+    for (const auto& L : j["layers"]) {
+        if (!L.contains("type") || !L["type"].is_string() || L["type"] != "objectgroup") 
+            continue;
+            
+        std::string layerName = L.contains("name") && L["name"].is_string()
+                            ? L["name"].get<std::string>() : "objectgroup";
+        
+        // Here, we only process the object layer "entrance"
+        if (layerName != "entrance") continue;
+
+        if (L.contains("objects") && L["objects"].is_array()) {
+                for (const auto& obj : L["objects"]) {
+                    if (!obj.is_object()) continue;
+
+                    EntranceArea area;
+                    
+                    area.x = obj.value("x", 0.f);
+                    area.y = obj.value("y", 0.f);
+                    area.width = obj.value("width", 0.f);
+                    area.height = obj.value("height", 0.f);
+                    
+                    // Record the read areas
+                    if (obj.contains("name") && obj["name"].is_string()) {
+                        area.name = obj["name"].get<std::string>();
+                    }
+
+                    map.entranceAreas.push_back(area);
+                    std::cerr << "[entrance] Loaded area: " << area.name 
+                            << " at (" << area.x << "," << area.y << ")"
+                            << " size=" << area.width << "x" << area.height << "\n";
+                }
+            }
+        }
+
     // Search object layers for protagonist spawn point
     if (j.contains("layers") && j["layers"].is_array()) {
         for (const auto& L : j["layers"]) {
@@ -1127,6 +1178,17 @@ int main() {
             text.setPosition(sf::Vector2f(finalX, finalY));
             
             window.draw(text);
+        }
+
+        // Draw entrance areas
+        for (const auto& area : map.entranceAreas) {
+            sf::RectangleShape rect(sf::Vector2f(area.width, area.height));
+            rect.setPosition(sf::Vector2f(area.x, area.y));
+            
+            rect.setFillColor(sf::Color(0, 100, 255, 100)); // RGBA: Translucent blue
+            rect.setOutlineThickness(0); // No outline
+            
+            window.draw(rect);
         }
 
         // Update window
