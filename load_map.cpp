@@ -127,8 +127,33 @@ struct TilesetInfo {
     int origMargin    = 0;  ///< Original margin around the source image
 
     std::string name;       ///< Name identifier for the tileset
-    std::string imagePath;  ///< File path to the tileset image texture
+    std::string imagePath;          ///< File path to the tileset image texture (relative to TMJ)
+    std::string originalImagePath;  ///< Original image path from TMJ (for debugging)
     sf::Texture texture;    ///< SFML texture (extruded version or original if extrusion failed)
+};
+
+
+/**
+ * TextObject represents a text object from TMJ object layers
+ */
+struct TextObject {
+    std::string text;             ///< Text content
+
+    float x = 0.f;                ///< X position in pixels
+    float y = 0.f;                ///< Y position in pixels
+
+    float width = 0.f;            ///< Bounding box width
+    float height = 0.f;           ///< Bounding box height
+
+    unsigned int fontSize = 12;   ///< Font size
+    std::string fontFamily;       ///< Font family name
+    sf::Color color = sf::Color::Black;  ///< Text color
+
+    bool bold = true;             ///< Bold style
+    bool italic = false;          ///< Italic style
+
+    std::string halign = "left";  ///< Horizontal align: "left", "center", "right"
+    std::string valign = "top";   ///< Vertical align: "top", "center", "bottom"
 };
 
 
@@ -145,8 +170,9 @@ struct TMJMap {
     int tileWidth      = 0;       ///< Single tile world grid width in pixels
     int tileHeight     = 0;       ///< Single tile world grid height in pixels
 
-    std::vector<TilesetInfo> tilesets;  ///< Collection of tilesets used by this map
-    std::vector<sf::Sprite>  tiles;     ///< All visible layer tiles converted to sprites in render order
+    std::vector<TilesetInfo> tilesets;     ///< Collection of tilesets used by this map
+    std::vector<sf::Sprite>  tiles;        ///< All visible layer tiles converted to sprites in render order
+    std::vector<TextObject>  textObjects;  ///< Text objects from object layers
 
     // Spawn point in pixel coordinates (origin at top-left corner)
     std::optional<float> spawnX;  ///< X-coordinate of player spawn point (pixels from left)
@@ -467,6 +493,11 @@ static bool loadTMJ(const std::string& path, TMJMap& map, int extrude = 1) {
         return false; 
     }
 
+    // Get the directory of the TMJ file
+    std::filesystem::path tmjPath(path);
+    std::filesystem::path tmjDir = tmjPath.parent_path();
+    std::cout << "[loader] TMJ directory: " << tmjDir.string() << std::endl;
+
     json j;
     try { 
         in >> j; 
@@ -516,8 +547,20 @@ static bool loadTMJ(const std::string& path, TMJMap& map, int extrude = 1) {
 
         ts.firstGid  = *fg;
         ts.name      = tsj.value("name", std::string("tileset"));
-        ts.imagePath = (tsj.contains("image") && tsj["image"].is_string()) 
+        ts.originalImagePath = (tsj.contains("image") && tsj["image"].is_string()) 
                     ? tsj["image"].get<std::string>() : "";
+        
+        // Construct the full path of the image
+        if (!ts.originalImagePath.empty()) {
+            std::filesystem::path imageRelativePath(ts.originalImagePath);
+            std::filesystem::path fullImagePath = tmjDir / imageRelativePath;
+            ts.imagePath = fullImagePath.string();
+            
+            std::cout << "[loader] Image path - Original: " << ts.originalImagePath 
+                      << ", Full: " << ts.imagePath << std::endl;
+        } else {
+            ts.imagePath = "";
+        }
 
         // Store original tileset parameters
         ts.origTileW   = tsj.value("tilewidth",  map.tileWidth);
@@ -537,6 +580,7 @@ static bool loadTMJ(const std::string& path, TMJMap& map, int extrude = 1) {
 
         // Load original tileset texture
         sf::Texture original;
+
         if (!original.loadFromFile(ts.imagePath)) {
             std::cerr << "[loader] load image failed: " << ts.imagePath << "\n";
             map.tilesets.push_back(std::move(ts));
@@ -700,6 +744,84 @@ static bool loadTMJ(const std::string& path, TMJMap& map, int extrude = 1) {
 
         std::cerr << "[layer] '" << lname << "' painted=" << painted
                   << " offset=(" << offx << "," << offy << ") opacity=" << opacity << "\n";
+    }
+
+    // Process text objects
+    map.textObjects.clear();
+
+    // Search text objects in object layers
+    for (const auto& L : j["layers"]) {
+        if (!L.contains("type") || !L["type"].is_string() || L["type"] != "objectgroup") 
+            continue;
+            
+        std::string layerName = L.contains("name") && L["name"].is_string()
+                              ? L["name"].get<std::string>() : "objectgroup";
+
+        // Display text objects across all object layers
+        // or specify a particular layer (such as building_names).
+        bool shouldDisplayText = (layerName == "building_names") || 
+                               (layerName.find("text") != std::string::npos) ||
+                               (layerName.find("name") != std::string::npos);
+
+        if (L.contains("objects") && L["objects"].is_array() && shouldDisplayText) {
+            for (const auto& obj : L["objects"]) {
+                if (!obj.is_object()) continue;
+
+                TextObject textObj;
+                
+                textObj.x = obj.value("x", 0.f);
+                textObj.y = obj.value("y", 0.f);
+                textObj.width = obj.value("width", 0.f);
+                textObj.height = obj.value("height", 0.f);
+
+                if (obj.contains("text") && obj["text"].is_object()) {
+                    const auto& textData = obj["text"];
+
+                    // Basic properties
+                    textObj.text = textData.value("text", "");
+                    textObj.fontSize = textData.value("pixelsize", 16u);
+                    textObj.bold = textData.value("bold", false);
+                    textObj.italic = textData.value("italic", false);
+                    
+                    // Align type
+                    if (textData.contains("halign") && textData["halign"].is_string()) {
+                        textObj.halign = textData["halign"].get<std::string>();
+                    }
+                    if (textData.contains("valign") && textData["valign"].is_string()) {
+                        textObj.valign = textData["valign"].get<std::string>();
+                    }
+
+                    // Process colors
+                    if (textData.contains("color") && textData["color"].is_string()) {
+                        std::string colorStr = textData["color"].get<std::string>();
+                        if (colorStr.length() == 7 && colorStr[0] == '#') {
+                            try {
+                                int r = std::stoi(colorStr.substr(1, 2), nullptr, 16);
+                                int g = std::stoi(colorStr.substr(3, 2), nullptr, 16);
+                                int b = std::stoi(colorStr.substr(5, 2), nullptr, 16);
+                                textObj.color = sf::Color(r, g, b);
+                            } catch (...) {
+                                textObj.color = sf::Color::White;
+                            }
+                        }
+                    }
+                }
+
+                // Compatible with older formats: Text is directly used as a string attribute
+                else if (obj.contains("text") && obj["text"].is_string()) {
+                    textObj.text = obj["text"].get<std::string>();
+                    textObj.fontSize = 16; // 默认大小
+                    textObj.color = sf::Color::White;
+                }
+                
+                // If text contents exit, record them.
+                if (!textObj.text.empty()) {
+                    map.textObjects.push_back(textObj);
+                    std::cerr << "[text] Loaded text: '" << textObj.text 
+                              << "' at (" << textObj.x << "," << textObj.y << ")\n";
+                }
+            }
+        }
     }
 
     // Search object layers for protagonist spawn point
@@ -955,11 +1077,61 @@ int main() {
         // Rendering
         window.clear(sf::Color::Black);    ///< Clear to black background
         window.setView(view);              ///< Apply current view
+
         for (const auto& s : map.tiles) {  ///< Draw all map tiles
             window.draw(s);
         }
-        window.display();                  ///< Update window
+
+        // Draw text objects
+        for (const auto& textObj : map.textObjects) {
+            const sf::Font font("font/calibri.ttf");
+            
+            sf::Text text(font, textObj.text, textObj.fontSize);
+
+            text.setFillColor(textObj.color);
+            
+            if (textObj.bold) text.setStyle(sf::Text::Bold);
+            if (textObj.italic) text.setStyle(sf::Text::Italic);
+
+            // Compute the boundaries for aligning
+            sf::FloatRect textBounds = text.getLocalBounds();
+            float textWidth = textBounds.size.x;
+            float textHeight = textBounds.size.y;
+
+            // Compute the position considering aligning method
+            float finalX = textObj.x;
+            float finalY = textObj.y;
+
+            // Horizontal align
+            if (textObj.halign == "center") {
+                finalX += textObj.width * 0.5f;
+                text.setOrigin(sf::Vector2f{textWidth * 0.5f, 0});
+            } else if (textObj.halign == "right") {
+                finalX += textObj.width;
+                text.setOrigin(sf::Vector2f{textWidth, 0});
+            } else {
+                text.setOrigin(sf::Vector2f{0, 0});
+            }
+
+            // Vertical align
+            if (textObj.valign == "center") {
+                finalY += textObj.height * 0.5f;
+                text.setOrigin(sf::Vector2f{text.getOrigin().x, textHeight * 0.5f});
+            } else if (textObj.valign == "bottom") {
+                finalY += textObj.height;
+                text.setOrigin(sf::Vector2f{text.getOrigin().x, textHeight});
+            } else {
+                text.setOrigin(sf::Vector2f{text.getOrigin().x, 0});
+            }
+            
+            text.setPosition(sf::Vector2f(finalX, finalY));
+            
+            window.draw(text);
+        }
+
+        // Update window
+        window.display();
     }
 
-    return 0;                              ///< Successful exit
+    return 0;
 }
