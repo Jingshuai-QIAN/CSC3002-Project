@@ -1,0 +1,133 @@
+// TMJMap.h
+#pragma once
+
+// Map object lightweight types (TextObject, EntranceArea, BlockPoly).
+#include "MapObjects.h"
+
+// SFML types for sprites and images.
+#include <SFML/Graphics.hpp>
+
+// JSON is used by the implementation; included here for convenience in signatures.
+#include <nlohmann/json.hpp>
+#include <vector>
+#include <string>
+#include <optional>
+#include <memory>
+
+// Forward declaration for tileset manager used by TMJ loading logic.
+class TileSetManager;
+
+/**
+ * @struct TilesetInfo
+ * @brief Container for tileset metadata and the associated extruded texture.
+ *
+ * The texture field owns the SFML texture used to draw tiles from this set.
+ */
+struct TilesetInfo {
+    int firstGid = 1;   // first global tile id in this tileset
+    int tileCount = 0;  // number of tiles in the source tileset
+    int columns = 0;    // number of columns in the tileset image
+
+    // Effective tile dimensions in the texture after extrusion.
+    int tileWidth = 0;
+    int tileHeight = 0;
+    int spacing = 0;
+    int margin = 0;
+
+    // Original (source) tileset parameters from TMJ.
+    int origTileW = 0;
+    int origTileH = 0;
+    int origSpacing = 0;
+    int origMargin = 0;
+
+    std::string name;
+    std::string imagePath;
+    sf::Texture texture; // owned texture (extruded or original)
+};
+
+/**
+ * @class TMJMap
+ * @brief Represents a fully loaded TMJ map including tiles and object layers.
+ *
+ * Responsibilities:
+ * - Parse a TMJ JSON file and load tileset textures (with extrusion).
+ * - Provide accessors for tiles, text objects, entrance areas and spawn point.
+ * - Store NotWalkable regions (rectangles and polygons) and answer feet-block queries.
+ *
+ * Notes:
+ * - The class stores SFML sprites referencing internal textures; ensure the
+ *   TMJMap instance outlives any sprite rendering usage.
+ */
+class TMJMap {
+public:
+    bool loadFromFile(
+        const std::string& filepath, 
+        int extrude = 1
+    );
+    void cleanup();
+    
+    // Getters
+    int getMapWidthTiles() const { return mapWidthTiles; }
+    int getMapHeightTiles() const { return mapHeightTiles; }
+    int getTileWidth() const { return tileWidth; }
+    int getTileHeight() const { return tileHeight; }
+    int getWorldPixelWidth() const { return mapWidthTiles * tileWidth; }
+    int getWorldPixelHeight() const { return mapHeightTiles * tileHeight; }
+    
+    const std::vector<sf::Sprite>& getTiles() const { return tiles; }
+    const std::vector<TextObject>& getTextObjects() const { return textObjects; }
+    const std::vector<EntranceArea>& getEntranceAreas() const { return entranceAreas; }
+    const std::optional<float>& getSpawnX() const { return spawnX; }
+    const std::optional<float>& getSpawnY() const { return spawnY; }
+    
+    void setSpawnPoint(float x, float y) { spawnX = x; spawnY = y; }
+    
+    // Collision query: check whether a feet point is blocked by NotWalkable regions
+    bool feetBlockedAt(const sf::Vector2f& feet) const;
+
+private:
+    bool parseMapData(
+        const nlohmann::json& j, 
+        const std::string& baseDir, 
+        int extrude
+    );
+
+    bool loadTilesets(
+        const nlohmann::json& tilesetsData, 
+        const std::string& baseDir, 
+        int extrude
+    );
+
+    bool makeExtrudedTexture(
+        const sf::Image& src, 
+        int srcTileW, 
+        int srcTileH,
+        int columns, 
+        int spacing, 
+        int margin, 
+        int extrude, 
+        sf::Texture& outTex
+    );
+
+    void parseObjectLayers(const nlohmann::json& layers);
+    
+    TilesetInfo* findTilesetForGid(int gid);
+    
+private:
+    int mapWidthTiles = 0;
+    int mapHeightTiles = 0;
+    int tileWidth = 0;
+    int tileHeight = 0;
+    
+    std::vector<TilesetInfo> tilesets;
+    std::vector<sf::Sprite> tiles;
+    std::vector<TextObject> textObjects;
+    std::vector<EntranceArea> entranceAreas;
+    
+    // Not-walkable regions parsed from object layers
+    std::vector<sf::FloatRect> notWalkRects; // rectangle blocking regions
+    std::vector<BlockPoly>     notWalkPolys; // polygonal blocking regions
+    
+    std::optional<float> spawnX;
+    std::optional<float> spawnY;
+};
