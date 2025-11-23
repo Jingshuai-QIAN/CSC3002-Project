@@ -1,0 +1,14 @@
+{
+    "texturePath": "tiles/F_01.png",
+    "frameWidth": 16,
+    "frameHeight": 16,
+    "directionColumns": 4,
+    "frameRows": 3,
+    "rowSpacing": 1,
+    "directionMapping": [0, 3, 1, 2],
+    "moveSpeed": 75.0,
+    "animationInterval": 0.15,
+    "scale": 1.0,
+    "collisionOffsetX": 0.0,
+    "collisionOffsetY": 0.0
+}

@@ -1,0 +1,20 @@
+{
+    "clearColor": {
+        "r": 0.1,
+        "g": 0.1,
+        "b": 0.1,
+        "a": 1.0
+    },
+    "text": {
+        "fontPath": "./fonts/arial.ttf",
+        "fontSize": 16,
+        "textColor": "#D8DEE9",
+        "borderColor": "#88C0D0",
+        "borderWidth": 1.0
+    },
+    "tileRendering": {
+        "enableBlending": true,
+        "enableSorting": true,
+        "batchSize": 1000
+    }
+}

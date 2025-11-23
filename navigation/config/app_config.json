@@ -1,0 +1,39 @@
+{
+    "window": {
+        "width": 1200,
+        "height": 800,
+        "title": "Daily Life in CUHKSZ",
+        "fullscreen": false,
+        "resizable": true
+    },
+    "paths": {
+        "mapsDirectory": "./maps/",
+        "tilesDirectory": "./tiles/",
+        "configDirectory": "./config/",
+        "defaultMap": "lower_campus_map.tmj"
+    },
+    "logging": {
+        "level": "info",
+        "fileLogging": false,
+        "logFile": "game.log"
+    },
+    "colors": {
+        "background": "#2E3440",
+        "text": "#D8DEE9",
+        "highlight": "#88C0D0",
+        "warning": "#EBCB8B",
+        "error": "#BF616A"
+    },
+    "performance": {
+        "targetFPS": 60,
+        "vsync": true,
+        "textureFilter": 1
+    },
+    "mapDisplay": {
+        "tilesWidth": 60,
+        "tilesHeight": 40,
+        "defaultZoom": 1.0,
+        "minZoom": 0.5,
+        "maxZoom": 3.0
+    }
+}
