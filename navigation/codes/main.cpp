@@ -28,15 +28,20 @@
  */
 void clampViewToBounds(sf::View& view, int mapWidth, int mapHeight) {
     sf::Vector2f center = view.getCenter();
-    sf::Vector2f size = view.getSize();
+    sf::Vector2f size   = view.getSize();
+    sf::Vector2f half   = { size.x * 0.5f, size.y * 0.5f };
 
-    float minX = size.x * 0.5f;
-    float maxX = mapWidth - size.x * 0.5f;
-    float minY = size.y * 0.5f;
-    float maxY = mapHeight - size.y * 0.5f;
+    if (size.x >= static_cast<float>(mapWidth)) {
+        center.x = std::max(0.f, float(mapWidth) * 0.5f);
+    } else {
+        center.x = std::clamp(center.x, half.x, float(mapWidth) - half.x);
+    }
 
-    center.x = std::clamp(center.x, minX, maxX);
-    center.y = std::clamp(center.y, minY, maxY);
+    if (size.y >= static_cast<float>(mapHeight)) {
+        center.y = std::max(0.f, float(mapHeight) * 0.5f);
+    } else {
+        center.y = std::clamp(center.y, half.y, float(mapHeight) - half.y);
+    }
 
     view.setCenter(center);
 }
