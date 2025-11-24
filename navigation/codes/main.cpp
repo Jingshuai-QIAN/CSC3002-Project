@@ -7,6 +7,7 @@
 #include "Character/Character.h"
 #include "Input/InputManager.h"
 #include "Utils/Logger.h"
+#include "Renderer/TextRenderer.h"
 
 /**
  * @file main.cpp
@@ -124,6 +125,8 @@ int main() {
 
     // Set renderer view
     renderer.setView(view);
+    // configure map button from app config
+    renderer.setMapButtonConfig(configManager.getAppConfig().mapButton);
 
     Logger::info("Map pixel dimensions: " + 
              std::to_string(tmjMap->getWorldPixelWidth()) + "x" + 
@@ -163,6 +166,149 @@ int main() {
                         tmjMap->getWorldPixelWidth(), 
                         tmjMap->getWorldPixelHeight(),
                         tmjMap.get());
+
+        // Detect map button click (edge detect)
+        static bool prevMousePressed = false;
+        bool currMousePressed = sf::Mouse::isButtonPressed(sf::Mouse::Button::Left);
+
+        if (currMousePressed && !prevMousePressed) {
+            // new click
+            sf::Vector2i mpos = renderer.getMousePosition();
+
+            if (renderer.mapButtonContainsPoint(mpos)) {
+                // open modal fullscreen map window
+                // create fullscreen window
+                auto dm = sf::VideoMode::getDesktopMode();
+                sf::RenderWindow mapWin(dm, sf::String("Full Map"), sf::State::Windowed);
+                mapWin.setFramerateLimit(60);
+
+                // prepare a view that covers the whole map in world coords
+                int mapW = tmjMap->getWorldPixelWidth();
+                int mapH = tmjMap->getWorldPixelHeight();
+
+                // Desktop/window size
+                float winW = static_cast<float>(dm.size.x);
+                float winH = static_cast<float>(dm.size.y);
+
+                float mapWf = static_cast<float>(mapW);
+                float mapHf = static_cast<float>(mapH);
+
+                // Compute uniform scale to preserve tile aspect ratio
+                float scale = 1.f;
+                if (mapW > 0 && mapH > 0) scale = std::min(winW / mapWf, winH / mapHf);
+
+                float displayW = mapWf * scale;
+                float displayH = mapHf * scale;
+
+                // Normalized viewport (left, top, width, height) in [0,1]
+                float left = (winW - displayW) * 0.5f / winW;
+                float top  = (winH - displayH) * 0.5f / winH;
+                float vw   = (displayW / winW);
+                float vh   = (displayH / winH);
+
+                sf::View fullView(sf::FloatRect({0.f, 0.f}, {mapWf, mapHf}));
+                fullView.setViewport(sf::FloatRect({left, top}, {vw, vh}));
+                mapWin.setView(fullView);
+
+                // create a local TextRenderer to draw map text using same font path
+                TextRenderer tr;
+                tr.initialize(configManager.getRenderConfig().text.fontPath);
+
+                // interactive fullscreen modal: support zoom (mouse wheel) and drag (left button)
+                float zoomFactor = 1.f; // 1.0 = no zoom (initial fit)
+                const float ZOOM_MIN = 0.25f;
+                const float ZOOM_MAX = 8.0f;
+
+                bool dragging = false;
+                sf::Vector2i prevDragPixel{0,0};
+
+                // view variable initialized from fullView (keeps viewport)
+                sf::View view = fullView;
+
+                while (mapWin.isOpen()) {
+                    while (auto ev = mapWin.pollEvent()) {
+                        if (ev->is<sf::Event::Closed>()) { mapWin.close(); break; }
+                        if (ev->is<sf::Event::KeyPressed>()) {
+                            if (ev->getIf<sf::Event::KeyPressed>()->code == sf::Keyboard::Key::Escape) {
+                                mapWin.close(); break;
+                            }
+                        }
+
+                        if (ev->is<sf::Event::MouseWheelScrolled>()) {
+                            // mouse wheel zoom: positive -> zoom in
+                            auto mw = ev->getIf<sf::Event::MouseWheelScrolled>();
+                            if (mw) {
+                                // Get mouse wheel delta
+                                float delta = mw->delta;
+                                // Zoom in/out based on mouse wheel delta
+                                if (delta > 0) zoomFactor *= 1.1f;
+                                else if (delta < 0) zoomFactor /= 1.1f;
+
+                                // Clamp zoom factor between min and max
+                                zoomFactor = std::clamp(zoomFactor, ZOOM_MIN, ZOOM_MAX);
+                                // Update view size to match new zoom factor
+                                view.setSize(sf::Vector2f{
+                                    mapWf / zoomFactor,
+                                    mapHf / zoomFactor
+                                });
+                                // Update viewport to match new zoom factor
+                                view.setViewport(sf::FloatRect({left, top}, {vw, vh}));
+                                // Update viewport to match new zoom factor
+                                mapWin.setView(view);
+                            }
+                        }
+
+                        if (ev->is<sf::Event::MouseButtonPressed>()) {
+                            auto mb = ev->getIf<sf::Event::MouseButtonPressed>();
+                            if (mb && mb->button == sf::Mouse::Button::Left) {
+                                dragging = true;
+                                prevDragPixel = mb->position;
+                            }
+                        }
+                        if (ev->is<sf::Event::MouseButtonReleased>()) {
+                            auto mr = ev->getIf<sf::Event::MouseButtonReleased>();
+                            if (mr && mr->button == sf::Mouse::Button::Left) {
+                                dragging = false;
+                            }
+                        }
+                        if (ev->is<sf::Event::MouseMoved>()) {
+                            auto mm = ev->getIf<sf::Event::MouseMoved>();
+                            if (mm && dragging) {
+                                sf::Vector2i curPixel = mm->position;
+                                // convert pixel movement to world movement
+                                sf::Vector2f prevWorld = mapWin.mapPixelToCoords(prevDragPixel);
+                                sf::Vector2f curWorld  = mapWin.mapPixelToCoords(curPixel);
+                                sf::Vector2f diff = prevWorld - curWorld;
+                                view.setCenter(view.getCenter() + diff);
+                                mapWin.setView(view);
+                                prevDragPixel = curPixel;
+                            }
+                        }
+                    } // events
+
+                    if (!mapWin.isOpen()) break;
+
+                    mapWin.clear(sf::Color::Black);
+                    // draw all map tiles (TMJMap holds sprites positioned in world coords)
+                    for (const auto& s : tmjMap->getTiles()) mapWin.draw(s);
+                    // draw entrance areas
+                    for (const auto& a : tmjMap->getEntranceAreas()) {
+                        sf::RectangleShape rect(sf::Vector2f(a.width, a.height));
+                        rect.setPosition(sf::Vector2f(a.x, a.y));
+                        rect.setFillColor(sf::Color(0, 100, 255, 120));
+                        rect.setOutlineThickness(0);
+                        mapWin.draw(rect);
+                    }
+                    // draw text objects if font loaded
+                    if (tr.isFontLoaded()) {
+                        tr.renderTextObjects(tmjMap->getTextObjects(), mapWin);
+                    }
+
+                    mapWin.display();
+                } // modal window loop
+            }
+        }
+        prevMousePressed = currMousePressed;
 
         // Camera follow character
         view.setCenter(character.getPosition());
@@ -205,6 +351,7 @@ int main() {
         renderer.renderTextObjects(tmjMap->getTextObjects());
         renderer.renderEntranceAreas(tmjMap->getEntranceAreas());
         renderer.drawSprite(character.getSprite());
+        renderer.drawMapButton();
         
         renderer.present();
     }
