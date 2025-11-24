@@ -130,7 +130,12 @@ bool Renderer::initialize(
     if (!textRenderer->initialize(renderConfig.text.fontPath)) {
         Logger::warn("Failed to initialize text renderer, building names will not be displayed");
     }
-    
+    // Also load a UI font for button rendering (fallback to same font)
+    uiFont = std::make_unique<sf::Font>();
+    if (!uiFont->openFromFile(renderConfig.text.fontPath)) {
+        Logger::warn("UI font not found at " + renderConfig.text.fontPath);
+    }
+
     return true;
     
     // Log successful initialization
@@ -172,6 +177,7 @@ void Renderer::handleEvents() {
     // Process all pending events
     while (const std::optional event = window.pollEvent())
     {
+        // Forward event handling for UI buttons could be added here if desired.
         // Handle window close event or Escape key press
         if (event->is<sf::Event::Closed>() ||
             (event->is<sf::Event::KeyPressed>() &&
@@ -244,6 +250,7 @@ void Renderer::clear() {
     
     // Get clear color from configuration and convert to SFML color
     const auto& clearColor = currentRenderConfig.clearColor;
+
     window.clear(sf::Color(
         static_cast<uint8_t>(clearColor.r * 255),
         static_cast<uint8_t>(clearColor.g * 255),
@@ -261,6 +268,137 @@ void Renderer::present() {
     window.display();
 }
 
+// Simple helper: parse "#RRGGBB" or "#RRGGBBAA" into sf::Color. Returns white on parse error.
+static sf::Color colorFromHex(const std::string& s) {
+    if (s.size() != 7 && s.size() != 9) return sf::Color::White;
+
+    try {
+        int r = std::stoi(s.substr(1,2), nullptr, 16);
+        int g = std::stoi(s.substr(3,2), nullptr, 16);
+        int b = std::stoi(s.substr(5,2), nullptr, 16);
+        int a = 255;
+
+        if (s.size() == 9) a = std::stoi(s.substr(7,2), nullptr, 16);
+
+        return sf::Color(
+            static_cast<uint8_t>(r),
+            static_cast<uint8_t>(g),
+            static_cast<uint8_t>(b),
+            static_cast<uint8_t>(a)
+        );
+    } catch (...) {
+        return sf::Color::White;
+    }
+}
+
+void Renderer::setMapButtonConfig(const AppConfig::MapButton& cfg) {
+    mapButtonConfig = cfg;
+}
+
+bool Renderer::mapButtonContainsPoint(const sf::Vector2i& mousePos) const {
+    if (!mapButtonConfig.enabled) return false;
+
+    sf::Vector2u ws = getWindowSize();
+    int px = mapButtonConfig.x;
+
+    if (mapButtonConfig.anchorRight && px < 0) {
+        px = static_cast<int>(ws.x) + px - mapButtonConfig.width;
+    }
+
+    int py = mapButtonConfig.y;
+    int left = px;
+    int top = py;
+    int right = left + mapButtonConfig.width;
+    int bottom = top + mapButtonConfig.height;
+
+    return (
+        mousePos.x >= left && 
+        mousePos.x <= right && 
+        mousePos.y >= top && 
+        mousePos.y <= bottom
+    );
+}
+
+void Renderer::drawMapButton() {
+    if (!mapButtonConfig.enabled || !window.isOpen()) return;
+
+    sf::Vector2u ws = getWindowSize();
+    int px = mapButtonConfig.x;
+
+    if (mapButtonConfig.anchorRight && px < 0) {
+        px = static_cast<int>(ws.x) + px - mapButtonConfig.width;
+    }
+
+    int py = mapButtonConfig.y;
+
+    // Draw in window (screen) coordinates: switch to default view temporarily.
+    sf::View prevView = window.getView();
+    window.setView(window.getDefaultView());
+
+    sf::RectangleShape rect(sf::Vector2f(
+        static_cast<float>(mapButtonConfig.width),
+        static_cast<float>(mapButtonConfig.height)
+    ));
+
+    rect.setPosition(sf::Vector2f(
+        static_cast<float>(px), 
+        static_cast<float>(py)
+    ));
+
+    // hover detection
+    sf::Vector2i mpos = sf::Mouse::getPosition(window);
+    bool hover = mapButtonContainsPoint(mpos);
+
+    rect.setFillColor(
+        hover ? 
+        colorFromHex(mapButtonConfig.hoverColor) : 
+        colorFromHex(mapButtonConfig.bgColor)
+    );
+    rect.setOutlineThickness(0);
+
+    window.draw(rect);
+
+    // Draw label
+    if (uiFont && mapButtonConfig.fontSize > 0) {
+        sf::Text txt(
+            *uiFont, 
+            mapButtonConfig.label, 
+            mapButtonConfig.fontSize
+        );
+        txt.setFillColor(colorFromHex(mapButtonConfig.textColor));
+
+        // center text inside button
+        sf::FloatRect local = txt.getLocalBounds();
+
+        sf::Vector2f localPos = local.position;
+        float localLeft = localPos.x;
+        float localTop = localPos.y;
+
+        sf::Vector2f localSize = local.size;
+        float localWidth = localSize.x;
+        float localHeight = localSize.y;
+
+        txt.setOrigin(sf::Vector2f(
+            localLeft + localWidth*0.5f, 
+            localTop + localHeight*0.5f
+        ));
+        
+        txt.setPosition(sf::Vector2f(
+            static_cast<float>(px) + mapButtonConfig.width*0.5f,
+            static_cast<float>(py) + mapButtonConfig.height*0.5f
+        ));
+
+        window.draw(txt);
+    }
+
+    // restore previous view
+    window.setView(prevView);
+}
+
+sf::Vector2i Renderer::getMousePosition() const {
+    if (!window.isOpen()) return {0,0};
+    return sf::Mouse::getPosition(window);
+}
 
 /**
  * Loads a texture from file and returns a pointer to it.

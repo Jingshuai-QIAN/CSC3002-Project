@@ -207,6 +207,27 @@ public:
      * @brief Renders entrance areas as semi-transparent rectangles
      */
     void renderEntranceAreas(const std::vector<EntranceArea>& areas);
+    
+    /**
+     * @brief Configure the on-screen map button using AppConfig::MapButton settings.
+     */
+    void setMapButtonConfig(const AppConfig::MapButton& cfg);
+
+    /**
+     * @brief Draw the configured map button in screen coordinates (HUD).
+     */
+    void drawMapButton();
+
+    /**
+     * @brief Test whether a given mouse position (window coords) is inside the map button.
+     */
+    bool mapButtonContainsPoint(const sf::Vector2i& mousePos) const;
+    
+    /**
+     * @brief Get current mouse position relative to the renderer window.
+     * @return Position in window coordinates.
+     */
+    sf::Vector2i getMousePosition() const;
 
 private:
     // Flag indicating whether the renderer is currently running
@@ -221,4 +242,6 @@ private:
     sf::View view;
     std::vector<std::unique_ptr<sf::Texture>> loadedTextures;
     std::unique_ptr<TextRenderer> textRenderer;
+    std::unique_ptr<sf::Font> uiFont;                // font used for UI (map button)
+    AppConfig::MapButton mapButtonConfig;            // active button configuration
 };
