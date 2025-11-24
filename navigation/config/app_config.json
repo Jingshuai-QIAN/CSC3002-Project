@@ -35,5 +35,20 @@
         "defaultZoom": 1.0,
         "minZoom": 0.5,
         "maxZoom": 3.0
+    },
+    "ui": {
+        "mapButton": {
+            "enabled": true,
+            "label": "Map",
+            "x": -90,
+            "y": 10,
+            "width": 80,
+            "height": 50,
+            "bgColor": "#000000",
+            "hoverColor": "#333333",
+            "textColor": "#FFFFFF",
+            "fontSize": 20,
+            "anchorRight": true
+        }
     }
 }
