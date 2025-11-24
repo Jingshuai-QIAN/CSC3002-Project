@@ -90,6 +90,23 @@ struct AppConfig {
         float minZoom = 0.5f;     // Minimum zoom level
         float maxZoom = 3.0f;     // Maximum zoom level
     } mapDisplay;
+    
+    /**
+     * UI configuration for small on-screen controls such as the map button.
+     */
+    struct MapButton {
+        bool enabled = false;
+        std::string label = "Map";
+        int x = -90;
+        int y = 10;
+        int width = 80;
+        int height = 30;
+        std::string bgColor = "#333333";
+        std::string hoverColor = "#444444";
+        std::string textColor = "#FFFFFF";
+        int fontSize = 14;
+        bool anchorRight = true;
+    } mapButton;
 };
 
 

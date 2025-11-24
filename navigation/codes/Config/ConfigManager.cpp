@@ -283,6 +283,25 @@ void ConfigManager::jsonToAppConfig(const json& j, AppConfig& config) {
             config.mapDisplay.maxZoom = mapDisplay["maxZoom"];
         }
     }
+
+    // Parse UI settings (map button)
+    if (j.contains("ui") && j["ui"].is_object()) {
+        const auto& ui = j["ui"];
+        if (ui.contains("mapButton") && ui["mapButton"].is_object()) {
+            const auto& mb = ui["mapButton"];
+            if (mb.contains("enabled")) config.mapButton.enabled = mb["enabled"];
+            if (mb.contains("label")) config.mapButton.label = mb["label"];
+            if (mb.contains("x")) config.mapButton.x = mb["x"];
+            if (mb.contains("y")) config.mapButton.y = mb["y"];
+            if (mb.contains("width")) config.mapButton.width = mb["width"];
+            if (mb.contains("height")) config.mapButton.height = mb["height"];
+            if (mb.contains("bgColor")) config.mapButton.bgColor = mb["bgColor"];
+            if (mb.contains("hoverColor")) config.mapButton.hoverColor = mb["hoverColor"];
+            if (mb.contains("textColor")) config.mapButton.textColor = mb["textColor"];
+            if (mb.contains("fontSize")) config.mapButton.fontSize = mb["fontSize"];
+            if (mb.contains("anchorRight")) config.mapButton.anchorRight = mb["anchorRight"];
+        }
+    }
 }
 
 
@@ -338,6 +357,21 @@ void ConfigManager::appConfigToJson(const AppConfig& config, json& j) {
     j["mapDisplay"]["defaultZoom"] = config.mapDisplay.defaultZoom;
     j["mapDisplay"]["minZoom"] = config.mapDisplay.minZoom;
     j["mapDisplay"]["maxZoom"] = config.mapDisplay.maxZoom;
+
+    // Add UI settings (map button)
+    j["ui"]["mapButton"] = {
+        {"enabled", config.mapButton.enabled},
+        {"label", config.mapButton.label},
+        {"x", config.mapButton.x},
+        {"y", config.mapButton.y},
+        {"width", config.mapButton.width},
+        {"height", config.mapButton.height},
+        {"bgColor", config.mapButton.bgColor},
+        {"hoverColor", config.mapButton.hoverColor},
+        {"textColor", config.mapButton.textColor},
+        {"fontSize", config.mapButton.fontSize},
+        {"anchorRight", config.mapButton.anchorRight}
+    };
 }
 
 
