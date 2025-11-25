@@ -6,17 +6,24 @@
 ### Compile for the first time
 
 ```bash
+# Go to the program's root folder
 cd path_to_navigation_folder
+# Compile the program (for the first time)
 make
+# Run the program
 ./codes/main.exe
 ```
 
-### Compile again
+### Re-compile
 
 ```bash
+# Go to the program's root folder
 cd path_to_navigation_folder
+# Remove all generated build artifacts
 make clean
+# Re-compile the program
 make VERBOSE=1
+# Run the program
 ./codes/main.exe
 ```
 
