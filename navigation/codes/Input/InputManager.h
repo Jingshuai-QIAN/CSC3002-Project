@@ -4,9 +4,9 @@
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
 
-/**
- * @file InputManager.h
- * @brief Singleton that samples keyboard state and translates it into game input.
+/*
+ * File: InputManager.h
+ * Description: Singleton that samples keyboard state and translates it into game input.
  *
  * The InputManager polls SFML keyboard state each frame and stores the current
  * and previous states of all keys. It provides helpers to query movement input

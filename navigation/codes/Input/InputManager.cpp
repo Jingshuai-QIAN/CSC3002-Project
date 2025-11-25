@@ -2,13 +2,13 @@
 #include "InputManager.h"
 #include <algorithm>
 
-/**
- * @file InputManager.cpp
- * @brief Implementation of a lightweight input sampling singleton.
+/*
+ * File: InputManager.cpp
+ * Description: Implementation of a lightweight input sampling singleton.
  *
- * The InputManager polls sf::Keyboard state each frame and stores a boolean
- * vector for current and previous frames. It provides helpers for movement
- * input (WASD/arrow) and for testing key press events.
+ * The InputManager polls sf::Keyboard state each frame and stores boolean
+ * vectors for current and previous frames. It provides helpers for movement
+ * input (WASD/arrow) and for detecting just-pressed key events.
  */
 
 InputManager& InputManager::getInstance() {
