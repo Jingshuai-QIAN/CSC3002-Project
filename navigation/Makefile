@@ -10,6 +10,7 @@ LDFLAGS := -LC:/msys64/mingw64/lib -lsfml-graphics -lsfml-window -lsfml-system  
 # =======================
 SOURCES = codes/main.cpp \
           codes/Config/ConfigManager.cpp \
+          codes/App.cpp \
           codes/Renderer/Renderer.cpp \
           codes/Renderer/TextRenderer.cpp \
           codes/MapLoader/MapLoader.cpp \
