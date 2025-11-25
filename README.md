@@ -74,10 +74,16 @@ navigation/
 │   ├── library.tmj
 │   ├── lower_campus_map.tmj
 │   ├── shaw.tmj
-│   └── teaching_building.tmj
+│   ├── teaching_building.tmj
+│   └── spawns.json
 └── tiles/
+    ├── exterior.png
     ├── F_01.png
+    ├── free_overview.png
+    ├── Interior.png
     ├── Modern_City.png
+    ├── roguelikeIndoor_transparent.png
     ├── Small_Battle.png
-    └── tile_modern.png
+    ├── tile_modern.png
+    └── tilemap_packed.png
 ```
