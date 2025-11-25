@@ -5,9 +5,9 @@
 #include <vector>
 #include <sstream>
 
-/**
- * @file StringUtils.h
- * @brief Lightweight string helper utilities used throughout the codebase.
+/*
+ * File: StringUtils.h
+ * Description: Lightweight string helper utilities used throughout the codebase.
  *
  * The functions here are deliberately simple and avoid dependencies on
  * additional libraries. They operate on std::string and return new strings.

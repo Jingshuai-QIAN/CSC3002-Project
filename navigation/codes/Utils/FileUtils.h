@@ -3,13 +3,13 @@
 
 #include <string>
 
-/**
- * @file FileUtils.h
- * @brief Small helpers for manipulating file paths and extracting components.
+/*
+ * File: FileUtils.h
+ * Description: Small helpers for manipulating file paths and extracting components.
  *
- * This header contains only a couple of convenience functions used by the
- * configuration and resource loading code. The functions operate on strings
- * and do not perform filesystem IO.
+ * This header contains convenience functions used by the configuration and
+ * resource loading code. The functions operate on strings and do not perform
+ * filesystem IO.
  */
 class FileUtils {
 public:
