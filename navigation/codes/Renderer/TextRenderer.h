@@ -7,17 +7,15 @@
 #include <memory>
 #include "MapLoader/MapObjects.h"
 
-/**
- * @file TextRenderer.h
- * @brief Utilities for rendering MapObjects::TextObject to an SFML window.
+/*
+ * File: TextRenderer.h
+ * Description: Utilities for rendering MapObjects::TextObject to an SFML window.
  *
  * The TextRenderer wraps an SFML font and provides helper routines to create
  * styled sf::Text instances from TextObject descriptors and to draw them with
  * simple outline styling for readability on complex maps.
- */
-/**
- * @class TextRenderer
- * @brief Handles text rendering for building names and other text objects.
+ *
+ * It exposes simple initialize/cleanup and render helpers used by the app.
  */
 class TextRenderer {
 public:

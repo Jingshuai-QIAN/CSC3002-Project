@@ -18,6 +18,11 @@
  * - The class keeps a small cache of textures allocated via loadTexture.
  * - Text rendering is delegated to TextRenderer.
  */
+/*
+ * Implementation details:
+ * - Uses a small helper clampViewToMap to restrict camera view to the map bounds.
+ * - Exposes simple drawing helpers used by TMJMap and higher-level app code.
+ */
 
 
 /**
@@ -56,6 +61,7 @@ namespace {
 Renderer::Renderer() : running(true) {
     textRenderer = std::make_unique<TextRenderer>();
     Logger::debug("Renderer constructor called");
+    modalActive = false;
 }
 
 
@@ -178,15 +184,21 @@ void Renderer::handleEvents() {
     while (const std::optional event = window.pollEvent())
     {
         // Forward event handling for UI buttons could be added here if desired.
-        // Handle window close event or Escape key press
-        if (event->is<sf::Event::Closed>() ||
-            (event->is<sf::Event::KeyPressed>() &&
-             event->getIf<sf::Event::KeyPressed>()->code == sf::Keyboard::Key::Escape))
-        {
-            // Stop the application and close window
-            running = false;
-            window.close();
+    // Handle window close event
+    if (event->is<sf::Event::Closed>()) {
+        // Stop the application and close window
+        running = false;
+        window.close();
+    }
+    // Handle Escape key as close only when no modal is active
+    if (!modalActive) {
+        if (event->is<sf::Event::KeyPressed>()) {
+            if (event->getIf<sf::Event::KeyPressed>()->code == sf::Keyboard::Key::Escape) {
+                running = false;
+                window.close();
+            }
         }
+    }
 
         // Handle window resize event
         if (const auto* resized = event->getIf<sf::Event::Resized>())
@@ -654,4 +666,29 @@ void Renderer::renderEntranceAreas(const std::vector<EntranceArea>& areas) {
         rect.setOutlineThickness(0);
         window.draw(rect);
     }
+}
+
+void Renderer::renderModalPrompt(const std::string& prompt, const sf::Font& font, unsigned int fontSize) {
+    if (!window.isOpen()) return;
+
+    // draw overlay using default UI view
+    sf::View prevView = window.getView();
+    window.setView(window.getDefaultView());
+
+    sf::Vector2u winSz = getWindowSize();
+    sf::RectangleShape bg(sf::Vector2f(static_cast<float>(winSz.x), static_cast<float>(winSz.y)));
+    bg.setPosition(sf::Vector2f(0.f, 0.f));
+    bg.setFillColor(sf::Color(0, 0, 0, 160));
+    window.draw(bg);
+
+    sf::Text t(font, prompt, static_cast<unsigned int>(fontSize));
+    t.setFillColor(colorFromHex(currentRenderConfig.text.textColor));
+
+    sf::FloatRect tb = t.getLocalBounds();
+    t.setOrigin(sf::Vector2f(tb.position.x + tb.size.x * 0.5f, tb.position.y + tb.size.y * 0.5f));
+    t.setPosition(sf::Vector2f(static_cast<float>(winSz.x) * 0.5f, static_cast<float>(winSz.y) * 0.5f));
+    window.draw(t);
+
+    // restore view
+    window.setView(prevView);
 }

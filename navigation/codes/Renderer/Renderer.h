@@ -14,27 +14,28 @@
 #include "MapLoader/MapObjects.h"
 #include "Renderer/TextRenderer.h"
 
-/**
- * @file Renderer.h
- * @brief High-level rendering abstraction for the application.
+/*
+ * File: Renderer.h
+ * Description: High-level rendering abstraction for the application.
  *
  * The Renderer provides window creation, event handling, and simplified
  * drawing helpers used across the engine. It owns an SFML window and a
  * TextRenderer instance used to draw building names.
  *
- * Important classes/functions:
- * - Renderer::initialize: creates the window and initializes text rendering.
- * - Renderer::drawSprite / drawText / drawRectangle: simple drawing helpers.
+ * Important functions:
+ *   - initialize: creates the window and initializes text rendering.
+ *   - drawSprite / drawText / drawRectangle: simple drawing helpers.
  *
  * Notes:
- * - The class stores textures loaded via loadTexture and returns raw pointers.
- * - For TMJMap rendering, sprites should reference textures owned by TMJMap.
+ *   - The class stores textures loaded via loadTexture and returns raw pointers.
+ *   - For TMJMap rendering, sprites should reference textures owned by TMJMap.
  */
 
 
-/**
- * @brief Handles rendering operations and graphics management.
- * 
+/*
+ * Class: Renderer
+ * Description: Handles rendering operations and graphics management.
+ *
  * The Renderer class is responsible for initializing the graphics system,
  * managing textures, and handling rendering operations for the application.
  */
@@ -209,6 +210,20 @@ public:
     void renderEntranceAreas(const std::vector<EntranceArea>& areas);
     
     /**
+     * @brief Render a simple modal prompt overlay using the UI/default view.
+     * @param prompt The text to display.
+     * @param font Font to use for rendering the prompt.
+     * @param fontSize Font size in pixels.
+     */
+    void renderModalPrompt(const std::string& prompt, const sf::Font& font, unsigned int fontSize);
+
+    /**
+     * @brief When true, renderer will ignore Escape key as "close window".
+     * Use this to prevent Escape from closing the app while a modal is active.
+     */
+    void setModalActive(bool active) { modalActive = active; }
+    
+    /**
      * @brief Configure the on-screen map button using AppConfig::MapButton settings.
      */
     void setMapButtonConfig(const AppConfig::MapButton& cfg);
@@ -232,6 +247,8 @@ public:
 private:
     // Flag indicating whether the renderer is currently running
     bool running = true;
+    // When true, ignore Escape key to close window (modal dialog active)
+    bool modalActive = false;
     // Stores the current application configuration
     AppConfig currentAppConfig;
     // Stores the current rendering configuration

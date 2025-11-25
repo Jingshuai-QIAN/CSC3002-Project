@@ -3,9 +3,9 @@
 #include "Utils/Logger.h"
 #include <filesystem>
 
-/**
- * @file TextRenderer.cpp
- * @brief Implements text rendering helpers used to draw MapObjects::TextObject.
+/*
+ * File: TextRenderer.cpp
+ * Description: Implements text rendering helpers used to draw MapObjects::TextObject.
  *
  * The TextRenderer wraps font loading and provides routines to convert
  * TextObject descriptors into styled sf::Text instances and to render them
