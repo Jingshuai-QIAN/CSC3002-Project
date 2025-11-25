@@ -45,18 +45,18 @@ struct TilesetInfo {
     sf::Texture texture; // owned texture (extruded or original)
 };
 
-/**
- * @class TMJMap
- * @brief Represents a fully loaded TMJ map including tiles and object layers.
+/*
+ * Class: TMJMap
+ * Description: Represents a fully loaded TMJ map including tiles and object layers.
  *
  * Responsibilities:
- * - Parse a TMJ JSON file and load tileset textures (with extrusion).
- * - Provide accessors for tiles, text objects, entrance areas and spawn point.
- * - Store NotWalkable regions (rectangles and polygons) and answer feet-block queries.
+ *   - Parse a TMJ JSON file and load tileset textures (with optional extrusion).
+ *   - Provide accessors for tiles, text objects, entrance areas and spawn point.
+ *   - Store NotWalkable regions (rectangles and polygons) and answer feet-block queries.
  *
  * Notes:
- * - The class stores SFML sprites referencing internal textures; ensure the
- *   TMJMap instance outlives any sprite rendering usage.
+ *   - TMJMap stores SFML sprites referencing internal textures; ensure the
+ *     TMJMap instance outlives any rendering usage that references its textures.
  */
 class TMJMap {
 public:

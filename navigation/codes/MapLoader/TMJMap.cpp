@@ -10,22 +10,22 @@
 // Alias for json library.
 using json = nlohmann::json;
 
-/**
- * @file TMJMap.cpp
- * @brief TMJ map parsing and texture management implementation.
+/*
+ * File: TMJMap.cpp
+ * Description: TMJ map parsing and texture management implementation.
  *
  * This file implements:
- * - Loading TMJ JSON maps.
- * - Building extruded textures for tilesets.
- * - Parsing tile layers and object layers including NotWalkable polygons.
+ *   - Loading TMJ JSON maps.
+ *   - Building extruded textures for tilesets.
+ *   - Parsing tile layers and object layers including NotWalkable polygons.
  *
  * Important functions/classes:
- * - TMJMap::loadFromFile: main entry point to load a TMJ map.
- * - TMJMap::parseObjectLayers: parse object layers for spawn/text/entrance/notwalkable.
+ *   - TMJMap::loadFromFile: main entry point to load a TMJ map.
+ *   - TMJMap::parseObjectLayers: parse object layers for spawn/text/entrance/notwalkable.
  *
  * Notes:
- * - Uses std::filesystem to resolve relative tileset image paths.
- * - Textures are stored inside TilesetInfo.texture and must remain alive while sprites reference them.
+ *   - Uses std::filesystem to resolve relative tileset image paths.
+ *   - Textures are stored inside TilesetInfo.texture and must remain alive while sprites reference them.
  */
 
 // Convert a string to lowercase in-place.
@@ -62,6 +62,17 @@ static bool pointInPolygon(const sf::Vector2f& p, const std::vector<sf::Vector2f
 }
 
 
+/**
+ * @brief Load a TMJ map from a JSON file and initialize internal data.
+ *
+ * This function opens the TMJ JSON file, parses its contents and initializes
+ * tilesets, tile layers and object layers. It also performs texture extrusion
+ * when requested to avoid texture bleeding.
+ *
+ * @param filepath Path to the TMJ JSON file.
+ * @param extrude Number of extruded border pixels to add for tileset textures.
+ * @return true if the map was successfully loaded; false otherwise.
+ */
 bool TMJMap::loadFromFile(
     const std::string& filepath, 
     int extrude
@@ -121,6 +132,17 @@ bool TMJMap::loadFromFile(
 }
 
 
+/**
+ * @brief Parse the top-level TMJ JSON structure into internal map data.
+ *
+ * This method extracts map dimensions, tilesets, tile layers and object
+ * layers. It delegates tileset loading and object parsing to helper methods.
+ *
+ * @param j Parsed JSON object representing the TMJ file.
+ * @param baseDir Base directory used to resolve relative tileset image paths.
+ * @param extrude Extrusion amount passed to tileset texture creation.
+ * @return true on success, false on parse or resource errors.
+ */
 bool TMJMap::parseMapData(
     const json& j, 
     const std::string& baseDir, 
@@ -257,6 +279,15 @@ bool TMJMap::parseMapData(
 }
 
 
+/**
+ * @brief Parse object layers from TMJ JSON and populate runtime object lists.
+ *
+ * This function scans object groups for spawn points, text labels, entrance
+ * areas and NotWalkable polygons, converting them into lightweight POD
+ * structures used by the renderer and gameplay systems.
+ *
+ * @param layers JSON array containing TMJ layer objects.
+ */
 void TMJMap::parseObjectLayers(const json& layers) {
     for (const auto& L : layers) {
         if (!L.contains("type") || !L["type"].is_string() || L["type"] != "objectgroup") continue;
@@ -321,17 +352,58 @@ void TMJMap::parseObjectLayers(const json& layers) {
         }
 
         // 3) entrance areas
-        if (lnameLower == "entrance") {
-            for (const auto& obj : L["objects"]) {
-                if (!obj.is_object()) continue;
-                EntranceArea a;
-                a.x = obj.value("x", 0.f);
-                a.y = obj.value("y", 0.f);
-                a.width = obj.value("width", 0.f);
-                a.height = obj.value("height", 0.f);
-                a.name = obj.value("name", "");
-                entranceAreas.push_back(std::move(a));
+        for (const auto& obj : L["objects"]) {
+            if (!obj.is_object()) continue;
+
+            bool layerIsEntrance = (lnameLower == "entrance");
+            bool objectIsEntrance = false;
+            if (obj.contains("type") && obj["type"].is_string()) {
+                std::string t = toLower(obj["type"].get<std::string>());
+                if (t == "entrance") objectIsEntrance = true;
             }
+            if (!objectIsEntrance && obj.contains("class") && obj["class"].is_string()) {
+                std::string c = toLower(obj["class"].get<std::string>());
+                if (c == "entrance") objectIsEntrance = true;
+            }
+
+            if (!layerIsEntrance && !objectIsEntrance) continue;
+
+            EntranceArea a;
+            a.x = obj.value("x", 0.f);
+            a.y = obj.value("y", 0.f);
+            a.width = obj.value("width", 0.f);
+            a.height = obj.value("height", 0.f);
+            a.name = obj.value("name", "");
+            // Read target and optional targetX/targetY from properties or top-level fields
+            a.target = "";
+            if (obj.contains("properties") && obj["properties"].is_array()) {
+                for (const auto& p : obj["properties"]) {
+                    if (!p.is_object()) continue;
+                    std::string pname = p.value("name", "");
+                    if (pname == "target" && p.contains("value") && p["value"].is_string()) {
+                        a.target = p["value"].get<std::string>();
+                    } else if (pname == "targetX" && p.contains("value") && p["value"].is_number()) {
+                        a.targetX = p["value"].get<float>();
+                    } else if (pname == "targetY" && p.contains("value") && p["value"].is_number()) {
+                        a.targetY = p["value"].get<float>();
+                    }
+                }
+            }
+            if (a.target.empty() && obj.contains("target") && obj["target"].is_string()) {
+                a.target = obj["target"].get<std::string>();
+            }
+            if (!a.targetX && obj.contains("targetX") && obj["targetX"].is_number()) a.targetX = obj["targetX"].get<float>();
+            if (!a.targetY && obj.contains("targetY") && obj["targetY"].is_number()) a.targetY = obj["targetY"].get<float>();
+
+            // Log entrance parsing at INFO level so it's visible
+            Logger::info("Parsed entrance '" + a.name + "' target='" + a.target + "'");
+            if (a.targetX && a.targetY) {
+                Logger::info("  targetX/Y = " + std::to_string(*a.targetX) + ", " + std::to_string(*a.targetY));
+            } else {
+                Logger::info("  no explicit targetX/targetY");
+            }
+
+            entranceAreas.push_back(std::move(a));
         }
 
         // 4) Parse NotWalkable layers (layer name contains "notwalkable", case-insensitive)
@@ -386,6 +458,18 @@ void TMJMap::parseObjectLayers(const json& layers) {
 }
 
 
+/**
+ * @brief Load tileset definitions and build textures (optionally extruded).
+ *
+ * For each tileset entry in the TMJ data, this loads the source image,
+ * computes columns/rows, and optionally creates an extruded texture to
+ * avoid sampling artifacts at tile borders.
+ *
+ * @param tilesetsData JSON array of tileset descriptors.
+ * @param baseDir Base directory for resolving tileset image paths.
+ * @param extrude Extrusion pixel count to add around tiles when building textures.
+ * @return true if tilesets loaded successfully; false if critical resources are missing.
+ */
 bool TMJMap::loadTilesets(
     const json& tilesetsData, 
     const std::string& baseDir, 
@@ -470,6 +554,22 @@ bool TMJMap::loadTilesets(
 }
 
 
+/**
+ * @brief Create an extruded texture image from a tileset source image.
+ *
+ * The function copies tile pixels into a destination image and duplicates
+ * edge pixels into the extrusion border so textured quads avoid bleeding.
+ *
+ * @param src Source image containing the tileset.
+ * @param srcTileW Original tile width in pixels.
+ * @param srcTileH Original tile height in pixels.
+ * @param columns Number of tile columns in the source image.
+ * @param spacing Pixel spacing between tiles in the source.
+ * @param margin Pixel margin around tiles in the source.
+ * @param extrude Number of pixels to extrude around each tile.
+ * @param outTex Output texture to populate from the generated image.
+ * @return true if the extruded texture was created successfully.
+ */
 bool TMJMap::makeExtrudedTexture(
     const sf::Image& src, 
     int srcTileW, 
@@ -669,6 +769,15 @@ bool TMJMap::makeExtrudedTexture(
 }
 
 
+/**
+ * @brief Find the tileset information that contains a given global tile ID (gid).
+ *
+ * Tileset entries encode a firstGid value; this function returns the TilesetInfo
+ * pointer for the tileset whose ID range covers the requested gid.
+ *
+ * @param gid Global tile ID to lookup.
+ * @return Pointer to matching TilesetInfo or nullptr if not found.
+ */
 TilesetInfo* TMJMap::findTilesetForGid(int gid) {
     TilesetInfo* result = nullptr;
 

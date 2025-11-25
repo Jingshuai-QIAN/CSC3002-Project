@@ -13,17 +13,17 @@
 // JSON library used by the implementation to parse tileset metadata.
 #include <nlohmann/json.hpp>
 
-/**
- * @file TileSetManager.h
- * @brief Tileset parsing and texture management interface.
+/*
+ * File: TileSetManager.h
+ * Description: Tileset parsing and texture management interface.
  *
  * The TileSetManager is responsible for parsing tileset metadata from JSON
  * and loading textures referenced by tileset definitions. Loaded textures are
  * cached and owned via shared_ptr to allow sprites to reference them safely.
  */
-/**
- * @struct TileSet
- * @brief Represents a tileset containing tile images and metadata.
+/*
+ * Struct: TileSet
+ * Description: Represents a tileset containing tile images and metadata.
  *
  * The tileset holds image dimensions, tile size and a shared texture pointer.
  */

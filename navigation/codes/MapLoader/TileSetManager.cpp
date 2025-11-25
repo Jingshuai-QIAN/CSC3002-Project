@@ -5,17 +5,17 @@
 #include <fstream>             // std::ifstream
 #include <filesystem>          // std::filesystem utilities
 
-/**
- * @file TileSetManager.cpp
- * @brief Implementation of tileset parsing and texture loading.
+/*
+ * File: TileSetManager.cpp
+ * Description: Implementation of tileset parsing and texture loading.
  *
  * Responsibilities:
- * - Parse tileset metadata from JSON arrays provided by the map loader.
- * - Load and cache SFML textures for tilesets, exposing shared_ptr accessors.
+ *   - Parse tileset metadata from JSON arrays provided by the map loader.
+ *   - Load and cache SFML textures for tilesets, exposing shared_ptr accessors.
  *
  * Notes:
- * - Textures are stored as shared_ptr in both the TileSet struct and a name-indexed cache.
- * - File system paths are resolved using std::filesystem::path.
+ *   - Textures are stored as shared_ptr in both the TileSet struct and a name-indexed cache.
+ *   - File system paths are resolved using std::filesystem::path.
  */
 bool TileSetManager::parseTileSets(const nlohmann::json& tilesetsData) {
     try {

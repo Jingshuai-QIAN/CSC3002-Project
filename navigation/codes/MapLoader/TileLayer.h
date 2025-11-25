@@ -12,19 +12,15 @@
 class Renderer;
 class TileSetManager;
 
-/**
- * @file TileLayer.h
- * @brief TileLayer represents a single tile layer read from a map file.
+/*
+ * File: TileLayer.h
+ * Description: TileLayer represents a single tile layer read from a map file.
  *
  * The TileLayer class provides parsing of JSON layer data and a render
  * function that delegates drawing to the Renderer while using the
  * TileSetManager to resolve tile textures.
- */
-/**
- * @class TileLayer
- * @brief Represents a single layer of tiles in a tile-based map.
  *
- * The class stores layer metadata and the flattened tile ID array used for rendering.
+ * It stores layer metadata and the flattened tile ID array used for rendering.
  */
 class TileLayer {
 public:

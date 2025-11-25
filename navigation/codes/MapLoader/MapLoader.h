@@ -15,21 +15,13 @@
 // Forward declaration for rendering integration.
 class Renderer;
 
-/**
- * @file MapLoader.h
- * @brief High-level map loading and management interface.
+/*
+ * File: MapLoader.h
+ * Description: High-level map loading and management interface.
  *
- * The MapLoader encapsulates two loading modes:
- *  - Legacy tile layer parsing (TileLayer / TileSetManager).
- *  - TMJ map loading (TMJMap) which includes object layers.
- *
- * Responsibilities:
- * - Parse map files and manage tileset resources.
- * - Provide a simple render(entry) to draw loaded maps via Renderer.
- *
- * Notes:
- * - When a TMJMap is loaded, TMJMap sprites/textures are preferred for rendering.
- * - The class stores a directory path used to resolve relative tileset images.
+ * The MapLoader supports legacy tile layer parsing and modern TMJ map loading.
+ * It manages tileset resources, parses map files, and exposes a render entry
+ * point used by the application renderer.
  */
 class MapLoader {
 public:
@@ -107,6 +99,58 @@ public:
      */
     std::shared_ptr<TMJMap> getCurrentTMJMap() const { return currentTMJMap; }
     
+    /**
+     * @brief Get directory path of the currently loaded map file.
+     */
+    std::string getMapDirectory() const { return mapDirectory; }
+
+    /**
+     * @brief Get the path (key) of the currently loaded TMJ map.
+     */
+    std::string getCurrentMapPath() const { return currentMapPath; }
+
+    // Spawn override helpers: allow recording a per-map override spawn point
+    /**
+     * @brief Store a temporary spawn override for a specific map key.
+     *
+     * Use this to remember where the player left a map so that when returning
+     * the player can be placed at that recorded position.
+     *
+     * @param mapKey Map identifier (typically the TMJ path or normalized key).
+     * @param x X coordinate in world pixels.
+     * @param y Y coordinate in world pixels.
+     */
+    void setSpawnOverride(const std::string& mapKey, float x, float y);
+
+    /**
+     * @brief Retrieve a previously stored spawn override for a map key.
+     *
+     * @param mapKey Map identifier to query.
+     * @return optional containing the stored world position or std::nullopt if none.
+     */
+    std::optional<sf::Vector2f> getSpawnOverride(const std::string& mapKey) const;
+
+    /**
+     * @brief Resolve the spawn position for a map.
+     *
+     * Resolution order:
+     *  1) stored spawn override (if exists)
+     *  2) TMJ map's embedded spawn (if present)
+     *  3) map center as a fallback
+     *
+     * If consume==true and an override exists, it will be removed after resolving.
+     *
+     * @param mapKey Map identifier used to look up stored override.
+     * @param map TMJMap instance used to query embedded spawn.
+     * @param consume If true, consume (erase) the override after returning it.
+     * @return Resolved world position in pixels.
+     */
+    sf::Vector2f resolveSpawnForMap(const std::string& mapKey, const TMJMap& map, bool consume = false) const;
+
+    // Clear override helpers
+    void clearSpawnOverride(const std::string& mapKey);
+    void clearAllSpawnOverrides();
+    
 private:
     /**
      * @brief Parses the map file at the given file path.
@@ -153,4 +197,8 @@ private:
     std::unordered_map<std::string, std::string> properties; ///< Custom map properties
 
     std::shared_ptr<TMJMap> currentTMJMap;
+    // current loaded map path (used as key for spawn overrides)
+    std::string currentMapPath;
+    // per-map spawn overrides stored in-memory
+    std::unordered_map<std::string, sf::Vector2f> spawnOverrides;
 };

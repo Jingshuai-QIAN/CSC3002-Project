@@ -25,6 +25,13 @@ using json = nlohmann::json;
  * - JSON parsing uses nlohmann::json and throws exceptions on malformed input;
  *   exceptions are caught and converted to error logs.
  */
+/*
+ * The MapLoader is a high-level component responsible for:
+ * - Parsing JSON-based map files (legacy format and TMJ).
+ * - Loading tilesets via TileSetManager.
+ * - Holding a collection of TileLayer objects for legacy maps.
+ * - Delegating TMJ rendering and exposing helper APIs used by the app.
+ */
 
 
 /**
@@ -219,7 +226,9 @@ std::shared_ptr<TMJMap> MapLoader::loadTMJMap(
     if (lastSlash != std::string::npos) {
         mapDirectory = filepath.substr(0, lastSlash + 1);
     }
-    
+    // Record current map path (use generic string for consistent keying)
+    currentMapPath = filepath;
+
     Logger::info("TMJMap loaded successfully: " + filepath);
     return currentTMJMap;
 }
@@ -228,41 +237,108 @@ std::shared_ptr<TMJMap> MapLoader::loadTMJMap(
 // MapLoader.cpp - additional helper method
 void MapLoader::applySpawnFromSidecar(const std::string& tmjPath, TMJMap& map) {
     namespace fs = std::filesystem;
-    
+
     fs::path tmjFilePath(tmjPath);
     fs::path sidecarPath = tmjFilePath.parent_path() / "spawns.json";
-    
+
     if (!fs::exists(sidecarPath)) {
         return;
     }
-    
+
     std::ifstream file(sidecarPath);
     if (!file.is_open()) {
         return;
     }
-    
+
     try {
         nlohmann::json j;
         file >> j;
-        
-        std::string filename = tmjFilePath.filename().string();
-        if (j.contains(filename)) {
-            auto spawnData = j[filename];
-            std::string mode = spawnData.value("mode", "tile");
-            
-            if (mode == "tile") {
-                int tx = spawnData.value("x", 0);
-                int ty = spawnData.value("y", 0);
-                float px = (tx + 0.5f) * map.getTileWidth();
-                float py = (ty + 0.5f) * map.getTileHeight();
-                map.setSpawnPoint(px, py);
-            } else if (mode == "pixel") {
-                float px = spawnData.value("x", 0.0f);
-                float py = spawnData.value("y", 0.0f);
-                map.setSpawnPoint(px, py);
-            }
+
+        // Try several keys in order:
+        // 1) the exact tmjPath passed in (e.g. "maps/lower_campus_map.tmj")
+        // 2) the filename only (e.g. "lower_campus_map.tmj")
+        // 3) the filesystem generic string (useful if JSON keys use forward slashes)
+        std::string key_full = tmjPath;
+        std::string key_file = tmjFilePath.filename().string();
+        std::string key_generic = tmjFilePath.generic_string();
+
+        const nlohmann::json* cfg = nullptr;
+        if (j.contains(key_full)) cfg = &j[key_full];
+        else if (j.contains(key_file)) cfg = &j[key_file];
+        else if (j.contains(key_generic)) cfg = &j[key_generic];
+        else {
+            // Not found
+            return;
+        }
+
+        const nlohmann::json& spawnData = *cfg;
+        std::string mode = spawnData.value("mode", "tile");
+
+        if (mode == "tile") {
+            int tx = spawnData.value("x", 0);
+            int ty = spawnData.value("y", 0);
+            float px = (tx + 0.5f) * map.getTileWidth();
+            float py = (ty + 0.5f) * map.getTileHeight();
+            map.setSpawnPoint(px, py);
+        } else if (mode == "pixel") {
+            float px = spawnData.value("x", 0.0f);
+            float py = spawnData.value("y", 0.0f);
+            map.setSpawnPoint(px, py);
         }
     } catch (...) {
         Logger::warn("Failed to parse spawns.json for: " + tmjPath);
     }
+}
+
+// Spawn override helpers
+void MapLoader::setSpawnOverride(const std::string& mapKey, float x, float y) {
+    spawnOverrides[mapKey] = sf::Vector2f{x, y};
+}
+
+/**
+ * @brief Retrieve a previously stored spawn override for a map key.
+ *
+ * @param mapKey Map identifier to query.
+ * @return optional containing the stored world position or std::nullopt if none.
+ */
+std::optional<sf::Vector2f> MapLoader::getSpawnOverride(const std::string& mapKey) const {
+    auto it = spawnOverrides.find(mapKey);
+    if (it != spawnOverrides.end()) return it->second;
+    return std::nullopt;
+}
+
+/**
+ * @brief Resolve the spawn position for a map with optional consume behavior.
+ *
+ * Resolution order:
+ * 1) stored spawn override
+ * 2) TMJ embedded spawn
+ * 3) map center fallback
+ *
+ * If consume==true and an override exists, it will be removed after resolving.
+ */
+sf::Vector2f MapLoader::resolveSpawnForMap(const std::string& mapKey, const TMJMap& map, bool consume) const {
+    if (!mapKey.empty()) {
+        auto it = spawnOverrides.find(mapKey);
+        if (it != spawnOverrides.end()) {
+            sf::Vector2f v = it->second;
+            if (consume) {
+                const_cast<MapLoader*>(this)->spawnOverrides.erase(it);
+            }
+            return v;
+        }
+    }
+    if (map.getSpawnX() && map.getSpawnY()) {
+        return sf::Vector2f(*map.getSpawnX(), *map.getSpawnY());
+    }
+    return sf::Vector2f(map.getWorldPixelWidth() * 0.5f, map.getWorldPixelHeight() * 0.5f);
+}
+
+
+void MapLoader::clearSpawnOverride(const std::string& mapKey) {
+    spawnOverrides.erase(mapKey);
+}
+
+void MapLoader::clearAllSpawnOverrides() {
+    spawnOverrides.clear();
 }

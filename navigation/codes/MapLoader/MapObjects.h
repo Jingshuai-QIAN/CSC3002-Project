@@ -7,36 +7,38 @@
 
 // SFML types for colors and geometry.
 #include <SFML/Graphics.hpp>
+#include <optional>
 
-/**
- * @file MapObjects.h
- * @brief Small POD types representing objects parsed from Tiled TMJ maps.
+/*
+ * File: MapObjects.h
+ * Description: Lightweight POD types representing objects parsed from Tiled TMJ maps.
  *
- * This header declares lightweight structures used to expose object layers
- * (text labels, entrance rectangles and NotWalkable polygons) to rendering
- * and gameplay code.
+ * This header defines small structures used by rendering and gameplay code to
+ * represent text labels, entrance rectangles and non-walkable polygons parsed
+ * from TMJ object layers.
  *
  * Structures:
- * - TextObject: stores a single text label and alignment data.
- * - EntranceArea: rectangular area representing a map entrance.
- * - BlockPoly: polygon used for non-walkable region checks.
- *
- * Dependencies:
- * - SFML for color and vector types.
+ *   - TextObject: stores a single text label and alignment data.
+ *   - EntranceArea: rectangular area representing an entrance/trigger region.
+ *   - BlockPoly: polygon used for non-walkable region checks.
  *
  * Notes:
- * - All structures are POD-like to keep JSON parsing and copying simple.
+ *   - Uses SFML vector and color types.
+ *   - Structures are POD-like to simplify JSON parsing and copying.
  */
 
-/**
- * @struct TextObject
- * @brief Represents a text label placed on the map by Tiled.
+/*
+ * Struct: TextObject
+ * Description: Represents a text label placed on the map by Tiled.
  *
  * Fields:
- * - x,y: top-left position in pixels.
- * - width,height: optional bounding rectangle for alignment.
- * - text/fontSize/bold/italic/color: rendering parameters.
- * - halign/valign: alignment strings ("left"/"center"/"right", "top"/"center"/"bottom").
+ *   x, y        - top-left position in pixels.
+ *   width,height- optional bounding rectangle for alignment.
+ *   text        - label string.
+ *   fontSize    - font size to render the label.
+ *   bold,italic - style flags.
+ *   color       - text color.
+ *   halign,valign - horizontal/vertical alignment ("left"/"center"/"right", "top"/"center"/"bottom").
  */
 struct TextObject {
     float x = 0.f, y = 0.f;
@@ -55,16 +57,21 @@ struct TextObject {
     std::string valign = "top";
 };
 
-/**
- * @struct EntranceArea
- * @brief Rectangle representing an entrance/trigger region placed in Tiled.
+/*
+ * Struct: EntranceArea
+ * Description: Rectangle representing an entrance/trigger region placed in Tiled.
  *
  * The rectangle is expressed in pixel coordinates using x/y as top-left.
+ * Fields include optional target path and optional explicit targetX/targetY
+ * coordinates in the target map (pixels).
  */
 struct EntranceArea {
     float x = 0.f, y = 0.f;
     float width = 0.f, height = 0.f;
     std::string name;
+    std::string target;
+    std::optional<float> targetX;
+    std::optional<float> targetY;
 };
 
 /**

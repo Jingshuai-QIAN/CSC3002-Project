@@ -10,16 +10,16 @@
 #include "Utils/Logger.h"
 #include <cmath>
 
-/**
- * @file TileLayer.cpp
- * @brief JSON parsing and rendering for a single tile layer.
+/*
+ * File: TileLayer.cpp
+ * Description: JSON parsing and rendering implementation for a single tile layer.
  *
  * The TileLayer implementation:
- * - Parses layer metadata and tile ID arrays from a JSON object.
- * - Renders the layer by resolving tile textures via TileSetManager.
+ *   - Parses layer metadata and tile ID arrays from a JSON object.
+ *   - Renders the layer by resolving tile textures via TileSetManager.
  *
  * Notes:
- * - Rendering uses Renderer::drawSprite which ultimately draws via SFML.
+ *   - Rendering uses Renderer::drawSprite which ultimately draws via SFML.
  */
 
 
