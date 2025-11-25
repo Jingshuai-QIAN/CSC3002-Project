@@ -25,7 +25,7 @@
             45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45],
          "height":20,
          "id":1,
-         "name":"\u80cc\u666f",
+         "name":"background",
          "offsetx":0,
          "offsety":0.248818113958691,
          "opacity":1,
@@ -58,7 +58,7 @@
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
          "height":20,
          "id":10,
-         "name":"\u6807\u5fd7",
+         "name":"signals",
          "opacity":1,
          "type":"tilelayer",
          "visible":true,
@@ -213,7 +213,7 @@
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
          "height":20,
          "id":4,
-         "name":"\u7eff\u5316",
+         "name":"green",
          "opacity":1,
          "type":"tilelayer",
          "visible":true,
@@ -249,6 +249,34 @@
          "type":"tilelayer",
          "visible":true,
          "width":30,
+         "x":0,
+         "y":0
+        }, 
+        {
+         "draworder":"topdown",
+         "id":12,
+         "name":"entrance",
+         "objects":[
+                {
+                 "height":68.0161943319838,
+                 "id":5,
+                 "name":"Lower Campus",
+                 "properties":[
+                        {
+                         "name":"target",
+                         "type":"string",
+                         "value":"lower_campus_map.tmj"
+                        }],
+                 "rotation":0,
+                 "type":"entrance",
+                 "visible":true,
+                 "width":37.6518218623482,
+                 "x":44.9392712550607,
+                 "y":43.7246963562753
+                }],
+         "opacity":1,
+         "type":"objectgroup",
+         "visible":true,
          "x":0,
          "y":0
         }, 
@@ -499,8 +527,8 @@
          "x":0,
          "y":0
         }],
- "nextlayerid":12,
- "nextobjectid":5,
+ "nextlayerid":13,
+ "nextobjectid":6,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",

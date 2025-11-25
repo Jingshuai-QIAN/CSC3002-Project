@@ -736,31 +736,14 @@
          "name":"entrance",
          "objects":[
                 {
-                 "height":28.6666666666665,
-                 "id":51,
-                 "name":"entr_sports_hall",
-                 "properties":[
-                        {
-                         "name":"target",
-                         "type":"string",
-                         "value":"sports_hall"
-                        }],
-                 "rotation":0,
-                 "type":"entrance",
-                 "visible":true,
-                 "width":59,
-                 "x":1050.33333333333,
-                 "y":840.666666666667
-                }, 
-                {
                  "height":43.5,
                  "id":61,
-                 "name":"entr_TxA",
+                 "name":"TxA",
                  "properties":[
                         {
                          "name":"target",
                          "type":"string",
-                         "value":"TxA"
+                         "value":"teaching_building.tmj"
                         }],
                  "rotation":0,
                  "type":"entrance",
@@ -772,12 +755,12 @@
                 {
                  "height":43.5,
                  "id":63,
-                 "name":"entr_TxB",
+                 "name":"TxB",
                  "properties":[
                         {
                          "name":"target",
                          "type":"string",
-                         "value":"TxB"
+                         "value":"teaching_building.tmj"
                         }],
                  "rotation":0,
                  "type":"entrance",
@@ -789,12 +772,12 @@
                 {
                  "height":28.7538445333894,
                  "id":64,
-                 "name":"entr_TxC",
+                 "name":"TxC",
                  "properties":[
                         {
                          "name":"target",
                          "type":"string",
-                         "value":"TxC"
+                         "value":"teaching_building.tmj"
                         }],
                  "rotation":0,
                  "type":"entrance",
@@ -806,12 +789,12 @@
                 {
                  "height":43.5,
                  "id":65,
-                 "name":"entr_TA",
+                 "name":"TA",
                  "properties":[
                         {
                          "name":"target",
                          "type":"string",
-                         "value":"TA"
+                         "value":"teaching_building.tmj"
                         }],
                  "rotation":0,
                  "type":"entrance",
@@ -823,12 +806,12 @@
                 {
                  "height":30.5,
                  "id":66,
-                 "name":"entr_TA",
+                 "name":"TA",
                  "properties":[
                         {
                          "name":"target",
                          "type":"string",
-                         "value":"TA"
+                         "value":"teaching_building.tmj"
                         }],
                  "rotation":0,
                  "type":"entrance",
@@ -840,12 +823,12 @@
                 {
                  "height":30.5,
                  "id":67,
-                 "name":"entr_TB",
+                 "name":"TB",
                  "properties":[
                         {
                          "name":"target",
                          "type":"string",
-                         "value":"TB"
+                         "value":"teaching_building.tmj"
                         }],
                  "rotation":0,
                  "type":"entrance",
@@ -857,12 +840,12 @@
                 {
                  "height":30.5,
                  "id":68,
-                 "name":"entr_TC",
+                 "name":"TC",
                  "properties":[
                         {
                          "name":"target",
                          "type":"string",
-                         "value":"TC"
+                         "value":"teaching_building.tmj"
                         }],
                  "rotation":0,
                  "type":"entrance",
@@ -874,12 +857,12 @@
                 {
                  "height":30.5,
                  "id":69,
-                 "name":"entr_TD",
+                 "name":"TD",
                  "properties":[
                         {
                          "name":"target",
                          "type":"string",
-                         "value":"TD"
+                         "value":"teaching_building.tmj"
                         }],
                  "rotation":0,
                  "type":"entrance",
@@ -889,48 +872,14 @@
                  "y":809
                 }, 
                 {
-                 "height":41.9363215674691,
-                 "id":70,
-                 "name":"entr_research_A",
-                 "properties":[
-                        {
-                         "name":"target",
-                         "type":"string",
-                         "value":"research_A"
-                        }],
-                 "rotation":0,
-                 "type":"entrance",
-                 "visible":true,
-                 "width":31.1666666666665,
-                 "x":3028.66666666667,
-                 "y":714.194653670063
-                }, 
-                {
-                 "height":41.936321567469,
-                 "id":71,
-                 "name":"entr_HL_Tu",
-                 "properties":[
-                        {
-                         "name":"target",
-                         "type":"string",
-                         "value":"HL_Tu"
-                        }],
-                 "rotation":0,
-                 "type":"entrance",
-                 "visible":true,
-                 "width":31.1666666666665,
-                 "x":2818.33333333333,
-                 "y":684.369024762467
-                }, 
-                {
                  "height":43.5,
                  "id":62,
-                 "name":"entr_TxD",
+                 "name":"TxD",
                  "properties":[
                         {
                          "name":"target",
                          "type":"string",
-                         "value":"TxD"
+                         "value":"teaching_building.tmj"
                         }],
                  "rotation":0,
                  "type":"entrance",
@@ -942,12 +891,12 @@
                 {
                  "height":30,
                  "id":53,
-                 "name":"entr_Zhiren",
+                 "name":"Zhi Ren Building",
                  "properties":[
                         {
                          "name":"target",
                          "type":"string",
-                         "value":"Zhiren"
+                         "value":"teaching_building.tmj"
                         }],
                  "rotation":0,
                  "type":"entrance",
@@ -959,12 +908,12 @@
                 {
                  "height":30,
                  "id":55,
-                 "name":"entr_Letian",
+                 "name":"Le Tian Building",
                  "properties":[
                         {
                          "name":"target",
                          "type":"string",
-                         "value":"Letian"
+                         "value":"teaching_building.tmj"
                         }],
                  "rotation":0,
                  "type":"entrance",
@@ -976,12 +925,12 @@
                 {
                  "height":30,
                  "id":54,
-                 "name":"entr_Chengdao",
+                 "name":"Cheng Dao Building",
                  "properties":[
                         {
                          "name":"target",
                          "type":"string",
-                         "value":"Chengdao"
+                         "value":"teaching_building.tmj"
                         }],
                  "rotation":0,
                  "type":"entrance",
@@ -993,12 +942,12 @@
                 {
                  "height":46.3319164984813,
                  "id":95,
-                 "name":"entr_Shaw",
+                 "name":"Shaw College",
                  "properties":[
                         {
                          "name":"target",
                          "type":"string",
-                         "value":"Shaw"
+                         "value":"shaw.tmj"
                         }],
                  "rotation":0,
                  "type":"entrance",
@@ -1010,12 +959,12 @@
                 {
                  "height":48.1666666666667,
                  "id":72,
-                 "name":"entr_Shaw",
+                 "name":"Shaw College",
                  "properties":[
                         {
                          "name":"target",
                          "type":"string",
-                         "value":"Shaw"
+                         "value":"shaw.tmj"
                         }],
                  "rotation":0,
                  "type":"entrance",
@@ -1025,14 +974,14 @@
                  "y":71.5
                 }, 
                 {
-                 "height":48.1666666666667,
+                 "height":60.1666666666667,
                  "id":97,
-                 "name":"entr_stucen",
+                 "name":"Student Centre",
                  "properties":[
                         {
                          "name":"target",
                          "type":"string",
-                         "value":"student_centre"
+                         "value":"canteen.tmj"
                         }],
                  "rotation":0,
                  "type":"entrance",
@@ -1044,12 +993,12 @@
                 {
                  "height":64.1666666666667,
                  "id":98,
-                 "name":"entr_library",
+                 "name":"University Library",
                  "properties":[
                         {
                          "name":"target",
                          "type":"string",
-                         "value":"library"
+                         "value":"library.tmj"
                         }],
                  "rotation":0,
                  "type":"entrance",
@@ -1061,12 +1010,12 @@
                 {
                  "height":46.4314263440377,
                  "id":100,
-                 "name":"entr_admin",
+                 "name":"Administration Building",
                  "properties":[
                         {
                          "name":"target",
                          "type":"string",
-                         "value":"admin"
+                         "value":"teaching_building.tmj"
                         }],
                  "rotation":0,
                  "type":"entrance",
@@ -1078,12 +1027,12 @@
                 {
                  "height":38.3628526880754,
                  "id":99,
-                 "name":"entr_admin",
+                 "name":"Administration Building",
                  "properties":[
                         {
                          "name":"target",
                          "type":"string",
-                         "value":"admin"
+                         "value":"teaching_building.tmj"
                         }],
                  "rotation":0,
                  "type":"entrance",
@@ -1093,31 +1042,24 @@
                  "y":381.803813978591
                 }, 
                 {
-                 "height":81.5,
-                 "id":60,
-                 "name":"entr_cc",
-                 "properties":[
-                        {
-                         "name":"target",
-                         "type":"string",
-                         "value":"conference_complex"
-                        }],
-                 "rotation":0,
-                 "type":"entrance",
-                 "visible":true,
-                 "width":73.5,
-                 "x":5806,
-                 "y":338.5
-                }, 
-                {
                  "height":46.3154148053325,
                  "id":109,
-                 "name":"entr_LG",
+                 "name":"Lower Ground",
                  "properties":[
                         {
                          "name":"target",
                          "type":"string",
-                         "value":"LG"
+                         "value":"LG_campus_map.tmj"
+                        }, 
+                        {
+                         "name":"targetX",
+                         "type":"float",
+                         "value":898
+                        }, 
+                        {
+                         "name":"targetY",
+                         "type":"float",
+                         "value":115
                         }],
                  "rotation":0.046201673954665,
                  "type":"entrance",
@@ -1128,30 +1070,23 @@
                 }, 
                 {
                  "height":46.3154,
-                 "id":111,
-                 "name":"entr_LG",
-                 "properties":[
-                        {
-                         "name":"target",
-                         "type":"string",
-                         "value":"LG"
-                        }],
-                 "rotation":0.0462017,
-                 "type":"entrance",
-                 "visible":true,
-                 "width":29.228,
-                 "x":3164.88712145722,
-                 "y":509.704394746143
-                }, 
-                {
-                 "height":46.3154,
                  "id":112,
-                 "name":"entr_LG",
+                 "name":"Lower Ground",
                  "properties":[
                         {
                          "name":"target",
                          "type":"string",
-                         "value":"LG"
+                         "value":"LG_campus_map.tmj"
+                        }, 
+                        {
+                         "name":"targetX",
+                         "type":"float",
+                         "value":561
+                        }, 
+                        {
+                         "name":"targetY",
+                         "type":"float",
+                         "value":1041
                         }],
                  "rotation":0.0462017,
                  "type":"entrance",
@@ -1159,6 +1094,23 @@
                  "width":29.228,
                  "x":3569.97106083056,
                  "y":973.919714531367
+                }, 
+                {
+                 "height":30,
+                 "id":52,
+                 "name":"Zhi Xin Building",
+                 "properties":[
+                        {
+                         "name":"target",
+                         "type":"string",
+                         "value":"teaching_building.tmj"
+                        }],
+                 "rotation":0,
+                 "type":"entrance",
+                 "visible":true,
+                 "width":73.6666666666663,
+                 "x":1771.66666666667,
+                 "y":854.666666666667
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -1639,23 +1591,6 @@
                  "width":86.372906045156,
                  "x":5713.62709395484,
                  "y":337.5
-                }, 
-                {
-                 "height":30,
-                 "id":52,
-                 "name":"entr_Zhixin",
-                 "properties":[
-                        {
-                         "name":"target",
-                         "type":"string",
-                         "value":"Zhixin"
-                        }],
-                 "rotation":0,
-                 "type":"entrance",
-                 "visible":true,
-                 "width":73.6666666666663,
-                 "x":1771.66666666667,
-                 "y":854.666666666667
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -6043,7 +5978,7 @@
          "y":0
         }],
  "nextlayerid":13,
- "nextobjectid":206,
+ "nextobjectid":208,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",

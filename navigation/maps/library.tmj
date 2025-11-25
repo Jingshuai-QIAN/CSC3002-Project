@@ -128,6 +128,51 @@
         }, 
         {
          "draworder":"topdown",
+         "id":9,
+         "name":"entrance",
+         "objects":[
+                {
+                 "height":28.744939271255,
+                 "id":5,
+                 "name":"Lower Campus",
+                 "properties":[
+                        {
+                         "name":"target",
+                         "type":"string",
+                         "value":"lower_campus_map.tmj"
+                        }],
+                 "rotation":0,
+                 "type":"entrance",
+                 "visible":true,
+                 "width":16.5991902834008,
+                 "x":2.8421709430404e-14,
+                 "y":242.105263157895
+                }, 
+                {
+                 "height":28.7449,
+                 "id":6,
+                 "name":"Lower Campus",
+                 "properties":[
+                        {
+                         "name":"target",
+                         "type":"string",
+                         "value":"lower_campus_map.tmj"
+                        }],
+                 "rotation":0,
+                 "type":"entrance",
+                 "visible":true,
+                 "width":16.5992,
+                 "x":462.55060242915,
+                 "y":241.902853643725
+                }],
+         "opacity":1,
+         "type":"objectgroup",
+         "visible":true,
+         "x":0,
+         "y":0
+        }, 
+        {
+         "draworder":"topdown",
          "id":8,
          "name":"NotWalkable",
          "objects":[
@@ -329,8 +374,8 @@
          "x":0,
          "y":0
         }],
- "nextlayerid":9,
- "nextobjectid":5,
+ "nextlayerid":10,
+ "nextobjectid":7,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",

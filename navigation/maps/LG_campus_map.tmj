@@ -1438,12 +1438,12 @@
                 {
                  "height":81.3333333333333,
                  "id":9,
-                 "name":"entr_stu_centre",
+                 "name":"Student Centre",
                  "properties":[
                         {
                          "name":"target",
                          "type":"string",
-                         "value":"student_centre"
+                         "value":"canteen.tmj"
                         }],
                  "rotation":0,
                  "type":"entrance",
@@ -1453,99 +1453,24 @@
                  "y":96.6666666666667
                 }, 
                 {
-                 "height":36.6666333333333,
-                 "id":10,
-                 "name":"entr_bank",
-                 "properties":[
-                        {
-                         "name":"target",
-                         "type":"string",
-                         "value":"bank"
-                        }],
-                 "rotation":0,
-                 "type":"entrance",
-                 "visible":true,
-                 "width":92.0000333333333,
-                 "x":210.333316666667,
-                 "y":620.666683333333
-                }, 
-                {
-                 "height":65.3332666666668,
-                 "id":11,
-                 "name":"entr_bookstore",
-                 "properties":[
-                        {
-                         "name":"target",
-                         "type":"string",
-                         "value":"bookstore"
-                        }],
-                 "rotation":0,
-                 "type":"entrance",
-                 "visible":true,
-                 "width":32.6666666666667,
-                 "x":798,
-                 "y":751.000033333333
-                }, 
-                {
-                 "height":53.567335725746,
-                 "id":12,
-                 "name":"entr_barbershop",
-                 "properties":[
-                        {
-                         "name":"target",
-                         "type":"string",
-                         "value":"barbershop"
-                        }],
-                 "rotation":0,
-                 "type":"entrance",
-                 "visible":true,
-                 "width":48.0000333333334,
-                 "x":304.999983333333,
-                 "y":960.666683333333
-                }, 
-                {
-                 "height":49.3333,
-                 "id":13,
-                 "name":"entr_family_mart",
-                 "properties":[
-                        {
-                         "name":"target",
-                         "type":"string",
-                         "value":"family_mart"
-                        }],
-                 "rotation":0,
-                 "type":"entrance",
-                 "visible":true,
-                 "width":31.3333333333334,
-                 "x":704,
-                 "y":1248.00001666667
-                }, 
-                {
-                 "height":49.3333,
-                 "id":14,
-                 "name":"entr_clinic",
-                 "properties":[
-                        {
-                         "name":"target",
-                         "type":"string",
-                         "value":"clinic"
-                        }],
-                 "rotation":0,
-                 "type":"entrance",
-                 "visible":true,
-                 "width":31.3333,
-                 "x":872.33335,
-                 "y":1566.00001666667
-                }, 
-                {
                  "height":47.9999666666666,
                  "id":15,
-                 "name":"entr_ground",
+                 "name":"Ground Floor",
                  "properties":[
                         {
                          "name":"target",
                          "type":"string",
-                         "value":"ground"
+                         "value":"lower_campus_map.tmj"
+                        }, 
+                        {
+                         "name":"targetX",
+                         "type":"float",
+                         "value":3571
+                        }, 
+                        {
+                         "name":"targetY",
+                         "type":"float",
+                         "value":321.5
                         }],
                  "rotation":0,
                  "type":"entrance",
@@ -1556,30 +1481,23 @@
                 }, 
                 {
                  "height":48,
-                 "id":16,
-                 "name":"entr_ground",
-                 "properties":[
-                        {
-                         "name":"target",
-                         "type":"string",
-                         "value":"ground"
-                        }],
-                 "rotation":0,
-                 "type":"entrance",
-                 "visible":true,
-                 "width":31.3243104396192,
-                 "x":848.711146737619,
-                 "y":336.88587014654
-                }, 
-                {
-                 "height":48,
                  "id":17,
-                 "name":"entr_ground",
+                 "name":"Ground Floor",
                  "properties":[
                         {
                          "name":"target",
                          "type":"string",
-                         "value":"ground"
+                         "value":"lower_campus_map.tmj"
+                        }, 
+                        {
+                         "name":"targetX",
+                         "type":"float",
+                         "value":3585
+                        }, 
+                        {
+                         "name":"targetY",
+                         "type":"float",
+                         "value":958.5
                         }],
                  "rotation":0,
                  "type":"entrance",
@@ -1587,23 +1505,6 @@
                  "width":35.6028429029842,
                  "x":590.66665,
                  "y":1023.33333333333
-                }, 
-                {
-                 "height":49.3333,
-                 "id":18,
-                 "name":"entr_family_mart",
-                 "properties":[
-                        {
-                         "name":"target",
-                         "type":"string",
-                         "value":"family_mart"
-                        }],
-                 "rotation":0,
-                 "type":"entrance",
-                 "visible":true,
-                 "width":31.3333,
-                 "x":880.33335,
-                 "y":1248.00001666667
                 }],
          "opacity":1,
          "type":"objectgroup",
@@ -2448,7 +2349,7 @@
          "y":0
         }],
  "nextlayerid":16,
- "nextobjectid":36,
+ "nextobjectid":37,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
