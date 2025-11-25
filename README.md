@@ -58,9 +58,9 @@ navigation/
 │   │   ├── TextRenderer.h
 │   │   └── TextRenderer.cpp
 │   └── Utils/                   # Utility helpers
-│       ├── Logger.h
-│       ├── FileUtils.h
-│       └── StringUtils.h
+│   │   ├── Logger.h
+│   │   ├── FileUtils.h
+│   │   └── StringUtils.h
 ├── config/                      # Configuration files
 │   ├── app_config.json
 │   ├── render_config.json
