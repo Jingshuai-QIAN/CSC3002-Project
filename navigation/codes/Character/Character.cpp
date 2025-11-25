@@ -5,21 +5,21 @@
 #include <cmath>
 #include <algorithm>
 
-/**
- * @file Character.cpp
- * @brief Implementation of the Character class.
+/*
+ * File: Character.cpp
+ * Description: Implementation of the Character class.
  *
- * This translation unit implements sprite loading, animation control and
- * movement logic for the player character. Movement includes basic
- * collision handling by querying TMJMap for NotWalkable regions.
+ * This file implements the player's sprite loading, animation control and
+ * movement logic. Movement includes basic collision handling by querying
+ * TMJMap for NotWalkable regions.
  *
  * Dependencies:
- * - Character.h for the class declaration.
- * - TMJMap.h for collision queries (pointer only).
- * - Utils/Logger for logging.
+ *   - Character.h for the class declaration.
+ *   - TMJMap.h for collision queries (pointer only).
+ *   - Utils/Logger for logging.
  *
  * Notes:
- * - The class owns its texture and sprite via unique_ptr to manage lifetime.
+ *   - The class owns its texture and sprite via unique_ptr to manage lifetime.
  */
 
 /**
@@ -267,6 +267,17 @@ void Character::setPosition(const sf::Vector2f& position) {
     if (sprite) {
         sprite->setPosition(position);
     }
+}
+
+/**
+ * @brief Return the character's feet point in world pixel coordinates.
+ */
+sf::Vector2f Character::getFeetPoint() const {
+    if (!sprite) return sf::Vector2f{0.f, 0.f};
+    float scale = sprite->getScale().x;
+    float halfH = config.frameHeight * 0.5f * scale;
+    sf::Vector2f center = sprite->getPosition();
+    return sf::Vector2f(center.x, center.y + halfH - 1.f);
 }
 
 sf::FloatRect Character::getBounds() const {

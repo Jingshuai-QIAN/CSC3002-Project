@@ -6,24 +6,17 @@
 #include <memory>
 #include "CharacterConfig.h"
 
-/**
- * @file Character.h
- * @brief Player character class and supporting declarations.
+/*
+ * File: Character.h
+ * Description: Player character class and supporting declarations.
  *
- * This file defines the Character class which encapsulates player sprite,
+ * This header defines the Character class which encapsulates player sprite,
  * animation, movement and collision handling. The implementation relies on
  * CharacterConfig for tunable parameters.
  *
- * Key types:
- * - Character: main player object used by the game loop.
- *
- * Dependencies:
- * - SFML for rendering types.
- * - CharacterConfig for configuration values.
- *
  * Notes:
- * - Character expects a valid CharacterConfig to be available via the
- *   CharacterConfigManager when initialize() is called.
+ *   - Character expects a valid CharacterConfig to be available via the
+ *     CharacterConfigManager when initialize() is called.
  */
 
 // Forward declaration to avoid including TMJMap.h in this header.
@@ -80,6 +73,11 @@ public:
      */
     sf::Vector2f getPosition() const { return sprite->getPosition(); }
     
+    /**
+     * @brief Get the character's feet point (used for map collision/trigger checks).
+     */
+    sf::Vector2f getFeetPoint() const;
+
     /**
      * @brief Get collision bounds for the character.
      */
