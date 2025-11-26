@@ -13,6 +13,7 @@
 #include "Config/ConfigManager.h"
 #include "MapLoader/MapObjects.h"
 #include "Renderer/TextRenderer.h"
+#include "Utils/Logger.h" 
 
 /*
  * File: Renderer.h
@@ -244,6 +245,36 @@ public:
      */
     sf::Vector2i getMousePosition() const;
 
+    // 新增：初始化厨师纹理
+    bool initializeChefTexture() {
+        if (!m_chefTexture.loadFromFile("tiles/F_05.png")) {
+            Logger::error("Failed to load chef texture: tiles/F_05.png");
+            return false;
+        }
+        // SFML 3.0+ 要求 IntRect 用 Vector2i 传递 position 和 size
+        sf::IntRect chefFrame(
+            sf::Vector2i(0, 0),    // 左上角坐标（第一个小人的位置）
+            sf::Vector2i(16, 17)   // 帧尺寸（单个小人的大小）
+        );
+        m_chefSprite = std::make_unique<sf::Sprite>(m_chefTexture, chefFrame);  // 直接用纹理+帧构造 Sprite
+        return true;
+    }
+
+    // 新增：渲染所有厨师对象
+    void renderChefs(const std::vector<Chef>& chefs) {
+        // 避免空指针访问（若纹理未初始化则跳过渲染）
+        if (!m_chefSprite || !m_chefTexture.getSize().x) return;
+        for (const auto& chef : chefs) {
+            // SFML 3.0+ FloatRect 用 position（x/y）和 size（x/y）替代 left/top/width/height
+            sf::Vector2f spritePos(
+                chef.rect.position.x + chef.rect.size.x / 2 - 8,   // 水平居中（16/2=8）
+                chef.rect.position.y + chef.rect.size.y / 2 - 8.5f // 垂直居中（17/2≈8.5）
+            );
+            m_chefSprite->setPosition(spritePos);
+            window.draw(*m_chefSprite);  // 修复：m_window → window（你的窗口成员名是 window）
+        }
+    }
+
 private:
     // Flag indicating whether the renderer is currently running
     bool running = true;
@@ -257,6 +288,8 @@ private:
     // SFML graphics objects
     sf::RenderWindow window;
     sf::View view;
+    sf::Texture m_chefTexture;  // 厨师纹理
+    std::unique_ptr<sf::Sprite> m_chefSprite;    // 厨师精灵（复用同一个精灵渲染所有厨师）
     std::vector<std::unique_ptr<sf::Texture>> loadedTextures;
     std::unique_ptr<TextRenderer> textRenderer;
     std::unique_ptr<sf::Font> uiFont;                // font used for UI (map button)

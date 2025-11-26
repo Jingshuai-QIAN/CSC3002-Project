@@ -282,6 +282,12 @@ void runApp(
 ) {
     // Initialize input manager
     auto& inputManager = InputManager::getInstance();
+
+    // 初始化时加载厨师纹理
+    if (!renderer.initializeChefTexture()) {
+        Logger::error("Failed to initialize chef texture");
+        return;
+    }
     
     // Modal UI font for simple prompts (loaded once)
     sf::Font modalFont;
@@ -401,6 +407,7 @@ void runApp(
         
         renderer.renderTextObjects(tmjMap->getTextObjects());
         renderer.renderEntranceAreas(tmjMap->getEntranceAreas());
+        renderer.renderChefs(tmjMap->getChefs());  // 新增：渲染厨师
         renderer.drawSprite(character.getSprite());
         renderer.drawMapButton();
         // If waiting for entrance confirmation, draw a simple modal overlay and handle input

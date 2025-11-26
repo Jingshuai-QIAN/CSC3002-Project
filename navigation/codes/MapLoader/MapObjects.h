@@ -74,6 +74,11 @@ struct EntranceArea {
     std::optional<float> targetY;
 };
 
+// 添加Chef对象结构
+struct Chef {
+    std::string name;       // 对象名称（可用于区分不同厨师）
+    sf::FloatRect rect;     // 矩形对象的位置和大小（从Tiled导出）
+};
 /**
  * @struct BlockPoly
  * @brief Polygonal blocking region parsed from a "NotWalkable" object layer.

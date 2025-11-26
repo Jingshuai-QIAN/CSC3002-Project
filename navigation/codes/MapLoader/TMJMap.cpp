@@ -455,6 +455,44 @@ void TMJMap::parseObjectLayers(const json& layers) {
             }
         }
     }
+    // 5) Parse Chef objects (新增：解析 chef 类对象)
+    for (const auto& L : layers) {
+        if (!L.contains("type") || !L["type"].is_string() || L["type"] != "objectgroup") continue;
+        if (!L.contains("objects") || !L["objects"].is_array()) continue;
+
+        for (const auto& obj : L["objects"]) {
+            if (!obj.is_object()) continue;
+
+            // 检查对象是否是 "chef" 类（和入口解析逻辑一致：优先 type，再 class，不区分大小写）
+            bool isChef = false;
+            // 检查 type 字段（Tiled 中对象的“类型”）
+            if (obj.contains("type") && obj["type"].is_string()) {
+                std::string t = toLower(obj["type"].get<std::string>());
+                if (t == "chef") isChef = true;
+            }
+            // 检查 class 字段（Tiled 中对象的“类”）
+            if (!isChef && obj.contains("class") && obj["class"].is_string()) {
+                std::string c = toLower(obj["class"].get<std::string>());
+                if (c == "chef") isChef = true;
+            }
+
+            if (!isChef) continue;
+
+            // 解析 chef 对象的属性（和原有对象解析逻辑保持一致，用 value 避免字段缺失报错）
+            Chef chef;
+            chef.name = obj.value("name", "chef");  // 默认名称为 "chef"
+            // 用 SFML 3.0+ 的 FloatRect 构造方式（position + size）
+            chef.rect = sf::FloatRect(
+                sf::Vector2f(obj.value("x", 0.f), obj.value("y", 0.f)),  // 矩形左上角坐标
+                sf::Vector2f(obj.value("width", 16.f), obj.value("height", 17.f))  // 矩形尺寸（默认16x17，和精灵一致）
+            );
+
+            m_chefs.push_back(std::move(chef));  // 加入厨师列表
+            Logger::info("Parsed chef object: " + chef.name + " at (" + 
+                         std::to_string(chef.rect.position.x) + ", " + 
+                         std::to_string(chef.rect.position.y) + ")");
+        }
+    }
 }
 
 

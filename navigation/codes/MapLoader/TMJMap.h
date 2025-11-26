@@ -79,6 +79,7 @@ public:
     const std::vector<EntranceArea>& getEntranceAreas() const { return entranceAreas; }
     const std::optional<float>& getSpawnX() const { return spawnX; }
     const std::optional<float>& getSpawnY() const { return spawnY; }
+    const std::vector<Chef>& getChefs() const { return m_chefs; }
     
     void setSpawnPoint(float x, float y) { spawnX = x; spawnY = y; }
     
@@ -123,6 +124,7 @@ private:
     std::vector<sf::Sprite> tiles;
     std::vector<TextObject> textObjects;
     std::vector<EntranceArea> entranceAreas;
+    std::vector<Chef> m_chefs;
     
     // Not-walkable regions parsed from object layers
     std::vector<sf::FloatRect> notWalkRects; // rectangle blocking regions
