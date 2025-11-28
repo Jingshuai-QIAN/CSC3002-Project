@@ -14,6 +14,10 @@
 
 // Forward declaration for rendering integration.
 class Renderer;
+class TileLayer;
+class TileSetManager;
+class TMJMap;
+struct InteractionObject; // 前向声明
 
 /*
  * File: MapLoader.h
@@ -93,11 +97,21 @@ public:
         const std::string& filepath, 
         int extrude = 1
     );
+
+
     
     /**
      * @brief Gets the last loaded TMJ map
      */
     std::shared_ptr<TMJMap> getCurrentTMJMap() const { return currentTMJMap; }
+    
+    // 新增：直接获取交互对象（封装，简化上层调用）
+    std::vector<InteractionObject> getCurrentInteractionObjects() const {
+        if (currentTMJMap) {
+            return currentTMJMap->getInteractionObjects();
+        }
+        return {};
+    }
     
     /**
      * @brief Get directory path of the currently loaded map file.

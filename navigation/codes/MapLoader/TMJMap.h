@@ -73,6 +73,7 @@ public:
     int getTileHeight() const { return tileHeight; }
     int getWorldPixelWidth() const { return mapWidthTiles * tileWidth; }
     int getWorldPixelHeight() const { return mapHeightTiles * tileHeight; }
+    const std::vector<InteractionObject>& getInteractionObjects() const { return interactionObjects; }
     
     const std::vector<sf::Sprite>& getTiles() const { return tiles; }
     const std::vector<TextObject>& getTextObjects() const { return textObjects; }
@@ -85,6 +86,7 @@ public:
     
     // Collision query: check whether a feet point is blocked by NotWalkable regions
     bool feetBlockedAt(const sf::Vector2f& feet) const;
+
 
 private:
     bool parseMapData(
@@ -125,6 +127,7 @@ private:
     std::vector<TextObject> textObjects;
     std::vector<EntranceArea> entranceAreas;
     std::vector<Chef> m_chefs;
+    std::vector<InteractionObject> interactionObjects;
     
     // Not-walkable regions parsed from object layers
     std::vector<sf::FloatRect> notWalkRects; // rectangle blocking regions

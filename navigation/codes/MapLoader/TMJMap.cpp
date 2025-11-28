@@ -6,6 +6,9 @@
 #include <filesystem>
 #include <nlohmann/json.hpp>
 #include <cmath>
+#include <vector>
+#include <string>
+#include <sstream>
 
 // Alias for json library.
 using json = nlohmann::json;
@@ -27,6 +30,34 @@ using json = nlohmann::json;
  *   - Uses std::filesystem to resolve relative tileset image paths.
  *   - Textures are stored inside TilesetInfo.texture and must remain alive while sprites reference them.
  */
+
+
+std::vector<std::string> splitDishesString(const std::string& str) {
+    std::vector<std::string> dishes;
+    std::string currentDish;
+    
+    for (char c : str) {
+        if (c == ',') {
+            // 清理空格并保存当前菜品
+            size_t start = currentDish.find_first_not_of(" ");
+            size_t end = currentDish.find_last_not_of(" ");
+            if (start != std::string::npos && end != std::string::npos) {
+                dishes.push_back(currentDish.substr(start, end - start + 1));
+            }
+            currentDish.clear();
+        } else {
+            currentDish += c;
+        }
+    }
+    
+    // 处理最后一个菜品
+    size_t start = currentDish.find_first_not_of(" ");
+    size_t end = currentDish.find_last_not_of(" ");
+    if (start != std::string::npos && end != std::string::npos) {
+        dishes.push_back(currentDish.substr(start, end - start + 1));
+    }
+    return dishes;
+}
 
 // Convert a string to lowercase in-place.
 static std::string toLower(std::string s) {
@@ -296,7 +327,7 @@ void TMJMap::parseObjectLayers(const json& layers) {
         std::string layerName = L.value("name", "objectgroup");
         std::string lnameLower = toLower(layerName);
 
-        // 1) protagonist spawn points (same logic as before)
+        // 1) protagonist spawn points
         for (const auto& obj : L["objects"]) {
             if (!obj.is_object()) continue;
             if (nameIsProtagonist(obj)) {
@@ -374,7 +405,6 @@ void TMJMap::parseObjectLayers(const json& layers) {
             a.width = obj.value("width", 0.f);
             a.height = obj.value("height", 0.f);
             a.name = obj.value("name", "");
-            // Read target and optional targetX/targetY from properties or top-level fields
             a.target = "";
             if (obj.contains("properties") && obj["properties"].is_array()) {
                 for (const auto& p : obj["properties"]) {
@@ -395,7 +425,6 @@ void TMJMap::parseObjectLayers(const json& layers) {
             if (!a.targetX && obj.contains("targetX") && obj["targetX"].is_number()) a.targetX = obj["targetX"].get<float>();
             if (!a.targetY && obj.contains("targetY") && obj["targetY"].is_number()) a.targetY = obj["targetY"].get<float>();
 
-            // Log entrance parsing at INFO level so it's visible
             Logger::info("Parsed entrance '" + a.name + "' target='" + a.target + "'");
             if (a.targetX && a.targetY) {
                 Logger::info("  targetX/Y = " + std::to_string(*a.targetX) + ", " + std::to_string(*a.targetY));
@@ -406,12 +435,11 @@ void TMJMap::parseObjectLayers(const json& layers) {
             entranceAreas.push_back(std::move(a));
         }
 
-        // 4) Parse NotWalkable layers (layer name contains "notwalkable", case-insensitive)
+        // 4) Parse NotWalkable layers
         if (lnameLower.find("notwalkable") != std::string::npos) {
             for (const auto& obj : L["objects"]) {
                 if (!obj.is_object()) continue;
 
-                // Polygon object
                 if (obj.contains("polygon") && obj["polygon"].is_array()) {
                     float ox = obj.value("x", 0.f);
                     float oy = obj.value("y", 0.f);
@@ -440,9 +468,7 @@ void TMJMap::parseObjectLayers(const json& layers) {
                     } else {
                         Logger::warn("NotWalkable polygon ignored: less than 3 points");
                     }
-                }
-                // Rectangle object (has width/height)
-                else if (obj.contains("width") && obj.contains("height")) {
+                } else if (obj.contains("width") && obj.contains("height")) {
                     float rx = obj.value("x", 0.f);
                     float ry = obj.value("y", 0.f);
                     float rw = obj.value("width", 0.f);
@@ -454,23 +480,16 @@ void TMJMap::parseObjectLayers(const json& layers) {
                 }
             }
         }
-    }
-    // 5) Parse Chef objects (新增：解析 chef 类对象)
-    for (const auto& L : layers) {
-        if (!L.contains("type") || !L["type"].is_string() || L["type"] != "objectgroup") continue;
-        if (!L.contains("objects") || !L["objects"].is_array()) continue;
 
+        // 5) Parse Chef objects (修复作用域错误)
         for (const auto& obj : L["objects"]) {
             if (!obj.is_object()) continue;
 
-            // 检查对象是否是 "chef" 类（和入口解析逻辑一致：优先 type，再 class，不区分大小写）
             bool isChef = false;
-            // 检查 type 字段（Tiled 中对象的“类型”）
             if (obj.contains("type") && obj["type"].is_string()) {
                 std::string t = toLower(obj["type"].get<std::string>());
                 if (t == "chef") isChef = true;
             }
-            // 检查 class 字段（Tiled 中对象的“类”）
             if (!isChef && obj.contains("class") && obj["class"].is_string()) {
                 std::string c = toLower(obj["class"].get<std::string>());
                 if (c == "chef") isChef = true;
@@ -478,23 +497,65 @@ void TMJMap::parseObjectLayers(const json& layers) {
 
             if (!isChef) continue;
 
-            // 解析 chef 对象的属性（和原有对象解析逻辑保持一致，用 value 避免字段缺失报错）
             Chef chef;
-            chef.name = obj.value("name", "chef");  // 默认名称为 "chef"
-            // 用 SFML 3.0+ 的 FloatRect 构造方式（position + size）
+            chef.name = obj.value("name", "chef");
             chef.rect = sf::FloatRect(
-                sf::Vector2f(obj.value("x", 0.f), obj.value("y", 0.f)),  // 矩形左上角坐标
-                sf::Vector2f(obj.value("width", 16.f), obj.value("height", 17.f))  // 矩形尺寸（默认16x17，和精灵一致）
+                sf::Vector2f(obj.value("x", 0.f), obj.value("y", 0.f)),
+                sf::Vector2f(obj.value("width", 16.f), obj.value("height", 17.f))
             );
 
-            m_chefs.push_back(std::move(chef));  // 加入厨师列表
+            m_chefs.push_back(std::move(chef));
             Logger::info("Parsed chef object: " + chef.name + " at (" + 
                          std::to_string(chef.rect.position.x) + ", " + 
                          std::to_string(chef.rect.position.y) + ")");
         }
+
+        // 6) Parse Interaction objects (Counter)
+        if (lnameLower == "interaction") {
+            for (const auto& obj : L["objects"]) {
+                if (!obj.is_object()) continue;
+
+                bool isCounter = false;
+                if (obj.contains("type") && obj["type"].is_string()) {
+                    std::string t = toLower(obj["type"].get<std::string>());
+                    if (t == "counter") isCounter = true;
+                }
+                if (!isCounter && obj.contains("class") && obj["class"].is_string()) {
+                    std::string cls = toLower(obj["class"].get<std::string>());
+                    if (cls == "counter") isCounter = true;
+                }
+
+                if (!isCounter) continue;
+
+                InteractionObject io;
+                io.type = "counter";
+                io.name = obj.value("name", "counter");
+                io.rect = sf::FloatRect(
+                    sf::Vector2f(obj.value("x", 0.f), obj.value("y", 0.f)),
+                    sf::Vector2f(obj.value("width", 0.f), obj.value("height", 0.f))
+                );
+
+                if (obj.contains("properties") && obj["properties"].is_array()) {
+                    for (const auto& p : obj["properties"]) {
+                        if (!p.is_object()) continue;
+                        std::string pname = p.value("name", "");
+                        if (pname == "dishes" && p.contains("value") && p["value"].is_string()) {
+                            std::string dishesStr = p["value"].get<std::string>();
+                            io.options = splitDishesString(dishesStr);
+                            break;
+                        }
+                    }
+                }
+
+                interactionObjects.push_back(io);
+                Logger::info("Successfully parsed Counter: " + io.name + 
+                             " | Rect: (" + std::to_string(io.rect.position.x) + "," + std::to_string(io.rect.position.y) + 
+                             ") " + std::to_string(io.rect.size.x) + "x" + std::to_string(io.rect.size.y) +
+                             " | Dishes: " + std::to_string(io.options.size()));
+            }
+        }
     }
 }
-
 
 /**
  * @brief Load tileset definitions and build textures (optionally extruded).

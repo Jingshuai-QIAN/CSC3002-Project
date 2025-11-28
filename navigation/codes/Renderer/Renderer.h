@@ -14,6 +14,7 @@
 #include "MapLoader/MapObjects.h"
 #include "Renderer/TextRenderer.h"
 #include "Utils/Logger.h" 
+#include <optional>
 
 /*
  * File: Renderer.h
@@ -164,6 +165,18 @@ public:
      * @return sf::View The default view.
      */
     sf::View getDefaultView() const;
+
+    // 新增：获取窗口引用（供外部访问）
+    sf::RenderWindow& getWindow() { return window; }
+
+    // 新增：正确的 SFML 3.0 pollEvent 接口（无参数，返回 optional<Event>）
+    std::optional<sf::Event> pollEvent() { 
+        return window.pollEvent(); 
+    }
+
+    
+    // 新增：退出程序（关闭窗口）
+    void quit() { window.close(); }
     
     /**
      * @brief Updates the camera position and clamps it to map boundaries.

@@ -8,20 +8,9 @@
 #include "Utils/Logger.h"
 #include <filesystem>
 #include "Character/Character.h"
+#include "DialogSystem.h"
 
 // Helper: detect whether character is inside an entrance and facing it.
-/**
- * @brief Check whether the character's feet lie inside any entrance area and
- *        whether the character is facing that entrance.
- *
- * If an entrance is found and the character is facing toward its center, the
- * function fills outArea with that entrance and returns true.
- *
- * @param character The player character to test.
- * @param map Pointer to the TMJMap containing entranceAreas (may be nullptr).
- * @param outArea Output parameter filled with the matched EntranceArea on success.
- * @return true if an entrance trigger is detected and the character is facing it.
- */
 static bool detectEntranceTrigger(const Character& character, const TMJMap* map, EntranceArea& outArea) {
     if (!map) return false;
     sf::Vector2f feet = character.getFeetPoint();
@@ -45,42 +34,26 @@ static bool detectEntranceTrigger(const Character& character, const TMJMap* map,
 }
 
 // Helper: show the full-map modal (blocking) — extracted from main loop.
-/**
- * @brief Display an interactive fullscreen map modal window.
- *
- * The modal shows the entire map scaled to the desktop size and supports
- * zooming (mouse wheel) and panning (drag). This is a blocking call that
- * returns when the user closes the modal (Escape or window close).
- *
- * @param renderer Reference to the main Renderer (used only for style/config).
- * @param tmjMap Shared pointer to the map to render inside the modal.
- * @param configManager Configuration manager used to obtain font paths.
- */
 static void showFullMapModal(Renderer& renderer, const std::shared_ptr<TMJMap>& tmjMap, const ConfigManager& configManager) {
-    // create fullscreen window
     auto dm = sf::VideoMode::getDesktopMode();
     sf::RenderWindow mapWin(dm, sf::String("Full Map"), sf::State::Windowed);
     mapWin.setFramerateLimit(60);
 
-    // prepare a view that covers the whole map in world coords
     int mapW = tmjMap->getWorldPixelWidth();
     int mapH = tmjMap->getWorldPixelHeight();
 
-    // Desktop/window size
     float winW = static_cast<float>(dm.size.x);
     float winH = static_cast<float>(dm.size.y);
 
     float mapWf = static_cast<float>(mapW);
     float mapHf = static_cast<float>(mapH);
 
-    // Compute uniform scale to preserve tile aspect ratio
     float scale = 1.f;
     if (mapW > 0 && mapH > 0) scale = std::min(winW / mapWf, winH / mapHf);
 
     float displayW = mapWf * scale;
     float displayH = mapHf * scale;
 
-    // Normalized viewport (left, top, width, height) in [0,1]
     float left = (winW - displayW) * 0.5f / winW;
     float top  = (winH - displayH) * 0.5f / winH;
     float vw   = (displayW / winW);
@@ -90,19 +63,16 @@ static void showFullMapModal(Renderer& renderer, const std::shared_ptr<TMJMap>& 
     fullView.setViewport(sf::FloatRect({left, top}, {vw, vh}));
     mapWin.setView(fullView);
 
-    // create a local TextRenderer to draw map text using same font path
     TextRenderer tr;
     tr.initialize(configManager.getRenderConfig().text.fontPath);
 
-    // interactive fullscreen modal: support zoom (mouse wheel) and drag (left button)
-    float zoomFactor = 1.f; // 1.0 = no zoom (initial fit)
+    float zoomFactor = 1.f;
     const float ZOOM_MIN = 0.25f;
     const float ZOOM_MAX = 8.0f;
 
     bool dragging = false;
     sf::Vector2i prevDragPixel{0,0};
 
-    // view variable initialized from fullView (keeps viewport)
     sf::View view = fullView;
 
     while (mapWin.isOpen()) {
@@ -115,25 +85,16 @@ static void showFullMapModal(Renderer& renderer, const std::shared_ptr<TMJMap>& 
             }
 
             if (ev->is<sf::Event::MouseWheelScrolled>()) {
-                // mouse wheel zoom: positive -> zoom in
                 auto mw = ev->getIf<sf::Event::MouseWheelScrolled>();
                 if (mw) {
-                    // Get mouse wheel delta
                     float delta = mw->delta;
-                    // Zoom in/out based on mouse wheel delta
                     if (delta > 0) zoomFactor *= 1.1f;
                     else if (delta < 0) zoomFactor /= 1.1f;
-
-                    // Clamp zoom factor between min and max
                     zoomFactor = std::clamp(zoomFactor, ZOOM_MIN, ZOOM_MAX);
-                    // Update view size to match new zoom factor
                     view.setSize(sf::Vector2f{
                         mapWf / zoomFactor,
                         mapHf / zoomFactor
                     });
-                    // Update viewport to match new zoom factor
-                    view.setViewport(sf::FloatRect({left, top}, {vw, vh}));
-                    // Update viewport to match new zoom factor
                     mapWin.setView(view);
                 }
             }
@@ -155,7 +116,6 @@ static void showFullMapModal(Renderer& renderer, const std::shared_ptr<TMJMap>& 
                 auto mm = ev->getIf<sf::Event::MouseMoved>();
                 if (mm && dragging) {
                     sf::Vector2i curPixel = mm->position;
-                    // convert pixel movement to world movement
                     sf::Vector2f prevWorld = mapWin.mapPixelToCoords(prevDragPixel);
                     sf::Vector2f curWorld  = mapWin.mapPixelToCoords(curPixel);
                     sf::Vector2f diff = prevWorld - curWorld;
@@ -164,14 +124,12 @@ static void showFullMapModal(Renderer& renderer, const std::shared_ptr<TMJMap>& 
                     prevDragPixel = curPixel;
                 }
             }
-        } // events
+        }
 
         if (!mapWin.isOpen()) break;
 
         mapWin.clear(sf::Color::Black);
-        // draw all map tiles (TMJMap holds sprites positioned in world coords)
         for (const auto& s : tmjMap->getTiles()) mapWin.draw(s);
-        // draw entrance areas
         for (const auto& a : tmjMap->getEntranceAreas()) {
             sf::RectangleShape rect(sf::Vector2f(a.width, a.height));
             rect.setPosition(sf::Vector2f(a.x, a.y));
@@ -179,32 +137,15 @@ static void showFullMapModal(Renderer& renderer, const std::shared_ptr<TMJMap>& 
             rect.setOutlineThickness(0);
             mapWin.draw(rect);
         }
-        // draw text objects if font loaded
         if (tr.isFontLoaded()) {
             tr.renderTextObjects(tmjMap->getTextObjects(), mapWin);
         }
 
-    mapWin.display();
-    } // modal window loop
-
-} // end showFullMapModal
+        mapWin.display();
+    }
+}
 
 // Attempt to load target map from entrance; returns true on success and updates tmjMap & character & renderer view.
-/**
- * @brief Load the target map specified by an entrance and position the character.
- *
- * This helper resolves the entrance.target relative to the current map directory,
- * loads the target TMJ map via MapLoader and places the character at the resolved
- * spawn position (priority: entrance.targetX/Y -> spawn override -> map spawn -> center).
- *
- * @param mapLoader Reference to the MapLoader used to load the target TMJ map.
- * @param tmjMap Shared pointer reference that will be updated to the newly loaded map.
- * @param entrance The EntranceArea that triggered the transition.
- * @param character The player character to reposition.
- * @param renderer Renderer used to update camera after spawn.
- * @param configManager Configuration manager used for any required paths.
- * @return true on success, false if map loading failed.
- */
 static bool tryEnterTarget(
     MapLoader& mapLoader,
     std::shared_ptr<TMJMap>& tmjMap,
@@ -223,15 +164,12 @@ static bool tryEnterTarget(
         return false;
     }
     tmjMap = newMap;
-    // Debug log entrance explicit coords and resolve path
     Logger::info("Entering target map: " + resolvedStr + " via entrance target='" + entrance.target + "'");
     if (entrance.targetX && entrance.targetY) {
         Logger::info("  entrance provides targetX/Y = " + std::to_string(*entrance.targetX) + ", " + std::to_string(*entrance.targetY));
     } else {
         Logger::info("  entrance has no explicit targetX/Y");
     }
-    // resolve spawn: prefer explicit entrance targetX/targetY (if provided),
-    // then any stored override, then map spawn, then center
     sf::Vector2f spawnPos;
     if (entrance.targetX && entrance.targetY) {
         spawnPos = sf::Vector2f(*entrance.targetX, *entrance.targetY);
@@ -264,13 +202,47 @@ static void cancelEntranceMove(Character& character, const TMJMap& map) {
     character.setPosition(pos);
 }
 
-/**
- * @brief Main application loop extracted from main to keep main concise.
- *
- * The function drives input sampling, character updates, entrance detection,
- * modal dialogs, and rendering. It takes ownership references to the core
- * subsystems already initialized by main().
- */
+// 修复：交互检测函数（添加日志）
+static bool detectInteraction(const Character& character, const TMJMap* map, InteractionObject& outObj) {
+    if (!map) {
+        Logger::debug("detectInteraction: map is null");
+        return false;
+    }
+    sf::Vector2f feet = character.getFeetPoint();
+    Logger::debug("detectInteraction: character feet at (" + std::to_string(feet.x) + "," + std::to_string(feet.y) + ")");
+    
+    const auto& interactionObjs = map->getInteractionObjects(); 
+    Logger::debug("detectInteraction: " + std::to_string(interactionObjs.size()) + " interaction objects total");
+    
+    for (const auto& obj : interactionObjs) {
+        if (obj.type != "counter") continue; // 只检测Counter
+        Logger::debug("detectInteraction: checking Counter '" + obj.name + "' rect (" + 
+                     std::to_string(obj.rect.position.x) + "," + std::to_string(obj.rect.position.y) + 
+                     ") size (" + std::to_string(obj.rect.size.x) + "," + std::to_string(obj.rect.size.y) + ")");
+        
+        if (obj.rect.contains(feet)) {
+            sf::Vector2f center(
+                obj.rect.position.x + obj.rect.size.x / 2.0f,
+                obj.rect.position.y + obj.rect.size.y / 2.0f
+            );
+            sf::Vector2f dir = center - feet;
+            Character::Direction desired = (std::abs(dir.x) > std::abs(dir.y)) 
+                ? (dir.x > 0 ? Character::Direction::Right : Character::Direction::Left)
+                : (dir.y > 0 ? Character::Direction::Down : Character::Direction::Up);
+            
+            Logger::debug("detectInteraction: Counter contains feet, desired direction: " + std::to_string(static_cast<int>(desired)) + 
+                         ", character direction: " + std::to_string(static_cast<int>(character.getCurrentDirection())));
+            
+            if (desired == character.getCurrentDirection()) {
+                outObj = obj;
+                Logger::debug("detectInteraction: success - matched Counter '" + obj.name + "'");
+                return true;
+            }
+        }
+    }
+    Logger::debug("detectInteraction: no matching Counter found");
+    return false;
+}
 
 void runApp(
     Renderer& renderer,
@@ -280,153 +252,139 @@ void runApp(
     sf::View& view,
     ConfigManager& configManager
 ) {
-    // Initialize input manager
     auto& inputManager = InputManager::getInstance();
 
-    // 初始化时加载厨师纹理
     if (!renderer.initializeChefTexture()) {
         Logger::error("Failed to initialize chef texture");
         return;
     }
     
-    // Modal UI font for simple prompts (loaded once)
+    // 加载模态字体
     sf::Font modalFont;
-    modalFont.openFromFile(configManager.getRenderConfig().text.fontPath);
+    if (!modalFont.openFromFile(configManager.getRenderConfig().text.fontPath)) {
+        Logger::error("Failed to load modal font!");
+        return;
+    }
+    
+    // ========== 修复1：只初始化一次对话框（避免重复加载） ==========
+    DialogSystem dialogSys(modalFont, 24);
+    bool dialogInitSuccess = false;
+    try {
+        // 拼接完整的素材路径（根据你的项目目录调整）
+        std::string dialogBgPath ="textures/dialog/dialog_bg.png";
+        std::string btnPath ="textures/dialog/btn.png";
+        
+        dialogSys.initialize(
+            dialogBgPath,
+            btnPath,
+            modalFont,
+            configManager.getRenderConfig().text.fontSize
+        );
+        dialogInitSuccess = true;
+        Logger::info("Dialog system initialized successfully");
+    } catch (const std::runtime_error& e) {
+        Logger::error(std::string("Failed to init dialog system: ") + e.what());
+        dialogInitSuccess = false;
+    }
 
-    // Entrance confirmation state
+    // 入口确认状态
     bool waitingForEntranceConfirmation = false;
     EntranceArea pendingEntrance;
-    // Suppress entrance detection until player leaves the entrance area they spawned inside
     bool hasSuppressedEntrance = false;
     sf::FloatRect suppressedEntranceRect;
 
-    // Main loop
+    // 主循环
     sf::Clock clock;
     while (renderer.isRunning()) {
         float deltaTime = clock.restart().asSeconds();
 
-        // Process input
-        inputManager.update();
-        
-        // Handle events
-        renderer.handleEvents();
+        // ========== 修复2：统一事件处理（只轮询一次） ==========
+        std::optional<sf::Event> eventOpt;
+        while ((eventOpt = renderer.pollEvent()).has_value()) {
+            sf::Event& event = eventOpt.value();
 
-        // Update character (skip updating when waiting for modal confirmation)
-        sf::Vector2f moveInput = inputManager.getMoveInput();
-        if (!waitingForEntranceConfirmation) {
+            // 优先处理对话框事件
+            if (dialogSys.isActive()) {
+                dialogSys.handleEvent(event, renderer.getWindow());
+                continue;
+            }
+
+            // 窗口关闭事件
+            if (event.is<sf::Event::Closed>()) {
+                renderer.quit();
+                break;
+            }
+
+            // 全屏地图按钮（原有逻辑）
+            if (event.is<sf::Event::MouseButtonPressed>()) {
+                auto mb = event.getIf<sf::Event::MouseButtonPressed>();
+                if (mb && mb->button == sf::Mouse::Button::Left) {
+                    sf::Vector2i mpos = mb->position;
+                    if (renderer.mapButtonContainsPoint(mpos)) {
+                        showFullMapModal(renderer, tmjMap, configManager);
+                    }
+                }
+            }
+        }
+
+        // ========== 修复3：更新输入（只更一次） ==========
+        inputManager.update();
+
+        // ========== 修复4：E键检测（移到主循环，非事件轮询内） ==========
+        if (!waitingForEntranceConfirmation && !dialogSys.isActive() && inputManager.isKeyJustPressed(sf::Keyboard::Key::E)) {
+            Logger::debug("E key pressed - checking for interaction");
+            InteractionObject interactObj;
+            if (detectInteraction(character, tmjMap.get(), interactObj)) {
+                if (dialogInitSuccess) {
+                    Logger::info("Triggering Counter interaction - showing dialog");
+                    // 设置对话框内容
+                    dialogSys.setDialog(
+                        "What would you want to eat?",
+                        interactObj.options.empty() ? std::vector<std::string>{"Chicken Steak", "Pasta", "Beef Noodles"} : interactObj.options,
+                        [](const std::string& dish) {
+                            Logger::info("Selected dish: " + dish);
+                        }
+                    );
+                    renderer.setModalActive(true);
+                } else {
+                    Logger::error("Dialog system not initialized - cannot show interaction");
+                }
+            } else {
+                Logger::debug("E key pressed but no valid interaction found");
+            }
+        }
+
+        // ========== 修复5：角色更新（只更一次，避免重复） ==========
+        if (!waitingForEntranceConfirmation && !dialogSys.isActive()) {
+            sf::Vector2f moveInput = inputManager.getMoveInput();
             character.update(deltaTime, moveInput, 
                             tmjMap->getWorldPixelWidth(), 
                             tmjMap->getWorldPixelHeight(),
                             tmjMap.get());
         }
 
-        // Detect entrance triggers (when not already waiting for confirmation)
-        if (!waitingForEntranceConfirmation) {
-            if (hasSuppressedEntrance) {
-                sf::Vector2f feet = character.getFeetPoint();
-                if (suppressedEntranceRect.contains(feet)) {
-                    // still inside suppressed entrance area -> skip detection
-                } else {
-                    // player left the entrance area -> lift suppression
-                    hasSuppressedEntrance = false;
-                }
-            }
-            if (!hasSuppressedEntrance) {
-                EntranceArea detected;
-                if (detectEntranceTrigger(character, tmjMap.get(), detected)) {
-                    waitingForEntranceConfirmation = true;
-                    pendingEntrance = detected;
-                    // Log which entrance was detected (helps verify targetX/targetY presence)
-                    Logger::info("Detected entrance trigger: '" + detected.name + "' target='" + detected.target + "'");
-                    if (detected.targetX && detected.targetY) {
-                        Logger::info("  entrance has explicit targetX/Y = " + std::to_string(*detected.targetX) + ", " + std::to_string(*detected.targetY));
-                    } else {
-                        Logger::info("  entrance has no explicit targetX/Y");
-                    }
-                    // While overlay is active, prevent renderer from treating Escape as quit
-                    renderer.setModalActive(true);
-                }
+        // ========== 原有入口检测逻辑（保留） ==========
+        if (!waitingForEntranceConfirmation && !hasSuppressedEntrance) {
+            EntranceArea detected;
+            if (detectEntranceTrigger(character, tmjMap.get(), detected)) {
+                waitingForEntranceConfirmation = true;
+                pendingEntrance = detected;
+                Logger::info("Detected entrance trigger: '" + detected.name + "' target='" + detected.target + "'");
+                renderer.setModalActive(true);
             }
         }
 
-        // Detect map button click (edge detect)
-        static bool prevMousePressed = false;
-        bool currMousePressed = sf::Mouse::isButtonPressed(sf::Mouse::Button::Left);
-
-        if (currMousePressed && !prevMousePressed) {
-            // new click
-            sf::Vector2i mpos = renderer.getMousePosition();
-
-            if (renderer.mapButtonContainsPoint(mpos)) {
-                // open modal fullscreen map window
-                showFullMapModal(renderer, tmjMap, configManager);
-            }
-        }
-        prevMousePressed = currMousePressed;
-
-        // Camera follow character (use Renderer to update & clamp view)
-        if (!waitingForEntranceConfirmation) {
-            renderer.updateCamera(character.getPosition(),
-                                  tmjMap->getWorldPixelWidth(),
-                                  tmjMap->getWorldPixelHeight());
-        } else {
-            // still ensure renderer has a valid view
-            renderer.updateCamera(view.getCenter(),
-                                  tmjMap->getWorldPixelWidth(),
-                                  tmjMap->getWorldPixelHeight());
-        }
-
-        Logger::debug(
-            "Camera - Center: (" + 
-            std::to_string(view.getCenter().x) + ", " + 
-            std::to_string(view.getCenter().y) + 
-            ") Size: (" + 
-            std::to_string(view.getSize().x) + ", " + 
-            std::to_string(view.getSize().y) + ")"
-        );
-
-        Logger::debug(
-            "Character position: (" + 
-            std::to_string(character.getPosition().x) + ", " + 
-            std::to_string(character.getPosition().y) + ")"
-        );
-
-        // Inspect first tile position (if any)
-        if (!tmjMap->getTiles().empty()) {
-            const auto& firstTile = tmjMap->getTiles()[0];
-            Logger::debug(
-                "First tile position: (" + 
-                std::to_string(firstTile.getPosition().x) + ", " + 
-                std::to_string(firstTile.getPosition().y) + ")"
-            );
-        }
-
-        renderer.clear();
-        
-        mapLoader.render(&renderer);
-        
-        renderer.renderTextObjects(tmjMap->getTextObjects());
-        renderer.renderEntranceAreas(tmjMap->getEntranceAreas());
-        renderer.renderChefs(tmjMap->getChefs());  // 新增：渲染厨师
-        renderer.drawSprite(character.getSprite());
-        renderer.drawMapButton();
-        // If waiting for entrance confirmation, draw a simple modal overlay and handle input
+        // ========== 入口确认逻辑（原有） ==========
         if (waitingForEntranceConfirmation) {
-            // handle confirm/cancel input
             if (inputManager.isKeyJustPressed(sf::Keyboard::Key::Enter)) {
-                // Confirm: attempt to load target map
-                // record override for current map before switching
-                {
-                    std::string fromKey = mapLoader.getCurrentMapPath();
-                    if (!fromKey.empty()) {
-                        mapLoader.setSpawnOverride(fromKey, character.getPosition().x, character.getPosition().y);
-                    }
+                std::string fromKey = mapLoader.getCurrentMapPath();
+                if (!fromKey.empty()) {
+                    mapLoader.setSpawnOverride(fromKey, character.getPosition().x, character.getPosition().y);
                 }
                 bool ok = tryEnterTarget(mapLoader, tmjMap, pendingEntrance, character, renderer, configManager);
                 if (!ok) {
                     waitingForEntranceConfirmation = false;
                 } else {
-                    // If player spawned inside an entrance area in the new map, suppress
                     sf::Vector2f pos = character.getPosition();
                     for (const auto& a : tmjMap->getEntranceAreas()) {
                         sf::FloatRect r(sf::Vector2f(a.x, a.y), sf::Vector2f(a.width, a.height));
@@ -436,19 +394,48 @@ void runApp(
                             break;
                         }
                     }
-                    // Lift renderer-level Escape->close suppression only while confirmation overlay is active.
                     renderer.setModalActive(false);
                     waitingForEntranceConfirmation = false;
                 }
             } else if (inputManager.isKeyJustPressed(sf::Keyboard::Key::Escape)) {
-                // Cancel: move character 1 tile away from entrance along opposite facing
                 cancelEntranceMove(character, *tmjMap);
                 waitingForEntranceConfirmation = false;
+                renderer.setModalActive(false);
             }
+        }
 
-            // draw centered modal prompt via renderer helper
+        // ========== 相机更新（原有） ==========
+        if (!waitingForEntranceConfirmation) {
+            renderer.updateCamera(character.getPosition(),
+                                  tmjMap->getWorldPixelWidth(),
+                                  tmjMap->getWorldPixelHeight());
+        } else {
+            renderer.updateCamera(view.getCenter(),
+                                  tmjMap->getWorldPixelWidth(),
+                                  tmjMap->getWorldPixelHeight());
+        }
+
+        // ========== 渲染逻辑（原有+修复） ==========
+        renderer.clear();
+        mapLoader.render(&renderer);
+        renderer.renderTextObjects(tmjMap->getTextObjects());
+        renderer.renderEntranceAreas(tmjMap->getEntranceAreas());
+        renderer.renderChefs(tmjMap->getChefs());
+        renderer.drawSprite(character.getSprite());
+        renderer.drawMapButton();
+
+        // 绘制入口确认提示
+        if (waitingForEntranceConfirmation) {
             std::string prompt = "Do you want to enter " + pendingEntrance.name + "?  Enter=Yes  Esc=No";
             renderer.renderModalPrompt(prompt, modalFont, configManager.getRenderConfig().text.fontSize);
+        }
+
+        // 绘制对话框
+        if (dialogSys.isActive()) {
+            dialogSys.render(renderer.getWindow());
+            if (!dialogSys.isActive()) {
+                renderer.setModalActive(false);
+            }
         }
 
         renderer.present();

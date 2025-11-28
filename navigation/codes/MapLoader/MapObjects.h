@@ -57,6 +57,13 @@ struct TextObject {
     std::string valign = "top";
 };
 
+struct InteractionObject {
+    std::string type;       // 交互类型（如"counter"）
+    std::string name;       // 对象名称
+    sf::FloatRect rect;     // 交互区域
+    std::vector<std::string> options; // 交互选项（菜品列表）
+};
+
 /*
  * Struct: EntranceArea
  * Description: Rectangle representing an entrance/trigger region placed in Tiled.

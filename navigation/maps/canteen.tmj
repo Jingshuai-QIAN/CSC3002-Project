@@ -813,9 +813,37 @@
          "visible":true,
          "x":0,
          "y":0
+        }, 
+        {
+         "draworder":"topdown",
+         "id":10,
+         "name":"Interaction",
+         "objects":[
+                {
+                 "height":112,
+                 "id":21,
+                 "name":"counter",
+                 "properties":[
+                        {
+                         "name":"Dishes",
+                         "type":"string",
+                         "value":"Chicken Steak, Baked Rice, Claypot Rice, Beef Noodles"
+                        }],
+                 "rotation":0,
+                 "type":"Counter",
+                 "visible":true,
+                 "width":96,
+                 "x":224,
+                 "y":112
+                }],
+         "opacity":1,
+         "type":"objectgroup",
+         "visible":true,
+         "x":0,
+         "y":0
         }],
- "nextlayerid":10,
- "nextobjectid":21,
+ "nextlayerid":11,
+ "nextobjectid":22,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",

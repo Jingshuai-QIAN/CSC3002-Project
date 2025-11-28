@@ -221,6 +221,17 @@ std::shared_ptr<TMJMap> MapLoader::loadTMJMap(
     
     applySpawnFromSidecar(filepath, *currentTMJMap);
 
+    // 新增：打印交互对象解析结果（关键调试日志）
+    auto interactionObjs = currentTMJMap->getInteractionObjects();
+    Logger::info("Loaded " + std::to_string(interactionObjs.size()) + " interaction objects from TMJ map");
+    for (const auto& io : interactionObjs) {
+        if (io.type == "counter") {
+            Logger::info("  Counter found: " + io.name + " | Rect: (" + 
+                         std::to_string(io.rect.position.x) + "," + std::to_string(io.rect.position.y) + 
+                         ") " + std::to_string(io.rect.size.x) + "x" + std::to_string(io.rect.size.y));
+        }
+    }
+
     // Extract map directory for future reference
     size_t lastSlash = filepath.find_last_of("/\\");
     if (lastSlash != std::string::npos) {
