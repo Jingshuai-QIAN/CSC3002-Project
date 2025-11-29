@@ -479,6 +479,7 @@ void TMJMap::parseObjectLayers(const json& layers) {
                                  ") size " + std::to_string(rw) + "x" + std::to_string(rh));
                 }
             }
+
         }
 
         // 5) Parse Chef objects (修复作用域错误)
@@ -510,7 +511,29 @@ void TMJMap::parseObjectLayers(const json& layers) {
                          std::to_string(chef.rect.position.y) + ")");
         }
 
-        // 6) Parse Interaction objects (Counter)
+        // 6) 解析GameTriggerArea (新增)
+        layerName = L.value("name", "");
+        if (layerName == "game_triggers") { // 确保Tiled中图层名为"game_triggers"
+            for (const auto& obj : L["objects"]) {
+                GameTriggerArea trigger;
+                trigger.x = obj["x"];
+                trigger.y = obj["y"];
+                trigger.width = obj["width"];
+                trigger.height = obj["height"];
+                trigger.name = obj["name"];
+                
+                // 解析自定义属性gameType
+                for (const auto& prop : obj["properties"]) {
+                    if (prop["name"] == "gameType") {
+                        trigger.gameType = prop["value"];
+                    }
+                }
+                
+                gameTriggers.push_back(trigger);
+            }
+        }
+
+        // 7) Parse Interaction objects (Counter)
         if (lnameLower == "interaction") {
             for (const auto& obj : L["objects"]) {
                 if (!obj.is_object()) continue;
@@ -914,4 +937,5 @@ bool TMJMap::feetBlockedAt(const sf::Vector2f& feet) const {
         }
     }
     return false;
+
 }
