@@ -81,6 +81,13 @@ struct EntranceArea {
     std::optional<float> targetY;
 };
 
+struct GameTriggerArea {
+    float x = 0.f, y = 0.f;       // 区域左上角坐标
+    float width = 0.f, height = 0.f; // 区域大小
+    std::string name;             // 区域名称（如"bookstore_game"）
+    std::string gameType;         // 小游戏类型（用于区分不同游戏）
+};
+
 // 添加Chef对象结构
 struct Chef {
     std::string name;       // 对象名称（可用于区分不同厨师）
@@ -96,5 +103,23 @@ struct Chef {
  */
 struct BlockPoly {
     std::vector<sf::Vector2f> points; // polygon vertices in world pixels
-    sf::FloatRect bounds;             // AABB as position + size vectors (SFML 3)
+    sf::FloatRect bounds;             // AABB (SFML 3: position + size)
+
+    // ✅ 1️⃣ 默认构造时强制初始化 bounds，防止野值
+    BlockPoly()
+        : points(),
+          bounds(sf::Vector2f(0.f, 0.f), sf::Vector2f(0.f, 0.f)) {}
+
+    // ✅ 2️⃣ 便捷构造（常用于解析 TMJ）
+    explicit BlockPoly(std::vector<sf::Vector2f> p)
+        : points(std::move(p)),
+          bounds(sf::Vector2f(0.f, 0.f), sf::Vector2f(0.f, 0.f)) {}
+
+    // ✅ 3️⃣ 显式允许安全拷贝
+    BlockPoly(const BlockPoly&) = default;
+    BlockPoly& operator=(const BlockPoly&) = default;
+
+    // ✅ 4️⃣ 显式允许安全移动（关键！防止 vector 扩容时崩溃）
+    BlockPoly(BlockPoly&&) noexcept = default;
+    BlockPoly& operator=(BlockPoly&&) noexcept = default;
 };
