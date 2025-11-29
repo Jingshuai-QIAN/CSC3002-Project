@@ -20,7 +20,8 @@ SOURCES = codes/main.cpp \
           codes/Character/Character.cpp \
           codes/Character/CharacterConfig.cpp \
           codes/Input/InputManager.cpp \
-		  codes/QuizGame/QuizGame.cpp
+		  codes/QuizGame/QuizGame.cpp \
+		  codes/DialogSystem.cpp
 
 
 # =======================
@@ -64,3 +65,4 @@ rebuild: clean $(TARGET)
 # Mark utility targets as phony to prevent conflicts with files
 
 .PHONY: clean rebuild
+
