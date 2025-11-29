@@ -222,6 +222,12 @@ public:
      * @brief Renders entrance areas as semi-transparent rectangles
      */
     void renderEntranceAreas(const std::vector<EntranceArea>& areas);
+
+    /**
+     * @brief Renders game trigger areas (from Tiled object layer "game_triggers").
+     *        Each GameTriggerArea can be highlighted differently by gameType.
+     */
+    void renderGameTriggerAreas(const std::vector<GameTriggerArea>& areas);
     
     /**
      * @brief Render a simple modal prompt overlay using the UI/default view.
