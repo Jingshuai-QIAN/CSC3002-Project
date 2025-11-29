@@ -668,6 +668,25 @@ void Renderer::renderEntranceAreas(const std::vector<EntranceArea>& areas) {
     }
 }
 
+
+void Renderer::renderGameTriggerAreas(const std::vector<GameTriggerArea>& areas) {
+    if (!window.isOpen()) return;
+
+    for (const auto& area : areas) {
+        sf::RectangleShape rect(sf::Vector2f(area.width, area.height));
+        rect.setPosition(sf::Vector2f(area.x, area.y));
+        rect.setOutlineThickness(2.f);
+
+        // 你现在只有一个 quiz game，我只保留这一种颜色逻辑
+        // Quiz 触发区 —— 金色半透明
+        rect.setFillColor(sf::Color(255, 215, 0, 140));
+        rect.setOutlineColor(sf::Color(200, 170, 0));
+
+        window.draw(rect);
+    }
+}
+
+
 void Renderer::renderModalPrompt(const std::string& prompt, const sf::Font& font, unsigned int fontSize) {
     if (!window.isOpen()) return;
 
