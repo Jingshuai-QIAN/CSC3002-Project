@@ -78,6 +78,7 @@ public:
     const std::vector<sf::Sprite>& getTiles() const { return tiles; }
     const std::vector<TextObject>& getTextObjects() const { return textObjects; }
     const std::vector<EntranceArea>& getEntranceAreas() const { return entranceAreas; }
+    const std::vector<GameTriggerArea>& getGameTriggers() const { return gameTriggers; }
     const std::optional<float>& getSpawnX() const { return spawnX; }
     const std::optional<float>& getSpawnY() const { return spawnY; }
     const std::vector<Chef>& getChefs() const { return m_chefs; }
@@ -126,6 +127,7 @@ private:
     std::vector<sf::Sprite> tiles;
     std::vector<TextObject> textObjects;
     std::vector<EntranceArea> entranceAreas;
+    std::vector<GameTriggerArea> gameTriggers;
     std::vector<Chef> m_chefs;
     std::vector<InteractionObject> interactionObjects;
     
@@ -135,4 +137,5 @@ private:
     
     std::optional<float> spawnX;
     std::optional<float> spawnY;
+
 };
