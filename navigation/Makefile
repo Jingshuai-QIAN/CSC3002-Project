@@ -19,7 +19,9 @@ SOURCES = codes/main.cpp \
           codes/MapLoader/TMJMap.cpp \
           codes/Character/Character.cpp \
           codes/Character/CharacterConfig.cpp \
-          codes/Input/InputManager.cpp
+          codes/Input/InputManager.cpp \
+		  codes/QuizGame/QuizGame.cpp
+
 
 # =======================
 # OBJECT FILES
@@ -60,4 +62,5 @@ rebuild: clean $(TARGET)
 # PHONY TARGET DECLARATIONS
 # =======================
 # Mark utility targets as phony to prevent conflicts with files
+
 .PHONY: clean rebuild
