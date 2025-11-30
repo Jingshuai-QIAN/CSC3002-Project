@@ -23,7 +23,6 @@ SOURCES = codes/main.cpp \
 		  codes/QuizGame/QuizGame.cpp \
 		  codes/DialogSystem.cpp
 
-
 # =======================
 # OBJECT FILES
 # =======================
