@@ -391,6 +391,52 @@ void runApp(
 
                     std::cout << "✅ QuizGame finished, returning to map." << std::endl;
                 }
+                // 教室问答触发（可配置题库）
+                else if (detectedTrigger.gameType == "classroom_quiz") {
+                    std::string qid = detectedTrigger.questionSet.empty() ? "classroom_basic" : detectedTrigger.questionSet;
+                    std::string qpath = std::string("config/quiz/") + qid + ".json";
+                    std::cout << "✅ Launching Classroom Quiz (" << qpath << ")..." << std::endl;
+
+                    QuizGame quiz(qpath);
+                    quiz.run();
+
+                    std::cout << "✅ Classroom Quiz finished, moving character out of trigger." << std::endl;
+                    // Log the exp/energy effects so teammates can consume them
+                    {
+                        QuizGame::Effects eff = quiz.getResultEffects();
+                        Logger::info("Classroom quiz effects -> exp: " + std::to_string(eff.exp) +
+                                     " energy: " + std::to_string(eff.energy));
+                    }
+                    // 将角色移出触发区一格（按 tile 大小）
+                    float tileW = tmjMap->getTileWidth();
+                    float tileH = tmjMap->getTileHeight();
+                    sf::FloatRect area(
+                        sf::Vector2f(detectedTrigger.x, detectedTrigger.y),
+                        sf::Vector2f(detectedTrigger.width, detectedTrigger.height)
+                    );
+                    sf::Vector2f feet = character.getFeetPoint();
+                    sf::Vector2f center(area.position.x + area.size.x * 0.5f,
+                                        area.position.y + area.size.y * 0.5f);
+                    sf::Vector2f newPos = character.getPosition(); // sprite 中心
+
+                    if (std::abs(feet.x - center.x) > std::abs(feet.y - center.y)) {
+                        // 水平进入 -> 向水平方向移出
+                        if (feet.x < center.x) newPos.x = area.position.x - tileW * 0.6f;
+                        else newPos.x = area.position.x + area.size.x + tileW * 0.6f;
+                    } else {
+                        // 垂直进入 -> 向垂直方向移出
+                        if (feet.y < center.y) newPos.y = area.position.y - tileH * 0.6f;
+                        else newPos.y = area.position.y + area.size.y + tileH * 0.6f;
+                    }
+
+                    // Clamp 到地图范围
+                    float mapW = static_cast<float>(tmjMap->getWorldPixelWidth());
+                    float mapH = static_cast<float>(tmjMap->getWorldPixelHeight());
+                    newPos.x = std::clamp(newPos.x, 0.0f, mapW);
+                    newPos.y = std::clamp(newPos.y, 0.0f, mapH);
+
+                    character.setPosition(newPos);
+                }
             }
         } 
         else {
