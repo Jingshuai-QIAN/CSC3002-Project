@@ -4,6 +4,8 @@
 #include <SFML/Graphics.hpp>
 #include <cmath>
 #include <algorithm>
+#include <fstream>
+#include <nlohmann/json.hpp>
 
 /**
  * @file Renderer.cpp
@@ -93,6 +95,59 @@ bool Renderer::initialize(
     // Store the provided configurations
     currentAppConfig = appConfig;
     currentRenderConfig = renderConfig;
+    // Attempt to read optional render style overrides from config/render_config.json
+    try {
+        std::string cfgPath = currentAppConfig.paths.configDirectory + "render_config.json";
+        std::ifstream ifs(cfgPath);
+        if (ifs.is_open()) {
+            nlohmann::json j;
+            ifs >> j;
+            if (j.contains("entranceStyle") && j["entranceStyle"].is_object()) {
+                auto es = j["entranceStyle"];
+                if (es.contains("fillColor") && es["fillColor"].is_array() && es["fillColor"].size() >= 3) {
+                    int r = es["fillColor"][0].get<int>();
+                    int g = es["fillColor"][1].get<int>();
+                    int b = es["fillColor"][2].get<int>();
+                    int a = es["fillColor"].size() >= 4 ? es["fillColor"][3].get<int>() : 255;
+                    entranceFillColor = sf::Color(static_cast<uint8_t>(r), static_cast<uint8_t>(g), static_cast<uint8_t>(b), static_cast<uint8_t>(a));
+                }
+                if (es.contains("outlineColor") && es["outlineColor"].is_array() && es["outlineColor"].size() >= 3) {
+                    int r = es["outlineColor"][0].get<int>();
+                    int g = es["outlineColor"][1].get<int>();
+                    int b = es["outlineColor"][2].get<int>();
+                    int a = es["outlineColor"].size() >= 4 ? es["outlineColor"][3].get<int>() : 255;
+                    entranceOutlineColor = sf::Color(static_cast<uint8_t>(r), static_cast<uint8_t>(g), static_cast<uint8_t>(b), static_cast<uint8_t>(a));
+                }
+                if (es.contains("outlineThickness")) {
+                    entranceOutlineThickness = es["outlineThickness"].get<float>();
+                }
+            }
+            if (j.contains("gameTriggerStyle") && j["gameTriggerStyle"].is_object()) {
+                auto gs = j["gameTriggerStyle"];
+                if (gs.contains("fillColor") && gs["fillColor"].is_array() && gs["fillColor"].size() >= 3) {
+                    int r = gs["fillColor"][0].get<int>();
+                    int g = gs["fillColor"][1].get<int>();
+                    int b = gs["fillColor"][2].get<int>();
+                    int a = gs["fillColor"].size() >= 4 ? gs["fillColor"][3].get<int>() : 255;
+                    gameTriggerFillColor = sf::Color(static_cast<uint8_t>(r), static_cast<uint8_t>(g), static_cast<uint8_t>(b), static_cast<uint8_t>(a));
+                }
+                if (gs.contains("outlineColor") && gs["outlineColor"].is_array() && gs["outlineColor"].size() >= 3) {
+                    int r = gs["outlineColor"][0].get<int>();
+                    int g = gs["outlineColor"][1].get<int>();
+                    int b = gs["outlineColor"][2].get<int>();
+                    int a = gs["outlineColor"].size() >= 4 ? gs["outlineColor"][3].get<int>() : 255;
+                    gameTriggerOutlineColor = sf::Color(static_cast<uint8_t>(r), static_cast<uint8_t>(g), static_cast<uint8_t>(b), static_cast<uint8_t>(a));
+                }
+                if (gs.contains("outlineThickness")) {
+                    gameTriggerOutlineThickness = gs["outlineThickness"].get<float>();
+                }
+            }
+        } else {
+            Logger::debug("Renderer: could not open " + cfgPath + " to read style overrides");
+        }
+    } catch (const std::exception& ex) {
+        Logger::warn(std::string("Renderer: failed to parse render_config.json: ") + ex.what());
+    }
     
     // Calculate window dimensions with maximum limits
     const int winW = std::min(appConfig.window.width, 1200);
@@ -662,8 +717,9 @@ void Renderer::renderEntranceAreas(const std::vector<EntranceArea>& areas) {
     for (const auto& area : areas) {
         sf::RectangleShape rect(sf::Vector2f(area.width, area.height));
         rect.setPosition(sf::Vector2f{area.x, area.y});
-        rect.setFillColor(sf::Color(0, 100, 255, 100)); // Semi-transparent blue
-        rect.setOutlineThickness(0);
+        rect.setFillColor(entranceFillColor);
+        rect.setOutlineThickness(entranceOutlineThickness);
+        rect.setOutlineColor(entranceOutlineColor);
         window.draw(rect);
     }
 }
@@ -675,13 +731,9 @@ void Renderer::renderGameTriggerAreas(const std::vector<GameTriggerArea>& areas)
     for (const auto& area : areas) {
         sf::RectangleShape rect(sf::Vector2f(area.width, area.height));
         rect.setPosition(sf::Vector2f(area.x, area.y));
-        rect.setOutlineThickness(2.f);
-
-        // 你现在只有一个 quiz game，我只保留这一种颜色逻辑
-        // Quiz 触发区 —— 金色半透明
-        rect.setFillColor(sf::Color(255, 215, 0, 140));
-        rect.setOutlineColor(sf::Color(200, 170, 0));
-
+        rect.setFillColor(gameTriggerFillColor);
+        rect.setOutlineThickness(gameTriggerOutlineThickness);
+        rect.setOutlineColor(gameTriggerOutlineColor);
         window.draw(rect);
     }
 }

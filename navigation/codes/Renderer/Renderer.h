@@ -313,4 +313,12 @@ private:
     std::unique_ptr<TextRenderer> textRenderer;
     std::unique_ptr<sf::Font> uiFont;                // font used for UI (map button)
     AppConfig::MapButton mapButtonConfig;            // active button configuration
+    // Render style configuration (defaults)
+    sf::Color entranceFillColor = sf::Color(0, 100, 255, 100);
+    sf::Color entranceOutlineColor = sf::Color(30, 140, 255, 255);
+    float entranceOutlineThickness = 2.0f;
+
+    sf::Color gameTriggerFillColor = sf::Color(255, 215, 0, 140);
+    sf::Color gameTriggerOutlineColor = sf::Color(200, 170, 0, 255);
+    float gameTriggerOutlineThickness = 2.0f;
 };
