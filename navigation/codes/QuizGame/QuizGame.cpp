@@ -3,6 +3,10 @@
 #include "QuizGame.h"
 #include <iostream>
 #include <sstream>
+#include <fstream>
+#include <nlohmann/json.hpp>
+#include <random>
+#include "Utils/Logger.h"
 
 // ---------------- OptionButton 实现 ----------------
 QuizGame::OptionButton::OptionButton(const sf::Font& font,
@@ -79,6 +83,112 @@ void QuizGame::loadQuestions() {
     totalQuestions = questions.size();
 }
 
+bool QuizGame::loadQuestionsFromFile(const std::string& path) {
+    try {
+        std::ifstream ifs(path);
+        if (!ifs.is_open()) {
+            std::cerr << "QuizGame: failed to open questions file: " << path << std::endl;
+            return false;
+        }
+        nlohmann::json j;
+        ifs >> j;
+
+        // UI config (optional)
+        if (j.contains("ui") && j["ui"].is_object()) {
+            auto ui = j["ui"];
+            uiWindowW = ui.value("windowWidth", uiWindowW);
+            uiWindowH = ui.value("windowHeight", uiWindowH);
+            if (ui.contains("backgroundColor") && ui["backgroundColor"].is_array() && ui["backgroundColor"].size() >= 3) {
+                int r = ui["backgroundColor"][0].get<int>();
+                int g = ui["backgroundColor"][1].get<int>();
+                int b = ui["backgroundColor"][2].get<int>();
+                int a = 255;
+                if (ui["backgroundColor"].size() >= 4) a = ui["backgroundColor"][3].get<int>();
+                uiBackgroundColor = sf::Color(static_cast<unsigned char>(r),
+                                              static_cast<unsigned char>(g),
+                                              static_cast<unsigned char>(b),
+                                              static_cast<unsigned char>(a));
+            }
+        }
+
+        // categories: if present, pick one category at random and sample up to 5 questions from it
+        questions.clear();
+        if (j.contains("categories") && j["categories"].is_object()) {
+            auto cats = j["categories"];
+            std::vector<std::string> keys;
+            for (auto it = cats.begin(); it != cats.end(); ++it) keys.push_back(it.key());
+            if (!keys.empty()) {
+                // choose category randomly
+                std::random_device rd;
+                std::mt19937 gen(rd());
+                std::uniform_int_distribution<size_t> dist(0, keys.size() - 1);
+                std::string chosen = keys[dist(gen)];
+                Logger::info("QuizGame: chosen category = " + chosen);
+
+                const auto& qarr = cats[chosen];
+                if (qarr.is_array()) {
+                    // build index vector and shuffle for sampling
+                    std::vector<size_t> idx(qarr.size());
+                    for (size_t i = 0; i < idx.size(); ++i) idx[i] = i;
+                    std::shuffle(idx.begin(), idx.end(), gen);
+                    size_t take = std::min<size_t>(5, qarr.size());
+                    for (size_t t = 0; t < take; ++t) {
+                        const auto& qj = qarr[idx[t]];
+                        if (!qj.is_object()) continue;
+                        Question q;
+                        q.text = qj.value("text", std::string());
+                        if (qj.contains("options") && qj["options"].is_array()) {
+                            for (const auto& opt : qj["options"]) q.options.push_back(opt.get<std::string>());
+                        }
+                        q.correctIndex = qj.value("correctIndex", 0u);
+                        questions.push_back(std::move(q));
+                    }
+                }
+            }
+        } else {
+            // fallback to flat questions array (backwards compatibility)
+            if (j.contains("questions") && j["questions"].is_array()) {
+                for (const auto& qj : j["questions"]) {
+                    if (!qj.is_object()) continue;
+                    Question q;
+                    q.text = qj.value("text", std::string());
+                    if (qj.contains("options") && qj["options"].is_array()) {
+                        for (const auto& opt : qj["options"]) q.options.push_back(opt.get<std::string>());
+                    }
+                    q.correctIndex = qj.value("correctIndex", 0u);
+                    questions.push_back(std::move(q));
+                }
+            }
+        }
+
+        // optional effects (exp / energy)
+        if (j.contains("effects") && j["effects"].is_object()) {
+            auto effs = j["effects"];
+            if (effs.contains("perfect") && effs["perfect"].is_object()) {
+                auto p = effs["perfect"];
+                perfectEffect.exp = p.value("exp", perfectEffect.exp);
+                perfectEffect.energy = p.value("energy", perfectEffect.energy);
+            }
+            if (effs.contains("good") && effs["good"].is_object()) {
+                auto g = effs["good"];
+                goodEffect.exp = g.value("exp", goodEffect.exp);
+                goodEffect.energy = g.value("energy", goodEffect.energy);
+            }
+            if (effs.contains("poor") && effs["poor"].is_object()) {
+                auto p = effs["poor"];
+                poorEffect.exp = p.value("exp", poorEffect.exp);
+                poorEffect.energy = p.value("energy", poorEffect.energy);
+            }
+        }
+
+        totalQuestions = questions.size();
+        return true;
+    } catch (const std::exception& ex) {
+        std::cerr << "QuizGame: exception parsing JSON: " << ex.what() << std::endl;
+        return false;
+    }
+}
+
 void QuizGame::displayCurrentQuestion() {
     options.clear();
     resultText.setString("");
@@ -111,8 +221,7 @@ void QuizGame::updateScoreDisplay() {
 
 // ---------------- 构造函数 ----------------
 QuizGame::QuizGame()
-    : window(sf::VideoMode({800u, 600u}), "Campus Quiz Game")
-    , font()
+    : font()
     , titleText(font)
     , questionText(font)
     , resultText(font)
@@ -126,6 +235,15 @@ QuizGame::QuizGame()
     , gameCompleted(false)
     , showContinueButton(false)
 {
+    // default effects (can be overridden by JSON)
+    perfectEffect.exp = 20; perfectEffect.energy = 10;
+    goodEffect.exp = 10;    goodEffect.energy = 5;
+    poorEffect.exp = 0;     poorEffect.energy = -5;
+    lastEffect.exp = 0;     lastEffect.energy = 0;
+
+    // 默认窗口尺寸由 uiWindowW/uiWindowH 提供（可由 JSON 覆盖）
+    window.create(sf::VideoMode({uiWindowW, uiWindowH}), "Campus Quiz Game");
+
     // 尝试加载字体（SFML 3: openFromFile）
     bool fontLoaded = false;
     const std::vector<std::string> fontPaths = {"./fonts/arial.ttf", "fonts/arial.ttf", "arial.ttf"};
@@ -178,8 +296,94 @@ QuizGame::QuizGame()
     continueText.setPosition(sf::Vector2f(continueButton.getPosition().x + 20.f,
                                           continueButton.getPosition().y + 8.f));
 
-    // 加载题目并显示第一题
+    // 加载题目并显示第一题（默认硬编码）
     loadQuestions();
+    displayCurrentQuestion();
+    updateScoreDisplay();
+}
+
+QuizGame::QuizGame(const std::string& jsonPath)
+    : font()
+    , titleText(font)
+    , questionText(font)
+    , resultText(font)
+    , scoreText(font)
+    , continueText(font)
+    , continueButton()
+    , currentQuestionIndex(0)
+    , totalQuestions(0)
+    , correctAnswers(0)
+    , answered(false)
+    , gameCompleted(false)
+    , showContinueButton(false)
+{
+    // default effects (can be overridden by JSON)
+    perfectEffect.exp = 20; perfectEffect.energy = 10;
+    goodEffect.exp = 10;    goodEffect.energy = 5;
+    poorEffect.exp = 0;     poorEffect.energy = -5;
+    lastEffect.exp = 0;     lastEffect.energy = 0;
+
+    // 先尝试从文件加载 UI/题目；如果失败则回退到硬编码
+    bool loaded = loadQuestionsFromFile(jsonPath);
+    // 根据可能来自 JSON 的 uiWindowW/uiWindowH 创建窗口
+    window.create(sf::VideoMode({uiWindowW, uiWindowH}), "Campus Quiz Game");
+
+    // 尝试加载字体
+    bool fontLoaded = false;
+    const std::vector<std::string> fontPaths = {"./fonts/arial.ttf", "fonts/arial.ttf", "arial.ttf"};
+    for (const auto& p : fontPaths) {
+        if (font.openFromFile(p)) {
+            std::cout << "Loaded font: " << p << std::endl;
+            fontLoaded = true;
+            break;
+        }
+    }
+    if (!fontLoaded) {
+        std::cerr << "Warning: failed to load font. Text output may be invisible or fallback.\n";
+    }
+
+    // 标题
+    titleText.setString("Campus Knowledge Quiz");
+    titleText.setCharacterSize(32);
+    titleText.setFillColor(sf::Color(255, 215, 0));
+    titleText.setStyle(sf::Text::Bold);
+    titleText.setPosition(sf::Vector2f(20.f, 15.f));
+
+    // 问题文本
+    questionText.setCharacterSize(24);
+    questionText.setFillColor(sf::Color(240, 240, 240));
+    questionText.setStyle(sf::Text::Bold);
+    questionText.setPosition(sf::Vector2f(60.f, 120.f));
+
+    // 结果文本
+    resultText.setCharacterSize(28);
+    resultText.setFillColor(sf::Color::Green);
+    resultText.setPosition(sf::Vector2f(60.f, 480.f));
+
+    // 分数文本
+    scoreText.setCharacterSize(20);
+    scoreText.setFillColor(sf::Color(200, 200, 100));
+    scoreText.setStyle(sf::Text::Bold);
+    scoreText.setPosition(sf::Vector2f(520.f, 25.f));
+
+    // continue 按钮
+    continueButton.setSize(sf::Vector2f(250.f, 48.f));
+    continueButton.setFillColor(sf::Color(100, 200, 100));
+    continueButton.setOutlineColor(sf::Color(80, 180, 80));
+    continueButton.setOutlineThickness(2.f);
+    continueButton.setPosition(sf::Vector2f(500.f, 500.f));
+
+    continueText.setString("Continue to the next");
+    continueText.setCharacterSize(20);
+    continueText.setStyle(sf::Text::Bold);
+    continueText.setFillColor(sf::Color::White);
+    continueText.setPosition(sf::Vector2f(continueButton.getPosition().x + 20.f,
+                                          continueButton.getPosition().y + 8.f));
+
+    if (!loaded) {
+        // 回退到内置题库
+        loadQuestions();
+    }
     displayCurrentQuestion();
     updateScoreDisplay();
 }
@@ -255,6 +459,14 @@ void QuizGame::run() {
                                 resultText.setFillColor(sf::Color::White);
                                 resultText.setCharacterSize(28);
                                 resultText.setPosition(sf::Vector2f(200.f, 220.f));
+                                // determine effects based on performance
+                                if (correctAnswers == totalQuestions) {
+                                    lastEffect = perfectEffect;
+                                } else if (correctAnswers >= totalQuestions / 2) {
+                                    lastEffect = goodEffect;
+                                } else {
+                                    lastEffect = poorEffect;
+                                }
                                 options.clear();
                                 showContinueButton = false;
                             }

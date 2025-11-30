@@ -6,8 +6,15 @@
 #include <SFML/Graphics.hpp>
 #include <vector>
 #include <string>
+#include <optional>
 
 class QuizGame {
+public:
+    // Public type for effects so callers can read result values
+    struct Effects {
+        int exp = 0;
+        int energy = 0;
+    };
 private:
     // 题目结构
     struct Question {
@@ -56,16 +63,30 @@ private:
 
     // 私有方法
     void loadQuestions();
+    bool loadQuestionsFromFile(const std::string& path); // 从 JSON 文件加载题目与 UI 配置
     void displayCurrentQuestion();
     void updateScoreDisplay();
     std::string wrapText(const std::string& text, size_t lineLength) const;
+    // UI config loaded from JSON (optional)
+    unsigned int uiWindowW = 800;
+    unsigned int uiWindowH = 600;
+    // background color RGBA
+    sf::Color uiBackgroundColor = sf::Color(30,30,60);
+    // Effects for result (exp, energy)
+    Effects perfectEffect;
+    Effects goodEffect;
+    Effects poorEffect;
+    Effects lastEffect; // populated when quiz completes
 
 public:
     QuizGame();
+    explicit QuizGame(const std::string& jsonPath);
     ~QuizGame() = default;
 
     // 运行游戏（阻塞，直到此窗口关闭）
     void run();
+    // After run() returns, caller can query resulting effects
+    Effects getResultEffects() const { return lastEffect; }
 };
 
 #endif // QUIZ_GAME_H
