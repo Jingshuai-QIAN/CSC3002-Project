@@ -86,6 +86,7 @@ struct GameTriggerArea {
     float width = 0.f, height = 0.f; // 区域大小
     std::string name;             // 区域名称（如"bookstore_game"）
     std::string gameType;         // 小游戏类型（用于区分不同游戏）
+    std::string questionSet;      // 可选：题库 id（e.g. "classroom_basic"）
 };
 
 // 添加Chef对象结构

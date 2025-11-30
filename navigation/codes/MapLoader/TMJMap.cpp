@@ -522,10 +522,16 @@ void TMJMap::parseObjectLayers(const json& layers) {
                 trigger.height = obj["height"];
                 trigger.name = obj["name"];
                 
-                // 解析自定义属性gameType
-                for (const auto& prop : obj["properties"]) {
-                    if (prop["name"] == "gameType") {
-                        trigger.gameType = prop["value"];
+                // 解析自定义属性 gameType 与 questionSet（安全读取）
+                if (obj.contains("properties") && obj["properties"].is_array()) {
+                    for (const auto& prop : obj["properties"]) {
+                        if (!prop.is_object()) continue;
+                        std::string pname = prop.value("name", "");
+                        if (pname == "gameType") {
+                            trigger.gameType = prop.value("value", "");
+                        } else if (pname == "questionSet") {
+                            trigger.questionSet = prop.value("value", "");
+                        }
                     }
                 }
                 
