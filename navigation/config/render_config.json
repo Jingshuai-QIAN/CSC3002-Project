@@ -17,4 +17,15 @@
         "enableSorting": true,
         "batchSize": 1000
     }
+    ,
+    "entranceStyle": {
+        "fillColor": [0, 100, 255, 100],
+        "outlineColor": [30, 140, 255, 255],
+        "outlineThickness": 2.0
+    },
+    "gameTriggerStyle": {
+        "fillColor": [255, 215, 0, 140],
+        "outlineColor": [200, 170, 0, 255],
+        "outlineThickness": 2.0
+    }
 }
