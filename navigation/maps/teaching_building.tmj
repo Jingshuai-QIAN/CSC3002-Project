@@ -282,6 +282,39 @@
         }, 
         {
          "draworder":"topdown",
+         "id":13,
+         "name":"game_triggers",
+         "objects":[
+                {
+                 "height":64.0808894736842,
+                 "id":6,
+                 "name":"classroom_quiz",
+                 "properties":[
+                        {
+                         "name":"gameType",
+                         "type":"string",
+                         "value":"classroom_quiz"
+                        }, 
+                        {
+                         "name":"questionSet",
+                         "type":"string",
+                         "value":"classroom_basic"
+                        }],
+                 "rotation":0,
+                 "type":"game_trigger",
+                 "visible":true,
+                 "width":35.1785,
+                 "x":142.329778340081,
+                 "y":47.5142111336032
+                }],
+         "opacity":1,
+         "type":"objectgroup",
+         "visible":true,
+         "x":0,
+         "y":0
+        }, 
+        {
+         "draworder":"topdown",
          "id":11,
          "name":"NotWalkable",
          "objects":[
@@ -527,8 +560,8 @@
          "x":0,
          "y":0
         }],
- "nextlayerid":13,
- "nextobjectid":6,
+ "nextlayerid":14,
+ "nextobjectid":7,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",
