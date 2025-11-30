@@ -1,0 +1,227 @@
+{
+    "id": "classroom_basic",
+    "ui": {
+        "windowWidth": 800,
+        "windowHeight": 600,
+        "backgroundColor": [30, 30, 60, 255],
+        "titleFontSize": 32,
+        "questionFontSize": 24,
+        "optionFontSize": 22
+    },
+    "effects": {
+        "perfect": { "exp": 20, "energy": 10 },
+        "good":    { "exp": 10, "energy": 5 },
+        "poor":    { "exp": 0,  "energy": -5 }
+    },
+    "categories": {
+        "programming": [
+            {
+                "text": "Which object is used to print text to the console in C++?", 
+                "options": ["cin", "cout", "cerr"], 
+                "correctIndex": 1
+            },
+            {
+                "text": "Which header is required for std::vector?", 
+                "options": ["<vector>", "<array>", "<list>"], 
+                "correctIndex": 0
+            },
+            {
+                "text": "Which symbol starts a single-line comment in C++?", 
+                "options": ["//", "/*", "#"], 
+                "correctIndex": 0
+            },
+            {
+                "text": "What is the correct way to declare a function that returns an int and takes no parameters?", 
+                "options": ["int func();", "func int();", "int func(void)[];"], 
+                "correctIndex": 0
+            },
+            {
+                "text": "Which keyword prevents a function from modifying a variable?", 
+                "options": ["mutable", "const", "static"], 
+                "correctIndex": 1
+            }
+        ],
+        "math": [
+            {
+                "text": "What is the derivative of f(x) = x^2?",
+                "options": [
+                    "2x",
+                    "x",
+                    "x^2"
+                ],
+                "correctIndex": 0
+            },
+            {
+                "text": "Evaluate the limit: lim_{x->0} (sin x) / x",
+                "options": [
+                    "0",
+                    "1",
+                    "Does not exist"
+                ],
+                "correctIndex": 1
+            },
+            {
+                "text": "What is the value of the definite integral ∫_0^1 1 dx ?",
+                "options": [
+                    "0",
+                    "1",
+                    "1/2"
+                ],
+                "correctIndex": 1
+            },
+            {
+                "text": "Which vector operation gives a scalar (dot product)?",
+                "options": [
+                    "Cross product",
+                    "Dot product",
+                    "Tensor product"
+                ],
+                "correctIndex": 1
+            },
+            {
+                "text": "What is the formula for the sum of the first n natural numbers?",
+                "options": [
+                    "n(n + 1) / 2",
+                    "n^2",
+                    "n(n - 1) / 2"
+                ],
+                "correctIndex": 0
+            }
+        ],
+        "physics": [
+            {
+                "text": "Which quantity measures mass times velocity?",
+                "options": ["Force", "Momentum", "Energy"],
+                "correctIndex": 1
+            },
+            {
+                "text": "What is acceleration due to gravity on Earth (approx)?",
+                "options": ["9.8 m/s^2", "1.6 m/s^2", "3.7 m/s^2"],
+                "correctIndex": 0
+            },
+            {
+                "text": "Light travels fastest in which medium?",
+                "options": ["Vacuum", "Water", "Glass"],
+                "correctIndex": 0
+            },
+            {
+                "text": "Which particle has a negative charge?",
+                "options": ["Proton", "Neutron", "Electron"],
+                "correctIndex": 2
+            },
+            {
+                "text": "Unit of force is?",
+                "options": ["Newton", "Joule", "Watt"],
+                "correctIndex": 0
+            }
+        ],
+        "chemistry": [
+            {
+                "text": "Water's chemical formula is?",
+                "options": ["H2O", "CO2", "O2"],
+                "correctIndex": 0
+            },
+            {
+                "text": "Table salt is mainly which compound?",
+                "options": ["NaCl", "KCl", "CaCl2"],
+                "correctIndex": 0
+            },
+            {
+                "text": "pH 7 is considered?",
+                "options": ["Acidic", "Neutral", "Basic"],
+                "correctIndex": 1
+            },
+            {
+                "text": "Which gas is produced by combustion?",
+                "options": ["Oxygen", "Carbon dioxide", "Nitrogen"],
+                "correctIndex": 1
+            },
+            {
+                "text": "Atomic number defines number of which particle?",
+                "options": ["Neutrons", "Protons", "Electrons"],
+                "correctIndex": 1
+            }
+        ],
+        "biology": [
+            {
+                "text": "Photosynthesis primarily occurs in which organelle?",
+                "options": ["Mitochondria", "Chloroplast", "Nucleus"],
+                "correctIndex": 1
+            },
+            {
+                "text": "Cells are the basic unit of life: True or False?",
+                "options": ["True", "False", "Sometimes"],
+                "correctIndex": 0
+            },
+            {
+                "text": "Which molecule carries genetic information?",
+                "options": ["RNA", "DNA", "Protein"],
+                "correctIndex": 1
+            },
+            {
+                "text": "Humans have how many heart chambers?",
+                "options": ["2", "3", "4"],
+                "correctIndex": 2
+            },
+            {
+                "text": "Blood cells that carry oxygen are called?",
+                "options": ["White cells", "Red cells", "Platelets"],
+                "correctIndex": 1
+            }
+        ],
+        "history": [
+            {
+                "text": "The Great Wall is primarily located in which country?",
+                "options": ["India", "China", "Egypt"],
+                "correctIndex": 1
+            },
+            {
+                "text": "Who was the first President of the United States?",
+                "options": ["Abraham Lincoln", "George Washington", "Thomas Jefferson"],
+                "correctIndex": 1
+            },
+            {
+                "text": "The Renaissance began on which continent?",
+                "options": ["Asia", "Europe", "Africa"],
+                "correctIndex": 1
+            },
+            {
+                "text": "The ancient pyramids are most associated with which civilization?",
+                "options": ["Greek", "Egyptian", "Mayan"],
+                "correctIndex": 1
+            },
+            {
+                "text": "The Industrial Revolution began in which country?",
+                "options": ["France", "United States", "United Kingdom"],
+                "correctIndex": 2
+            }
+        ],
+        "geography": [
+            {
+                "text": "What is the largest ocean on Earth?",
+                "options": ["Atlantic", "Pacific", "Indian"],
+                "correctIndex": 1
+            },
+            {
+                "text": "Mount Everest is located on which mountain range?",
+                "options": ["Andes", "Himalayas", "Rockies"],
+                "correctIndex": 1
+            },
+            {
+                "text": "Which is the longest river?",
+                "options": ["Nile", "Amazon", "Yangtze"],
+                "correctIndex": 0
+            },
+            {
+                "text": "Which continent is Australia in?",
+                "options": ["Europe", "Australia", "Oceania"],
+                "correctIndex": 2
+            },
+            {
+                "text": "The Sahara is a type of what?",
+                "options": ["Mountain", "Desert", "Forest"],
+                "correctIndex": 1
+            }
+        ]
+    }
+}
