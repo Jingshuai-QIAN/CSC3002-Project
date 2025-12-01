@@ -8,7 +8,7 @@
 ### Option 1: Windows (Batch Script)
 If you are using the provided `build.bat` script with MinGW/G++:
 
-1. Open `navigation/codes/build.bat` and ensure the compiler/SFML paths match your local installation.
+1. Open `navigation/codes/build.bat` and ensure the compiler/SFML paths match your local installation. (VERY IMPORTANT!) Also note that the json library path refers to the nlohmann library, which might require download.
 2. Run the script:
    ```cmd
    cd navigation/codes
