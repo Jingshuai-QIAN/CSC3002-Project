@@ -3,55 +3,56 @@
 #include <string>
 #include <iostream>
 #include <functional>
+#include <algorithm> // for std::clamp
 
 struct Task {
-    std::string id;          // Unique ID (e.g., "eat_breakfast")
-    std::string description; // Display text (e.g., "Eat Breakfast at Canteen")
+    std::string id;          
+    std::string description; 
     int expReward;
-    int energyReward;
+    int energyReward; 
     bool isCompleted;
 };
 
 class TaskManager {
 public:
-    TaskManager() : currentExp(0), currentEnergy(100) {}
+    // Start with 100.0 float Energy. Max Exp set to 100 for level 1.
+    TaskManager() : currentExp(0), maxExp(100), currentEnergy(100.0f) {} 
 
-    // Add a task to the list
     void addTask(const std::string& id, const std::string& desc, int exp, int energy) {
         tasks.push_back({id, desc, exp, energy, false});
     }
 
-    // Call this when an event happens (e.g., eating)
     void completeTask(const std::string& id) {
         for (auto& task : tasks) {
             if (task.id == id && !task.isCompleted) {
                 task.isCompleted = true;
                 
-                // Apply Rewards
+                // Apply Task Rewards
                 currentExp += task.expReward;
-                currentEnergy += task.energyReward;
-                if(currentEnergy > 100) currentEnergy = 100;
+                modifyEnergy(static_cast<float>(task.energyReward));
 
                 std::cout << "[Quest] Completed: " << task.description << std::endl;
-                std::cout << "        Rewards: Exp+" << task.expReward << ", Energy+" << task.energyReward << std::endl;
             }
         }
     }
 
-    // Getters for UI
+    void modifyEnergy(float amount) {
+        currentEnergy += amount;
+        // Clamp between 0 and 100
+        if (currentEnergy > 100.0f) currentEnergy = 100.0f;
+        if (currentEnergy < 0.0f) currentEnergy = 0.0f;
+    }
+
     const std::vector<Task>& getTasks() const { return tasks; }
     int getExp() const { return currentExp; }
-    int getEnergy() const { return currentEnergy; }
-
-    // Manual energy modification (e.g., walking costs energy)
-    void modifyEnergy(int amount) {
-        currentEnergy += amount;
-        if (currentEnergy < 0) currentEnergy = 0;
-        if (currentEnergy > 100) currentEnergy = 100;
-    }
+    int getMaxExp() const { return maxExp; } // New Getter
+    
+    // Return int for UI display, but keep internal float precision
+    int getEnergy() const { return static_cast<int>(currentEnergy); }
 
 private:
     std::vector<Task> tasks;
     int currentExp;
-    int currentEnergy;
+    int maxExp; // New variable to track progress
+    float currentEnergy;
 };
