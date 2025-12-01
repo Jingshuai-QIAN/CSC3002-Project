@@ -235,7 +235,14 @@ public:
      * @param font Font to use for rendering the prompt.
      * @param fontSize Font size in pixels.
      */
-    void renderModalPrompt(const std::string& prompt, const sf::Font& font, unsigned int fontSize);
+    // Render a modal prompt overlay. If anchorScreenPos is provided (window coordinates),
+    // the prompt will be drawn near that screen position instead of centered.
+    void renderModalPrompt(
+        const std::string& prompt, 
+        const sf::Font& font, 
+        unsigned int fontSize,
+        const std::optional<sf::Vector2f>& anchorScreenPos = std::nullopt
+    );
 
     /**
      * @brief When true, renderer will ignore Escape key as "close window".

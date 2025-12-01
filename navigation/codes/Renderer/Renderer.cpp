@@ -742,26 +742,63 @@ void Renderer::renderGameTriggerAreas(const std::vector<GameTriggerArea>& areas)
 }
 
 
-void Renderer::renderModalPrompt(const std::string& prompt, const sf::Font& font, unsigned int fontSize) {
+void Renderer::renderModalPrompt(
+    const std::string& prompt, 
+    const sf::Font& font, 
+    unsigned int fontSize,
+    const std::optional<sf::Vector2f>& anchorScreenPos
+) {
     if (!window.isOpen()) return;
 
-    // draw overlay using default UI view
+    // draw overlay using a UI view that matches current window pixel size
     sf::View prevView = window.getView();
-    window.setView(window.getDefaultView());
-
     sf::Vector2u winSz = getWindowSize();
-    sf::RectangleShape bg(sf::Vector2f(static_cast<float>(winSz.x), static_cast<float>(winSz.y)));
-    bg.setPosition(sf::Vector2f(0.f, 0.f));
-    bg.setFillColor(sf::Color(0, 0, 0, 160));
-    window.draw(bg);
+    sf::View uiView = window.getDefaultView();
+    uiView.setSize(sf::Vector2f(static_cast<float>(winSz.x), static_cast<float>(winSz.y)));
+    uiView.setCenter(sf::Vector2f(static_cast<float>(winSz.x) * 0.5f, static_cast<float>(winSz.y) * 0.5f));
+    window.setView(uiView);
+    sf::RectangleShape overlay(sf::Vector2f(static_cast<float>(winSz.x), static_cast<float>(winSz.y)));
+    overlay.setPosition(sf::Vector2f(0.f, 0.f));
+    overlay.setFillColor(sf::Color(0, 0, 0, 160));
+    window.draw(overlay);
 
     sf::Text t(font, prompt, static_cast<unsigned int>(fontSize));
     t.setFillColor(colorFromHex(currentRenderConfig.text.textColor));
 
+    // Draw text. If anchor provided, position text above the anchor (screen coords).
     sf::FloatRect tb = t.getLocalBounds();
     t.setOrigin(sf::Vector2f(tb.position.x + tb.size.x * 0.5f, tb.position.y + tb.size.y * 0.5f));
-    t.setPosition(sf::Vector2f(static_cast<float>(winSz.x) * 0.5f, static_cast<float>(winSz.y) * 0.5f));
-    window.draw(t);
+
+    if (anchorScreenPos.has_value()) {
+        sf::Vector2f anchor = anchorScreenPos.value();
+        float textW = tb.size.x;
+        float textH = tb.size.y;
+
+        // Default place above anchor
+        sf::Vector2f pos(anchor.x, anchor.y - 80.f);
+        // Clamp so text stays fully inside window
+        pos.x = std::clamp(pos.x, 10.f + textW * 0.5f, static_cast<float>(winSz.x) - 10.f - textW * 0.5f);
+        pos.y = std::clamp(pos.y, 10.f + textH * 0.5f, static_cast<float>(winSz.y) - 10.f - textH * 0.5f);
+
+        // Add subtle outline for readability (draw shadow)
+        sf::Text shadow = t;
+        shadow.setFillColor(sf::Color(0,0,0,200));
+        shadow.setPosition(sf::Vector2f(pos.x + 2.f, pos.y + 2.f));
+        window.draw(shadow);
+
+        t.setFillColor(colorFromHex(currentRenderConfig.text.textColor));
+        t.setPosition(pos);
+        window.draw(t);
+    } else {
+        t.setPosition(sf::Vector2f(static_cast<float>(winSz.x) * 0.5f, static_cast<float>(winSz.y) * 0.5f));
+        // shadow
+        sf::Text shadow = t;
+        shadow.setFillColor(sf::Color(0,0,0,200));
+        shadow.setPosition(t.getPosition() + sf::Vector2f(2.f, 2.f));
+        window.draw(shadow);
+        t.setFillColor(colorFromHex(currentRenderConfig.text.textColor));
+        window.draw(t);
+    }
 
     // restore view
     window.setView(prevView);
