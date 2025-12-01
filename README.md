@@ -13,6 +13,7 @@ If you are using the provided `build.bat` script with MinGW/G++:
    ```cmd
    cd navigation/codes
    build.bat
+The compiling process may take about 1 min.
    
 ### Option 2: Bash
 ```bash
