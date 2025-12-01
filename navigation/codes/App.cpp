@@ -19,6 +19,7 @@
 #include <SFML/Window/Mouse.hpp>
 #include <SFML/Window/Event.hpp>
 #include <optional>
+#include <cmath>
 
 
 // Helper: detect whether character is inside an entrance and facing it.
@@ -648,7 +649,50 @@ void runApp(
             if (inputManager.isKeyJustPressed(sf::Keyboard::Key::Enter)) {
                 std::string fromKey = mapLoader.getCurrentMapPath();
                 if (!fromKey.empty()) {
-                    mapLoader.setSpawnOverride(fromKey, character.getPosition().x, character.getPosition().y);
+                    // Compute an offset spawn position one tile away from the entrance area
+                    sf::Vector2f originalPos = character.getPosition();
+                    sf::Vector2f entranceCenter(
+                        pendingEntrance.x + pendingEntrance.width * 0.5f,
+                        pendingEntrance.y + pendingEntrance.height * 0.5f
+                    );
+                    sf::Vector2f dir = originalPos - entranceCenter;
+                    float len = std::sqrt(dir.x * dir.x + dir.y * dir.y);
+                    if (len < 1e-3f) {
+                        // Default to upward offset if too close to center
+                        dir = sf::Vector2f(0.f, -1.f);
+                    } else {
+                        dir.x /= len;
+                        dir.y /= len;
+                    }
+
+                    float tileLen = static_cast<float>(tmjMap->getTileWidth());
+                    tileLen = std::max(tileLen, static_cast<float>(tmjMap->getTileHeight()));
+
+                    // Candidate offsets (prefer away direction, fallback to reverse and smaller steps)
+                    std::vector<sf::Vector2f> candidates = {
+                        originalPos + dir * tileLen,
+                        originalPos - dir * tileLen,
+                        originalPos + dir * (tileLen * 0.5f),
+                        originalPos - dir * (tileLen * 0.5f)
+                    };
+
+                    sf::Vector2f chosen = originalPos;
+                    float mapW = static_cast<float>(tmjMap->getWorldPixelWidth());
+                    float mapH = static_cast<float>(tmjMap->getWorldPixelHeight());
+                    for (auto cand : candidates) {
+                        // Clamp to map bounds
+                        cand.x = std::clamp(cand.x, 0.0f, mapW);
+                        cand.y = std::clamp(cand.y, 0.0f, mapH);
+                        // Check collision (feet point); if not blocked choose it
+                        if (!tmjMap->feetBlockedAt(cand)) {
+                            chosen = cand;
+                            break;
+                        }
+                    }
+
+                    Logger::info("Setting spawn override for map " + fromKey + " -> (" +
+                                 std::to_string(chosen.x) + "," + std::to_string(chosen.y) + ")");
+                    mapLoader.setSpawnOverride(fromKey, chosen.x, chosen.y);
                 }
                 bool ok = tryEnterTarget(mapLoader, tmjMap, pendingEntrance, character, renderer, configManager);
                 if (!ok) {
@@ -673,16 +717,10 @@ void runApp(
             }
         }
 
-        // ========== 相机更新（原有） ==========
-        if (!waitingForEntranceConfirmation) {
-            renderer.updateCamera(character.getPosition(),
-                                  tmjMap->getWorldPixelWidth(),
-                                  tmjMap->getWorldPixelHeight());
-        } else {
-            renderer.updateCamera(view.getCenter(),
-                                  tmjMap->getWorldPixelWidth(),
-                                  tmjMap->getWorldPixelHeight());
-        }
+        // ========== 相机更新（改进：始终以角色为中心，避免弹窗时切换到地图中心） ==========
+        renderer.updateCamera(character.getPosition(),
+                              tmjMap->getWorldPixelWidth(),
+                              tmjMap->getWorldPixelHeight());
 
         // ========== 渲染逻辑（原有+修复） ==========
         renderer.clear();
@@ -694,7 +732,7 @@ void runApp(
         renderer.drawSprite(character.getSprite());
         renderer.drawMapButton();
 
-        // 绘制入口确认提示
+        // 绘制入口确认提示（始终居中于窗口）
         if (waitingForEntranceConfirmation) {
             std::string prompt = "Do you want to enter " + pendingEntrance.name + "?  Enter=Yes  Esc=No";
             renderer.renderModalPrompt(prompt, modalFont, configManager.getRenderConfig().text.fontSize);
