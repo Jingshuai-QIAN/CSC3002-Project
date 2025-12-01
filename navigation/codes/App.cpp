@@ -453,7 +453,7 @@ void runApp(
     while (renderer.isRunning()) {
         float deltaTime = clock.restart().asSeconds();
         if (deltaTime > 0.1f) deltaTime = 0.1f;
-
+        timeManager.update(deltaTime);
         //统一事件处理（只轮询一次）
         std::optional<sf::Event> eventOpt;
         while ((eventOpt = renderer.pollEvent()).has_value()) {
@@ -942,3 +942,4 @@ void runApp(
         renderer.present();
     }
 }
+
