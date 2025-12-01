@@ -45,7 +45,6 @@ static bool detectEntranceTrigger(const Character& character, const TMJMap* map,
     return false;
 }
 
-// 在detectEntranceTrigger函数下方添加
 static bool detectGameTrigger(const Character& character, const TMJMap* map, GameTriggerArea& outArea) {
     if (!map) return false;
     sf::Vector2f feet = character.getFeetPoint(); // 角色脚部位置（现有逻辑）
@@ -60,7 +59,7 @@ static bool detectGameTrigger(const Character& character, const TMJMap* map, Gam
     return false;
 }
 
-// Helper: show the full-map modal (blocking) — 彻底解决枚举错误 + 保留组员逻辑
+// Helper: show the full-map modal (blocking) 
 static void showFullMapModal(Renderer& renderer, const std::shared_ptr<TMJMap>& tmjMap, const ConfigManager& configManager) {
     auto dm = sf::VideoMode::getDesktopMode();
     sf::RenderWindow mapWin(dm, sf::String("Full Map"), sf::State::Windowed); 
@@ -285,7 +284,7 @@ static bool detectInteraction(const Character& character, const TMJMap* map, Int
     return false;
 }
 
-// ========== 新增：餐桌交互检测函数（来自你的代码） ==========
+// 餐桌交互检测函数
 static bool detectTableInteraction(const Character& character, const TMJMap* map, TableObject& outTable) {
     if (!map) {
         Logger::error("detectTableInteraction: map is null");
@@ -327,7 +326,7 @@ static bool detectTableInteraction(const Character& character, const TMJMap* map
     return false;
 }
 
-// ========== 新增：食物纹理加载函数（来自你的代码） ==========
+// 食物纹理加载函数
 static std::unordered_map<std::string, sf::Texture> loadFoodTextures() {
     std::unordered_map<std::string, sf::Texture> textures;
     sf::Texture tex;
@@ -356,7 +355,7 @@ static std::unordered_map<std::string, sf::Texture> loadFoodTextures() {
     return textures;
 }
 
-// ========== 新增：Scan → Key 转换函数（来自你的代码） ==========
+// Scan → Key 转换函数（来自你的代码）
 // 手动实现 Scan → Key 转换（SFML 3.0.2 无内置方法）
 static sf::Keyboard::Key scanToKey(sf::Keyboard::Scan scanCode) {
     switch (scanCode) {
@@ -365,6 +364,18 @@ static sf::Keyboard::Key scanToKey(sf::Keyboard::Scan scanCode) {
         case sf::Keyboard::Scan::Escape: return sf::Keyboard::Key::Escape;
         default: return sf::Keyboard::Key::Unknown;
     }
+}
+
+// 草坪休息检测函数
+static bool isCharacterInLawn(const Character& character, const TMJMap* map) {
+    if (!map) return false;
+    sf::Vector2f feet = character.getFeetPoint();
+    for (const auto& lawn : map->getLawnAreas()) {
+        if (lawn.rect.contains(feet)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 void runApp(
@@ -389,7 +400,7 @@ void runApp(
         return;
     }
     
-    // ========== 修复1：只初始化一次对话框（避免重复加载） ==========
+    // ：只初始化一次对话框（避免重复加载）
     DialogSystem dialogSys(modalFont, 24);
     bool dialogInitSuccess = false;
     try {
@@ -433,7 +444,7 @@ void runApp(
         float deltaTime = clock.restart().asSeconds();
         if (deltaTime > 0.1f) deltaTime = 0.1f;
 
-        // ========== 修复2：统一事件处理（只轮询一次） ==========
+        //统一事件处理（只轮询一次）
         std::optional<sf::Event> eventOpt;
         while ((eventOpt = renderer.pollEvent()).has_value()) {
             sf::Event& event = eventOpt.value();
@@ -462,10 +473,10 @@ void runApp(
             }
         }
 
-        // ========== 修复3：更新输入（只更一次） ==========
+        // 更新输入（只更一次） 
         inputManager.update();
 
-        // ========== 修复4：E键检测（移到主循环，非事件轮询内） ==========
+        // E键检测（移到主循环，非事件轮询内）
         if (!waitingForEntranceConfirmation && !dialogSys.isActive() && inputManager.isKeyJustPressed(sf::Keyboard::Key::E)) {
             Logger::debug("E key pressed - checking for interaction");
             if (!gameState.isEating) {
@@ -486,7 +497,7 @@ void runApp(
                         renderer.setModalActive(true); // 激活模态（遮挡其他交互）
                     } else {
                         Logger::error("Dialog system not initialized - cannot show food select dialog");
-                        renderer.renderModalPrompt("Dialog system not initialized", modalFont, 24);
+                        renderer.renderModalPrompt("Dialog system not initialized", modalFont, 24, std::nullopt);
                     }
                     continue; // 优先处理吧台，跳过原有逻辑
                 }
@@ -498,12 +509,12 @@ void runApp(
                     
                     if (gameState.selectedFood.empty()) {
                         Logger::info("Didn't select food");
-                        renderer.renderModalPrompt("Please order food first!", modalFont, 24);
+                        renderer.renderModalPrompt("Please order food first!", modalFont, 24, std::nullopt);
                     } else {
                         // 1. 验证seatPosition有效性（核心：避免移动到(0,0)）
                         if (currentTable.seatPosition.x == 0 && currentTable.seatPosition.y == 0) {
                             Logger::error("table " + currentTable.name + " has no valid seatPosition");
-                            renderer.renderModalPrompt("No valid seatPosition!", modalFont, 24);
+                            renderer.renderModalPrompt("No valid seatPosition!", modalFont, 24, std::nullopt);
                             continue;
                         }
 
@@ -533,6 +544,13 @@ void runApp(
                         Logger::info("starts eating → table: " + currentTable.name + " | food: " + gameState.selectedFood);
                     }
                     continue;
+                }
+                //草坪休息触发
+                if (isCharacterInLawn(character, tmjMap.get()) && !character.getIsResting()) {
+                    character.startResting(); // 进入休息状态
+                    // 强制设置角色朝向为「下」
+                    character.setCurrentDirection(Character::Direction::Down);
+                    Logger::info("Character started resting on lawn (facing down)");
                 }
             }
         }
@@ -610,7 +628,7 @@ void runApp(
             gameTriggerLocked = false;
         }
 
-        // ========== 修复5：角色更新（只更一次，避免重复） ==========
+        // 角色更新（只更一次，避免重复） 
         if (!waitingForEntranceConfirmation && !dialogSys.isActive() && !gameState.isEating) {
             sf::Vector2f moveInput = inputManager.getMoveInput();
             character.update(deltaTime, moveInput, 
@@ -619,7 +637,7 @@ void runApp(
                             tmjMap.get());
         }
 
-        // ========== 新增：进食状态更新（来自你的代码） ==========
+        // 进食状态更新
         if (gameState.isEating) {
             gameState.eatingProgress += deltaTime * 10;
             Logger::debug("Eating progress: " + std::to_string(gameState.eatingProgress) + "%");
@@ -730,12 +748,34 @@ void runApp(
         renderer.renderGameTriggerAreas(tmjMap->getGameTriggers());  // 新增：渲染游戏触发区域
         renderer.renderChefs(tmjMap->getChefs());
         renderer.drawSprite(character.getSprite());
+
+        //休息状态文本渲染
+        if (character.getIsResting()) {
+            // 使用已有的modalFont作为字体
+            sf::Text restingText(modalFont, "Resting......", 16);
+            restingText.setFillColor(sf::Color::Green);
+            restingText.setOutlineColor(sf::Color::Black);
+            restingText.setOutlineThickness(1);
+            
+            // 文本位置：角色头顶30px
+            sf::Vector2f charPos = character.getPosition();
+            restingText.setPosition(sf::Vector2f(charPos.x, charPos.y - 30));
+            
+            // 文字居中对齐（适配SFML 3.0.2）
+            sf::FloatRect textBounds = restingText.getLocalBounds();
+            restingText.setOrigin(sf::Vector2f(
+                textBounds.position.x + textBounds.size.x / 2,
+                textBounds.position.y + textBounds.size.y / 2
+            ));
+            
+            renderer.getWindow().draw(restingText);
+        }
         renderer.drawMapButton();
 
         // 绘制入口确认提示（始终居中于窗口）
         if (waitingForEntranceConfirmation) {
             std::string prompt = "Do you want to enter " + pendingEntrance.name + "?  Enter=Yes  Esc=No";
-            renderer.renderModalPrompt(prompt, modalFont, configManager.getRenderConfig().text.fontSize);
+            renderer.renderModalPrompt(prompt, modalFont, configManager.getRenderConfig().text.fontSize, std::nullopt);
         }
 
         // 绘制对话框
@@ -746,7 +786,7 @@ void runApp(
             }
         }
 
-       // ========== 插入：食物渲染逻辑（你的代码） ==========
+       // 食物渲染逻辑
         if (gameState.isEating && !gameState.selectedFood.empty() && !gameState.currentTable.empty()) {
             const auto& tables = tmjMap->getTables();
             auto tableIt = std::find_if(tables.begin(), tables.end(),

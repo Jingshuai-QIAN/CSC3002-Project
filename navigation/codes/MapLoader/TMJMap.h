@@ -85,6 +85,7 @@ public:
 
     const std::vector<TableObject>& getTables() const { return m_tables; }
     const std::vector<FoodAnchor>& getFoodAnchors() const { return m_foodAnchors; }
+    const std::vector<LawnArea>& getLawnAreas() const { return lawnAreas; }
     
     void setSpawnPoint(float x, float y) { spawnX = x; spawnY = y; }
     
@@ -160,4 +161,6 @@ private:
     // 新增：桌子和食物锚点存储（对应 TMJMap.cpp 中的解析逻辑）
     std::vector<TableObject> m_tables;
     std::vector<FoodAnchor> m_foodAnchors;
+
+    std::vector<LawnArea> lawnAreas;
 };

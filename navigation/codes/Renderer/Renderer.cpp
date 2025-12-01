@@ -741,6 +741,10 @@ void Renderer::renderGameTriggerAreas(const std::vector<GameTriggerArea>& areas)
     }
 }
 
+void Renderer::renderModalPrompt(const std::string& prompt, const sf::Font& font, unsigned int fontSize) {
+    renderModalPrompt(prompt, font, fontSize, std::nullopt);
+}
+
 
 void Renderer::renderModalPrompt(
     const std::string& prompt, 
@@ -802,4 +806,27 @@ void Renderer::renderModalPrompt(
 
     // restore view
     window.setView(prevView);
+}
+
+// 实现休息状态文本渲染
+void Renderer::renderRestingText(const sf::Vector2f& characterPos, const sf::Font& font) {
+    if (!window.isOpen()) return;
+
+    // 核心修复：SFML 3.0.2 必须传入 font 作为第一个参数
+    sf::Text text(font, "Resting......", 16);
+    text.setFillColor(sf::Color::Green);
+    
+    // 计算文本位置（角色头顶上方）
+    sf::Vector2f textPos = characterPos;
+    textPos.y -= 30; // 向上偏移30像素
+    
+    // 居中对齐
+    sf::FloatRect textBounds = text.getLocalBounds();
+    text.setOrigin(sf::Vector2f(
+        textBounds.position.x + textBounds.size.x / 2,
+        textBounds.position.y + textBounds.size.y / 2
+    ));
+    text.setPosition(textPos);
+    
+    window.draw(text);
 }

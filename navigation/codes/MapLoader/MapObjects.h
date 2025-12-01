@@ -138,3 +138,13 @@ struct FoodAnchor {
     sf::Vector2f position;     // 显示位置
     std::string tableName;     // 关联的桌子名（left_table1/right_table2等）
 };
+
+// 草坪
+struct LawnArea {
+    std::string name;
+    sf::FloatRect rect; // 区域范围（position: x,y; size: width,height）
+
+    LawnArea() = default;
+    LawnArea(std::string n, float x, float y, float w, float h)
+        : name(std::move(n)), rect({x, y}, {w, h}) {}
+};

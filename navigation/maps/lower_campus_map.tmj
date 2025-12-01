@@ -1120,6 +1120,28 @@
         }, 
         {
          "draworder":"topdown",
+         "id":13,
+         "name":"Lawn",
+         "objects":[
+                {
+                 "height":145.333333333333,
+                 "id":209,
+                 "name":"lawn",
+                 "rotation":0,
+                 "type":"",
+                 "visible":true,
+                 "width":450,
+                 "x":3600,
+                 "y":584.666666666667
+                }],
+         "opacity":1,
+         "type":"objectgroup",
+         "visible":true,
+         "x":0,
+         "y":0
+        }, 
+        {
+         "draworder":"topdown",
          "id":10,
          "name":"building_names",
          "objects":[
@@ -4581,34 +4603,6 @@
                 }, 
                 {
                  "height":0,
-                 "id":176,
-                 "name":"",
-                 "polygon":[
-                        {
-                         "x":0,
-                         "y":0
-                        }, 
-                        {
-                         "x":449.362843729041,
-                         "y":-0.74521201281766
-                        }, 
-                        {
-                         "x":449.362843729041,
-                         "y":145.316342499441
-                        }, 
-                        {
-                         "x":0.745212012817774,
-                         "y":144.571130486623
-                        }],
-                 "rotation":0,
-                 "type":"",
-                 "visible":true,
-                 "width":0,
-                 "x":3600.11923392205,
-                 "y":584.991430061853
-                }, 
-                {
-                 "height":0,
                  "id":177,
                  "name":"",
                  "polygon":[
@@ -5977,8 +5971,8 @@
          "x":0,
          "y":0
         }],
- "nextlayerid":13,
- "nextobjectid":208,
+ "nextlayerid":14,
+ "nextobjectid":210,
  "orientation":"orthogonal",
  "renderorder":"right-down",
  "tiledversion":"1.11.2",

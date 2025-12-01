@@ -680,7 +680,26 @@ void TMJMap::parseObjectLayers(const json& layers) {
                             " | Size: " + std::to_string(table.rect.size.x) + "x" + std::to_string(table.rect.size.y));
                 }
             }
-        } // 外层循环结束
+        } 
+
+        // 7) 解析草坪区域
+        if (lnameLower == "lawn") { // 匹配"Lawn"图层（不区分大小写）
+            for (const auto& obj : L["objects"]) {
+                if (!obj.is_object()) continue;
+                std::string objName = obj.value("name", "");
+                if (toLower(objName) != "lawn") continue; // 匹配名称为"lawn"的对象
+
+                float x = obj.value("x", 0.f);
+                float y = obj.value("y", 0.f);
+                float w = obj.value("width", 0.f);
+                float h = obj.value("height", 0.f);
+                
+                lawnAreas.emplace_back(objName, x, y, w, h);
+                Logger::info("Parsed lawn area: " + objName + " at (" + 
+                            std::to_string(x) + "," + std::to_string(y) + 
+                            ") size " + std::to_string(w) + "x" + std::to_string(h));
+            }
+        }
     }
 }
 
@@ -1030,6 +1049,7 @@ void TMJMap::cleanup() {
     m_chefs.clear();
     m_tables.clear();
     m_foodAnchors.clear();
+    lawnAreas.clear();
 
 }
 

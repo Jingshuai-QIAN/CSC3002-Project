@@ -139,6 +139,14 @@ void Character::update(
 ) {
     if (!sprite) return;
 
+    // 休息状态更新
+    if (isResting) {
+        restTimer += deltaTime;
+        if (restTimer >= REST_DURATION) {
+            stopResting(); // 休息结束
+        }
+    }
+
     handleMovement(deltaTime, moveInput, mapWidth, mapHeight, map);
     updateAnimation(deltaTime);
 }
@@ -160,6 +168,13 @@ void Character::handleMovement(
     int mapHeight,
     const TMJMap* map
 ) {
+
+    // 如果处于休息状态，禁止移动
+    if (isResting) {
+        moving = false;
+        return;
+    }
+
     sf::Vector2f movement = moveInput;
     moving = (movement.x != 0.0f || movement.y != 0.0f);
 
@@ -171,19 +186,19 @@ void Character::handleMovement(
     }
 
 
-    // 合并方向更新逻辑：保留单轴判定，新增斜向优先水平的逻辑
+    // 保留单轴判定，新增斜向优先水平的逻辑
     if (moving) {
         int horizontal = (moveInput.x < 0 ? 1 : 0) + (moveInput.x > 0 ? 1 : 0);
         int vertical = (moveInput.y < 0 ? 1 : 0) + (moveInput.y > 0 ? 1 : 0);
         
-        // 组员逻辑：单轴输入时更新方向
+        // 单轴输入时更新方向
         if (horizontal + vertical == 1) {
             if (moveInput.x < 0) currentDirection = Direction::Left;
             else if (moveInput.x > 0) currentDirection = Direction::Right;
             else if (moveInput.y < 0) currentDirection = Direction::Up;
             else if (moveInput.y > 0) currentDirection = Direction::Down;
         }
-        // 你的逻辑：斜向输入时优先水平方向
+        // 斜向输入时优先水平方向
         else {
             if (std::abs(moveInput.x) > std::abs(moveInput.y)) {
                 currentDirection = (moveInput.x < 0) ? Direction::Left : Direction::Right;
@@ -244,15 +259,34 @@ void Character::updateAnimation(float deltaTime) {
     if (!sprite) return;
     
     if (moving) {
+        // 移动状态：正常动画，重置透明度
+        sprite->setColor(sf::Color(255, 255, 255, 255));
         animationTimer += deltaTime;
         if (animationTimer >= config.animationInterval) {
             animationTimer -= config.animationInterval;
             currentFrameRow = (currentFrameRow + 1) % config.frameRows;
             setAnimationFrame(currentFrameRow, config.directionMapping[static_cast<int>(currentDirection)]);
         }
-    } else {
+    } 
+    // 新增：休息状态闪烁逻辑
+    else if (isResting) {
+        // 固定为静止帧（可选：也可保留原休息动画帧）
+        currentFrameRow = 0;
+        setAnimationFrame(currentFrameRow, config.directionMapping[static_cast<int>(currentDirection)]);
+
+        // 闪烁计时器更新
+        flashTimer += deltaTime;
+        if (flashTimer >= flashInterval) {
+            flashTimer = 0.0f;
+            flashState = !flashState; // 切换闪烁状态
+            // 设置透明度（半透明/不透明切换）
+            sprite->setColor(flashState ? sf::Color(255, 255, 255, 128) : sf::Color(255, 255, 255, 255));
+        }
+    }
+    else {
         currentFrameRow = 0; // 本来是1
         animationTimer = 0.0f;
+        sprite->setColor(sf::Color(255, 255, 255, 255));
         // 闲置时立即刷新帧，保持当前朝向
         setAnimationFrame(currentFrameRow, config.directionMapping[static_cast<int>(currentDirection)]);
     }
@@ -361,4 +395,14 @@ void Character::setCurrentDirection(Direction dir) {
         config.directionMapping[static_cast<int>(currentDirection)]
     );
     Logger::debug("Character direction updated to: " + std::to_string(static_cast<int>(dir)));
+}
+
+void Character::stopResting() {
+    isResting = false;
+    restTimer = 0.0f;
+    flashTimer = 0.0f;
+    flashState = false;
+    if (sprite) {
+        sprite->setColor(sf::Color(255, 255, 255, 255)); // 恢复不透明
+    }
 }

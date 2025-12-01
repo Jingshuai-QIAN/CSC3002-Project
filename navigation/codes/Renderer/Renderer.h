@@ -238,11 +238,13 @@ public:
     // Render a modal prompt overlay. If anchorScreenPos is provided (window coordinates),
     // the prompt will be drawn near that screen position instead of centered.
     void renderModalPrompt(
-        const std::string& prompt, 
-        const sf::Font& font, 
+        const std::string& prompt,
+        const sf::Font& font,
         unsigned int fontSize,
         const std::optional<sf::Vector2f>& anchorScreenPos = std::nullopt
     );
+
+    void renderModalPrompt(const std::string& prompt, const sf::Font& font, unsigned int fontSize);
 
     /**
      * @brief When true, renderer will ignore Escape key as "close window".
@@ -300,6 +302,9 @@ public:
             window.draw(*m_chefSprite);  // 修复：m_window → window（你的窗口成员名是 window）
         }
     }
+
+    // 新增：渲染休息状态文本（角色头顶显示）
+    void renderRestingText(const sf::Vector2f& characterPos, const sf::Font& font); 
 
 private:
     // Flag indicating whether the renderer is currently running

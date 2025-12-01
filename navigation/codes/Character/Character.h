@@ -106,6 +106,26 @@ public:
     // 新增：设置朝向
     void setCurrentDirection(Direction dir);
 
+    // 添加状态控制方法
+    bool getIsResting() const { return isResting; }
+    void startResting() { 
+        isResting = true; 
+        restTimer = 0.0f; 
+        moving = false; // 强制停止移动
+    }
+    void stopResting();
+
+    // 设置休息状态
+    void setResting(bool resting) { 
+        isResting = resting; 
+        if (!resting) {
+            // 结束休息时重置透明度
+            sprite->setColor(sf::Color(255, 255, 255, 255)); // 白色+完全不透明
+            flashTimer = 0.0f;
+            flashState = false;
+        }
+    }
+
 private:
     /**
      * @brief Load texture from disk into memory.
@@ -147,4 +167,13 @@ private:
     // Calculated collision extents
     float collisionHalfWidth = 0.0f;
     float collisionHalfHeight = 0.0f;
+
+    // 休息状态相关成员变量
+    bool isResting = false;          // 是否处于休息状态
+    float restTimer = 0.0f;          // 休息计时器
+    const float REST_DURATION = 5.0f; // 休息持续时间（5秒）
+    float flashTimer = 0.0f;       // 闪烁计时器
+    bool flashState = false;       // 闪烁状态（true为半透明，false为不透明）
+    float flashInterval = 0.3f;    // 闪烁间隔（秒）
 };
+
