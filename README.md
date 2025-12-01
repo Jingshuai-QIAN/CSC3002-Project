@@ -5,6 +5,16 @@
 
 ### Compile for the first time
 
+### Option 1: Windows (Batch Script)
+If you are using the provided `build.bat` script with MinGW/G++:
+
+1. Open `navigation/codes/build.bat` and ensure the compiler/SFML paths match your local installation.
+2. Run the script:
+   ```cmd
+   cd navigation/codes
+   build.bat
+   
+### Option 2: Bash
 ```bash
 # Go to the program's root folder
 cd path_to_navigation_folder
@@ -35,6 +45,7 @@ navigation/
 ├── README.md
 ├── Makefile
 ├── codes/
+│   ├── build.bat                # Windows Build Script
 │   ├── main.cpp
 │   ├── App.h
 │   ├── App.cpp
@@ -43,6 +54,10 @@ navigation/
 │   │   ├── Character.cpp
 │   │   ├── CharacterConfig.h
 │   │   └── CharacterConfig.cpp
+│   ├── Manager/                 # Game Systems Manager
+│   │   ├── TimeManager.h        # Day/Night Cycle Logic
+│   │   ├── TimeManager.cpp
+│   │   └── TaskManager.h        # Quest & Energy System
 │   ├── Config/                  # Configuration manager
 │   │   ├── ConfigManager.h
 │   │   └── ConfigManager.cpp
