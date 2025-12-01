@@ -394,11 +394,11 @@ void runApp(
     TimeManager timeManager;
     TaskManager taskManager;
 
-    // Load initial tasks (Example based on work distribution)
-    taskManager.addTask("eat_food", "Eat Food at Canteen", 5, 20);
-    taskManager.addTask("attend_class", "Attend Class (Quiz)", 20, -20);
-    // === NEW: Add Lawn Rest Task ===
-    taskManager.addTask("rest_lawn", "Rest on Lawn", 10, 5);
+    // Load initial tasks (Updated to separate Energy Logic from Task Logic)
+    // Energy reward is now small (Bonus), actual restoration happens during the action.
+    taskManager.addTask("eat_food", "Eat Food at Canteen", 5, 2); 
+    taskManager.addTask("attend_class", "Attend Class (Quiz)", 20, 5); // Completion bonus
+    taskManager.addTask("rest_lawn", "Rest on Lawn", 10, 2);
     // =============================================
     if (!renderer.initializeChefTexture()) {
         Logger::error("Failed to initialize chef texture");
@@ -444,6 +444,11 @@ void runApp(
     };
     GameState gameState;
 
+    // === NEW: Fainting State ===
+    bool isFainted = false;
+    float faintTimer = 0.0f;
+    // ==========================
+
     // 入口确认状态
     bool waitingForEntranceConfirmation = false;
     EntranceArea pendingEntrance;
@@ -456,6 +461,38 @@ void runApp(
         float deltaTime = clock.restart().asSeconds();
         if (deltaTime > 0.1f) deltaTime = 0.1f;
         timeManager.update(deltaTime);
+
+        // === NEW: Passive Energy Depletion ===
+        // Goal: 5 Energy per Game Hour. 
+        // 1 Real Sec = 2 Game Mins. 1 Game Hour = 30 Real Seconds.
+        // Rate = 5 / 30 = ~0.1666 energy per second.
+        const float PASSIVE_DEPLETION_RATE = 5.0f / 30.0f;
+        taskManager.modifyEnergy(-PASSIVE_DEPLETION_RATE * deltaTime);
+        // =====================================
+
+        // === NEW: Fainting Logic Check ===
+        // Must not be currently eating/interacting/fainted
+        if (!isFainted && !gameState.isEating && !dialogSys.isActive()) {
+            if (taskManager.getEnergy() <= 0) {
+                isFainted = true;
+                faintTimer = 0.0f;
+                // Force character direction Up (Visual for passing out)
+                character.setCurrentDirection(Character::Direction::Up);
+                Logger::info("Character passed out due to lack of energy!");
+            }
+        }
+        
+        // Handle Faint Timer
+        if (isFainted) {
+            faintTimer += deltaTime;
+            if (faintTimer > 6.0f) { // Pass out for 6 seconds
+                isFainted = false;
+                taskManager.modifyEnergy(5.0f); // Restore 5 Energy
+                Logger::info("Character woke up.");
+            }
+        }
+        // =================================
+
         //统一事件处理（只轮询一次）
         std::optional<sf::Event> eventOpt;
         while ((eventOpt = renderer.pollEvent()).has_value()) {
@@ -489,7 +526,8 @@ void runApp(
         inputManager.update();
 
         // E键检测（移到主循环，非事件轮询内）
-        if (!waitingForEntranceConfirmation && !dialogSys.isActive() && inputManager.isKeyJustPressed(sf::Keyboard::Key::E)) {
+        // === NEW: Block interactions if Fainted ===
+        if (!isFainted && !waitingForEntranceConfirmation && !dialogSys.isActive() && inputManager.isKeyJustPressed(sf::Keyboard::Key::E)) {
             Logger::debug("E key pressed - checking for interaction");
             if (!gameState.isEating) {
                 // 优先检测吧台（counter）交互
@@ -563,7 +601,7 @@ void runApp(
                     // 强制设置角色朝向为「下」
                     character.setCurrentDirection(Character::Direction::Down);
                     Logger::info("Character started resting on lawn (facing down)");
-                    // === NEW: Complete Lawn Task ===
+                    // === NEW: Completed Task (Reward is Bonus) ===
                     taskManager.completeTask("rest_lawn");
                     // ===============================
                 }
@@ -573,8 +611,9 @@ void runApp(
         // 在此处添加游戏触发检测代码
         static bool gameTriggerLocked = false;   // ✅ 防止一帧触发 60 次
 
+        // === NEW: Block Game Triggers if Fainted ===
         GameTriggerArea detectedTrigger;
-        if (detectGameTrigger(character, tmjMap.get(), detectedTrigger)) {
+        if (!isFainted && detectGameTrigger(character, tmjMap.get(), detectedTrigger)) {
             if (!gameTriggerLocked) {
                 gameTriggerLocked = true; // ✅ 立刻上锁
 
@@ -606,6 +645,12 @@ void runApp(
                         Logger::info("Classroom quiz effects -> exp: " + std::to_string(eff.exp) +
                                      " energy: " + std::to_string(eff.energy));
                     }
+                    
+                    // === NEW: Apply Energy Cost for Class ===
+                    // Class makes you tired (-20 Energy)
+                    taskManager.modifyEnergy(-20.0f); 
+                    // ========================================
+
                     // 将角色移出触发区一格（按 tile 大小）
                     float tileW = tmjMap->getTileWidth();
                     float tileH = tmjMap->getTileHeight();
@@ -647,7 +692,8 @@ void runApp(
         }
 
         // 角色更新（只更一次，避免重复） 
-        if (!waitingForEntranceConfirmation && !dialogSys.isActive() && !gameState.isEating) {
+        // === NEW: Block movement if Fainted ===
+        if (!isFainted && !waitingForEntranceConfirmation && !dialogSys.isActive() && !gameState.isEating) {
             sf::Vector2f moveInput = inputManager.getMoveInput();
             // === NEW: Sprint Feature (Z Key) ===
             float speedMultiplier = 1.0f;
@@ -661,19 +707,34 @@ void runApp(
                             tmjMap.get());
             // ===================================
         }
+        
+        // === NEW: Resting Energy Recovery (Nerfed) ===
+        if (character.getIsResting()) {
+            // Resting restores 10 Energy Total over 5 seconds (Duration defined in Character.h)
+            // Rate = 10 / 5 = 2.0 energy per second.
+            taskManager.modifyEnergy(2.0f * deltaTime);
+        }
+        // ====================================
 
         // 进食状态更新
         if (gameState.isEating) {
+            // Eating Speed: Progress increases by 10 per second -> 10 seconds total.
             gameState.eatingProgress += deltaTime * 10;
             Logger::debug("Eating progress: " + std::to_string(gameState.eatingProgress) + "%");
             
+            // === NEW: Eating Energy Recovery (Nerfed) ===
+            // Target: 30 Energy Total. Duration: 10 seconds.
+            // Rate = 30 / 10 = 3.0 energy per second.
+            taskManager.modifyEnergy(3.0f * deltaTime);
+            // ===================================
+
             if (gameState.eatingProgress >= 100.0f) {
                 gameState.isEating = false;
                 gameState.selectedFood.clear();
                 gameState.currentTable.clear();
                 gameState.eatingProgress = 0.0f;
                 Logger::info("Eating finished - reset state");
-                // === NEW: Task Completion Hook ===
+                // === NEW: Task Completion Hook (Bonus Reward) ===
                 taskManager.completeTask("eat_food");
                 // =================================
             }
@@ -849,8 +910,27 @@ void runApp(
         renderer.getWindow().draw(energyBarBg);
         renderer.getWindow().draw(energyBarFg);
 
+        // === NEW: EXP BAR (Purple, below Energy Bar) ===
+        sf::RectangleShape expBarBg(sf::Vector2f(200.f, 10.f));
+        expBarBg.setPosition(sf::Vector2f(20.f, 85.f)); // Below Energy Bar
+        expBarBg.setFillColor(sf::Color(50, 50, 50));
+        expBarBg.setOutlineThickness(1);
+        expBarBg.setOutlineColor(sf::Color::White);
+        
+        // Calculate ratio
+        float expPct = static_cast<float>(taskManager.getExp()) / static_cast<float>(taskManager.getMaxExp());
+        if (expPct > 1.0f) expPct = 1.0f;
+
+        sf::RectangleShape expBarFg(sf::Vector2f(200.f * expPct, 10.f));
+        expBarFg.setPosition(sf::Vector2f(20.f, 85.f));
+        expBarFg.setFillColor(sf::Color(150, 0, 255)); // Purple
+
+        renderer.getWindow().draw(expBarBg);
+        renderer.getWindow().draw(expBarFg);
+        // ===============================================
+
         // --- D. TASK LIST ---
-        float taskY = 100.f;
+        float taskY = 110.f;
         sf::Text taskHeader(modalFont, "Tasks:", 20);
         taskHeader.setPosition(sf::Vector2f(20.f, taskY));
         taskHeader.setFillColor(sf::Color::Cyan);
@@ -870,6 +950,22 @@ void runApp(
                 taskY += 25.f;
             }
         }
+        
+        // --- E. FAINTED TEXT ---
+        if (isFainted) {
+            sf::Text faintText(modalFont, "You passed out due to exhaustion...", 30);
+            faintText.setFillColor(sf::Color::Red);
+            faintText.setOutlineColor(sf::Color::Black);
+            faintText.setOutlineThickness(2);
+            
+            // Center on screen
+            sf::FloatRect bounds = faintText.getLocalBounds();
+            faintText.setOrigin(sf::Vector2f(bounds.size.x / 2.0f, bounds.size.y / 2.0f));
+            faintText.setPosition(sf::Vector2f(uiWidth / 2.0f, uiHeight / 2.0f));
+            
+            renderer.getWindow().draw(faintText);
+        }
+        // =======================
         
         // 3. Restore the Game Camera (So the next frame renders the map correctly)
         renderer.getWindow().setView(gameView);
@@ -954,5 +1050,3 @@ void runApp(
         renderer.present();
     }
 }
-
-
