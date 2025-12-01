@@ -52,7 +52,7 @@
                 "correctIndex": 0
             },
             {
-                "text": "Evaluate the limit: lim_{x->0} (sin x) / x",
+                "text": "Evaluate the limit of (sin x) / x as x approaches 0",
                 "options": [
                     "0",
                     "1",
@@ -61,7 +61,7 @@
                 "correctIndex": 1
             },
             {
-                "text": "What is the value of the definite integral ∫_0^1 1 dx ?",
+                "text": "What is the value of the definite integral of 1 over the interval [0,1]?",
                 "options": [
                     "0",
                     "1",
@@ -70,7 +70,7 @@
                 "correctIndex": 1
             },
             {
-                "text": "Which vector operation gives a scalar (dot product)?",
+                "text": "Which vector operation gives a scalar?",
                 "options": [
                     "Cross product",
                     "Dot product",
