@@ -396,7 +396,9 @@ void runApp(
 
     // Load initial tasks (Example based on work distribution)
     taskManager.addTask("eat_food", "Eat Food at Canteen", 5, 20);
-    taskManager.addTask("attend_class", "Attend Class (Quiz)", 20, -10);
+    taskManager.addTask("attend_class", "Attend Class (Quiz)", 20, -20);
+    // === NEW: Add Lawn Rest Task ===
+    taskManager.addTask("rest_lawn", "Rest on Lawn", 10, 5);
     // =============================================
     if (!renderer.initializeChefTexture()) {
         Logger::error("Failed to initialize chef texture");
@@ -561,6 +563,9 @@ void runApp(
                     // 强制设置角色朝向为「下」
                     character.setCurrentDirection(Character::Direction::Down);
                     Logger::info("Character started resting on lawn (facing down)");
+                    // === NEW: Complete Lawn Task ===
+                    taskManager.completeTask("rest_lawn");
+                    // ===============================
                 }
             }
         }
@@ -644,10 +649,17 @@ void runApp(
         // 角色更新（只更一次，避免重复） 
         if (!waitingForEntranceConfirmation && !dialogSys.isActive() && !gameState.isEating) {
             sf::Vector2f moveInput = inputManager.getMoveInput();
-            character.update(deltaTime, moveInput, 
+            // === NEW: Sprint Feature (Z Key) ===
+            float speedMultiplier = 1.0f;
+            if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Z)) {
+                speedMultiplier = 2.0f; // Walk 2x faster
+            }
+            // Pass the modified deltaTime to make character move faster
+            character.update(deltaTime * speedMultiplier, moveInput, 
                             tmjMap->getWorldPixelWidth(), 
                             tmjMap->getWorldPixelHeight(),
                             tmjMap.get());
+            // ===================================
         }
 
         // 进食状态更新
@@ -942,4 +954,5 @@ void runApp(
         renderer.present();
     }
 }
+
 
