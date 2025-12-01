@@ -20,6 +20,9 @@
 #include <SFML/Window/Event.hpp>
 #include <optional>
 #include <cmath>
+// Added in New Script:
+#include "Manager/TimeManager.h"
+#include "Manager/TaskManager.h"
 
 
 // Helper: detect whether character is inside an entrance and facing it.
@@ -387,7 +390,14 @@ void runApp(
     ConfigManager& configManager
 ) {
     auto& inputManager = InputManager::getInstance();
+    // === NEW: Initialize Systems (Time & Tasks) ===
+    TimeManager timeManager;
+    TaskManager taskManager;
 
+    // Load initial tasks (Example based on work distribution)
+    taskManager.addTask("eat_food", "Eat Food at Canteen", 5, 20);
+    taskManager.addTask("attend_class", "Attend Class (Quiz)", 20, -10);
+    // =============================================
     if (!renderer.initializeChefTexture()) {
         Logger::error("Failed to initialize chef texture");
         return;
@@ -620,6 +630,9 @@ void runApp(
                     newPos.y = std::clamp(newPos.y, 0.0f, mapH);
 
                     character.setPosition(newPos);
+                    // === NEW: Task Completion Hook ===
+                    taskManager.completeTask("attend_class");
+                    // =================================
                 }
             }
         } 
@@ -648,6 +661,9 @@ void runApp(
                 gameState.currentTable.clear();
                 gameState.eatingProgress = 0.0f;
                 Logger::info("Eating finished - reset state");
+                // === NEW: Task Completion Hook ===
+                taskManager.completeTask("eat_food");
+                // =================================
             }
         }
 
@@ -751,34 +767,112 @@ void runApp(
 
         //休息状态文本渲染
         if (character.getIsResting()) {
-            // 使用已有的modalFont作为字体
-            sf::Text restingText(modalFont, "Resting......", 16);
-            restingText.setFillColor(sf::Color::Green);
-            restingText.setOutlineColor(sf::Color::Black);
-            restingText.setOutlineThickness(1);
-            
-            // 文本位置：角色头顶30px
-            sf::Vector2f charPos = character.getPosition();
-            restingText.setPosition(sf::Vector2f(charPos.x, charPos.y - 30));
-            
-            // 文字居中对齐（适配SFML 3.0.2）
-            sf::FloatRect textBounds = restingText.getLocalBounds();
-            restingText.setOrigin(sf::Vector2f(
-                textBounds.position.x + textBounds.size.x / 2,
-                textBounds.position.y + textBounds.size.y / 2
-            ));
-            
-            renderer.getWindow().draw(restingText);
-        }
-        renderer.drawMapButton();
+        sf::Text restingText(modalFont, "Resting......", 16);
+        restingText.setFillColor(sf::Color::Green);
+        restingText.setOutlineColor(sf::Color::Black);
+        restingText.setOutlineThickness(1);
+    
+        sf::Vector2f charPos = character.getPosition();
+        restingText.setPosition(sf::Vector2f(charPos.x, charPos.y - 30));
+    
+        sf::FloatRect textBounds = restingText.getLocalBounds();
+        restingText.setOrigin(sf::Vector2f(
+            textBounds.position.x + textBounds.size.x / 2,
+            textBounds.position.y + textBounds.size.y / 2
+        ));
+    
+        renderer.getWindow().draw(restingText);
+    }
+// ------------------------------------------------
+    // ==========================================================
+    // === FIXED: UI & OVERLAY RENDER (SCREEN SPACE) ===
+        // 1. Save the current Game Camera (View)
+        sf::View gameView = renderer.getWindow().getView();
+        
+        // 2. Switch to UI Camera (Default Window Coordinates)
+        // This ensures the UI and Night Overlay don't move with the player!
+        renderer.getWindow().setView(renderer.getWindow().getDefaultView());
+        
+        // Get actual window size for UI calculations
+        sf::Vector2u windowSize = renderer.getWindow().getSize();
+        float uiWidth = static_cast<float>(windowSize.x);
+        float uiHeight = static_cast<float>(windowSize.y);
 
-        // 绘制入口确认提示（始终居中于窗口）
+        // --- A. DAY/NIGHT OVERLAY ---
+        float brightness = timeManager.getDaylightFactor(); 
+        if (brightness < 1.0f) {
+            // Make a rectangle that covers the WHOLE screen
+            sf::RectangleShape nightOverlay(sf::Vector2f(uiWidth, uiHeight));
+            nightOverlay.setPosition(sf::Vector2f(0.f, 0.f));
+            
+            // Calculate Alpha: Brightness 1.0 -> Alpha 0. Brightness 0.3 -> Alpha ~180
+            int alpha = static_cast<int>((1.0f - brightness) * 255); 
+            
+            // Dark Blue-ish tint
+            nightOverlay.setFillColor(sf::Color(0, 0, 40, alpha)); 
+            renderer.getWindow().draw(nightOverlay);
+        }
+
+        // --- B. TIME TEXT ---
+        sf::Text timeText(modalFont, "Time: " + timeManager.getFormattedTime(), 24);
+        // Position at top-left of SCREEN, not map
+        timeText.setPosition(sf::Vector2f(20.f, 20.f)); 
+        timeText.setFillColor(sf::Color::White);
+        timeText.setOutlineColor(sf::Color::Black);
+        timeText.setOutlineThickness(2);
+        renderer.getWindow().draw(timeText);
+
+        // --- C. ENERGY BAR ---
+        sf::RectangleShape energyBarBg(sf::Vector2f(200.f, 20.f));
+        energyBarBg.setPosition(sf::Vector2f(20.f, 60.f));
+        energyBarBg.setFillColor(sf::Color(50, 50, 50));
+        energyBarBg.setOutlineThickness(2);
+        energyBarBg.setOutlineColor(sf::Color::White);
+        
+        float energyPct = taskManager.getEnergy() / 100.0f;
+        sf::RectangleShape energyBarFg(sf::Vector2f(200.f * energyPct, 20.f));
+        energyBarFg.setPosition(sf::Vector2f(20.f, 60.f));
+        energyBarFg.setFillColor(sf::Color::Yellow);
+
+        renderer.getWindow().draw(energyBarBg);
+        renderer.getWindow().draw(energyBarFg);
+
+        // --- D. TASK LIST ---
+        float taskY = 100.f;
+        sf::Text taskHeader(modalFont, "Tasks:", 20);
+        taskHeader.setPosition(sf::Vector2f(20.f, taskY));
+        taskHeader.setFillColor(sf::Color::Cyan);
+        taskHeader.setOutlineColor(sf::Color::Black);
+        taskHeader.setOutlineThickness(1);
+        renderer.getWindow().draw(taskHeader);
+        
+        taskY += 30.f;
+        for (const auto& t : taskManager.getTasks()) {
+            if (!t.isCompleted) {
+                sf::Text taskText(modalFont, "- " + t.description, 18);
+                taskText.setPosition(sf::Vector2f(25.f, taskY));
+                taskText.setFillColor(sf::Color::White);
+                taskText.setOutlineColor(sf::Color::Black);
+                taskText.setOutlineThickness(1);
+                renderer.getWindow().draw(taskText);
+                taskY += 25.f;
+            }
+        }
+        
+        // 3. Restore the Game Camera (So the next frame renders the map correctly)
+        renderer.getWindow().setView(gameView);
+        
+        // ==========================================================
+
+        renderer.drawMapButton();
+        
+        // ... [Rest of your rendering code: modal prompts, dialogs, present()] ...
+
         if (waitingForEntranceConfirmation) {
             std::string prompt = "Do you want to enter " + pendingEntrance.name + "?  Enter=Yes  Esc=No";
             renderer.renderModalPrompt(prompt, modalFont, configManager.getRenderConfig().text.fontSize, std::nullopt);
         }
 
-        // 绘制对话框
         if (dialogSys.isActive()) {
             dialogSys.render(renderer.getWindow());
             if (!dialogSys.isActive()) {
@@ -786,80 +880,64 @@ void runApp(
             }
         }
 
-       // 食物渲染逻辑
         if (gameState.isEating && !gameState.selectedFood.empty() && !gameState.currentTable.empty()) {
             const auto& tables = tmjMap->getTables();
             auto tableIt = std::find_if(tables.begin(), tables.end(),
                 [&](const TableObject& t) { return t.name == gameState.currentTable; });
             
-            if (tableIt == tables.end()) {
-                Logger::error("Have not found table: " + gameState.currentTable);
-                gameState.isEating = false; // 重置状态
-                continue;
-            }
+            if (tableIt != tables.end()) {
+                sf::Vector2f foodPos;
+                const auto& foodAnchors = tmjMap->getFoodAnchors();
+                auto anchorIt = std::find_if(foodAnchors.begin(), foodAnchors.end(),
+                    [&](const FoodAnchor& a) { return a.tableName == gameState.currentTable; });
+                
+                if (anchorIt != foodAnchors.end()) {
+                    foodPos = anchorIt->position;
+                } else {
+                    foodPos = sf::Vector2f(
+                        tableIt->rect.position.x + tableIt->rect.size.x / 2,
+                        tableIt->rect.position.y + tableIt->rect.size.y / 2
+                    );
+                }
 
-            // 1. 匹配食物插入点（优先FoodAnchors，兜底餐桌中心）
-            sf::Vector2f foodPos;
-            const auto& foodAnchors = tmjMap->getFoodAnchors();
-            auto anchorIt = std::find_if(foodAnchors.begin(), foodAnchors.end(),
-                [&](const FoodAnchor& a) { return a.tableName == gameState.currentTable; });
-            
-            if (anchorIt != foodAnchors.end()) {
-                foodPos = anchorIt->position;
-                Logger::debug("Matched to food anchor → " + gameState.currentTable + " | " + std::to_string(foodPos.x) + "," + std::to_string(foodPos.y));
-            } else {
-                // SFML 3.0.2 正确的Rect成员（left/top 而非 position）
-                foodPos = sf::Vector2f(
-                    tableIt->rect.position.x + tableIt->rect.size.x / 2,
-                    tableIt->rect.position.y + tableIt->rect.size.y / 2
-                );
-                Logger::warn("Have not found food anchor for table: " + gameState.currentTable + " → fallback to table center: " + std::to_string(foodPos.x) + "," + std::to_string(foodPos.y));
-            }
+                auto foodTexIt = foodTextures.find(gameState.selectedFood);
+                if (foodTexIt != foodTextures.end()) {
+                    sf::Sprite foodSprite(foodTexIt->second);
+                    foodSprite.setOrigin(sf::Vector2f(
+                        static_cast<float>(foodTexIt->second.getSize().x) / 2,
+                        static_cast<float>(foodTexIt->second.getSize().y) / 2
+                    ));
+                    // SFML 3 Fix: Use Vector2f
+                    foodSprite.setPosition(foodPos);
+                    foodSprite.setScale(sf::Vector2f(0.5f, 0.5f));
+                    renderer.getWindow().draw(foodSprite);
+                } else {
+                    sf::RectangleShape placeholder(sf::Vector2f(32, 32));
+                    placeholder.setOrigin(sf::Vector2f(16.0f, 16.0f));
+                    // SFML 3 Fix: Use Vector2f
+                    placeholder.setPosition(foodPos);
+                    placeholder.setFillColor(sf::Color::Red);
+                    renderer.getWindow().draw(placeholder);
+                }
 
-            // 2. 绘制食物（严格匹配贴图名，加日志）
-            auto foodTexIt = foodTextures.find(gameState.selectedFood);
-            if (foodTexIt != foodTextures.end()) {
-                sf::Sprite foodSprite(foodTexIt->second);
-                // 贴图居中（SFML 3.0.2 正确接口）
-                foodSprite.setOrigin(sf::Vector2f(
-                    static_cast<float>(foodTexIt->second.getSize().x) / 2,
-                    static_cast<float>(foodTexIt->second.getSize().y) / 2
+                sf::Text eatingText(modalFont, "Eating...", 16);
+                eatingText.setFillColor(sf::Color::White);
+                eatingText.setOutlineColor(sf::Color::Black);
+                eatingText.setOutlineThickness(1);
+                
+                sf::Vector2f charPos = character.getPosition();
+                // SFML 3 Fix: Use Vector2f
+                eatingText.setPosition(sf::Vector2f(charPos.x, charPos.y - 30));
+                
+                sf::FloatRect textBounds = eatingText.getLocalBounds();
+                eatingText.setOrigin(sf::Vector2f(
+                    textBounds.position.x + textBounds.size.x / 2,
+                    textBounds.position.y + textBounds.size.y / 2
                 ));
-                foodSprite.setPosition(foodPos);
-                foodSprite.setScale(sf::Vector2f(0.5f, 0.5f));
-                renderer.getWindow().draw(foodSprite);
-                Logger::debug("render food → " + gameState.selectedFood + " | 位置: " + std::to_string(foodPos.x) + "," + std::to_string(foodPos.y));
-            } else {
-                Logger::error("the material of food is not found → " + gameState.selectedFood);
-                // 兜底：绘制红色方块
-                sf::RectangleShape placeholder(sf::Vector2f(32, 32));
-                placeholder.setOrigin(sf::Vector2f(16.0f, 16.0f));
-                placeholder.setPosition(foodPos);
-                placeholder.setFillColor(sf::Color::Red);
-                renderer.getWindow().draw(placeholder);
+                
+                renderer.getWindow().draw(eatingText);
             }
-
-            // 3. 绘制Eating...文字（修复SFML 3.0.2 文字原点）
-            sf::Text eatingText(modalFont, "Eating...", 16);
-            eatingText.setFillColor(sf::Color::White);
-            eatingText.setOutlineColor(sf::Color::Black);
-            eatingText.setOutlineThickness(1);
-            
-            // 文字位置：角色头顶30px
-            sf::Vector2f charPos = character.getPosition();
-            eatingText.setPosition(sf::Vector2f(charPos.x, charPos.y - 30));
-            
-            // SFML 3.0.2 正确的文字原点计算（localBounds用left/top，而非size）
-            sf::FloatRect textBounds = eatingText.getLocalBounds();
-            eatingText.setOrigin(sf::Vector2f(
-                textBounds.position.x + textBounds.size.x / 2,
-                textBounds.position.y + textBounds.size.y / 2
-            ));
-            
-            renderer.getWindow().draw(eatingText);
-            Logger::debug("render Eating → character position: " + std::to_string(charPos.x) + "," + std::to_string(charPos.y));
         }
-        // ========== 食物渲染逻辑结束 ==========
 
         renderer.present();
     }
