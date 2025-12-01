@@ -217,6 +217,9 @@ void Renderer::cleanup() {
         // SFML textures are automatically managed
     }
     loadedTextures.clear();
+
+    m_chefTexture = sf::Texture(); // 释放纹理
+    m_chefSprite.reset(); // 释放精灵
     
     // Close the window if it's open
     if (window.isOpen()) {

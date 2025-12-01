@@ -10,6 +10,15 @@
 #include "Character/Character.h"
 #include "DialogSystem.h"
 #include "QuizGame/QuizGame.h"
+#include <algorithm> 
+#include <unordered_map>
+#include <SFML/Graphics/Sprite.hpp>
+#include <SFML/Graphics/Text.hpp>
+#include <SFML/Window/Window.hpp>
+#include <SFML/Window/Keyboard.hpp>
+#include <SFML/Window/Mouse.hpp>
+#include <SFML/Window/Event.hpp>
+#include <optional>
 
 
 // Helper: detect whether character is inside an entrance and facing it.
@@ -50,17 +59,17 @@ static bool detectGameTrigger(const Character& character, const TMJMap* map, Gam
     return false;
 }
 
-// Helper: show the full-map modal (blocking) — extracted from main loop.
+// Helper: show the full-map modal (blocking) — 彻底解决枚举错误 + 保留组员逻辑
 static void showFullMapModal(Renderer& renderer, const std::shared_ptr<TMJMap>& tmjMap, const ConfigManager& configManager) {
     auto dm = sf::VideoMode::getDesktopMode();
-    sf::RenderWindow mapWin(dm, sf::String("Full Map"), sf::State::Windowed);
+    sf::RenderWindow mapWin(dm, sf::String("Full Map"), sf::State::Windowed); 
     mapWin.setFramerateLimit(60);
 
     int mapW = tmjMap->getWorldPixelWidth();
     int mapH = tmjMap->getWorldPixelHeight();
 
-    float winW = static_cast<float>(dm.size.x);
-    float winH = static_cast<float>(dm.size.y);
+    float winW = static_cast<float>(dm.size.x);  
+    float winH = static_cast<float>(dm.size.y); 
 
     float mapWf = static_cast<float>(mapW);
     float mapHf = static_cast<float>(mapH);
@@ -68,6 +77,7 @@ static void showFullMapModal(Renderer& renderer, const std::shared_ptr<TMJMap>& 
     float scale = 1.f;
     if (mapW > 0 && mapH > 0) scale = std::min(winW / mapWf, winH / mapHf);
 
+    // 修复 displayW/displayH 未定义
     float displayW = mapWf * scale;
     float displayH = mapHf * scale;
 
@@ -93,46 +103,57 @@ static void showFullMapModal(Renderer& renderer, const std::shared_ptr<TMJMap>& 
     sf::View view = fullView;
 
     while (mapWin.isOpen()) {
-        while (auto ev = mapWin.pollEvent()) {
-            if (ev->is<sf::Event::Closed>()) { mapWin.close(); break; }
-            if (ev->is<sf::Event::KeyPressed>()) {
-                if (ev->getIf<sf::Event::KeyPressed>()->code == sf::Keyboard::Key::Escape) {
-                    mapWin.close(); break;
+        // SFML 3.0.2 事件轮询
+        std::optional<sf::Event> evOpt = mapWin.pollEvent();
+        while (evOpt.has_value()) {
+            sf::Event& ev = evOpt.value();
+            
+            // 关闭窗口事件
+            if (auto closed = ev.getIf<sf::Event::Closed>()) {
+                mapWin.close(); 
+                break; 
+            }
+            
+            // 键盘按下事件 — 统一使用 Key 枚举（解决 Scan/Key 不匹配）
+            if (auto keyPressed = ev.getIf<sf::Event::KeyPressed>()) {
+                if (keyPressed->code == sf::Keyboard::Key::Escape) {
+                    mapWin.close(); 
+                    break; 
                 }
             }
 
-            if (ev->is<sf::Event::MouseWheelScrolled>()) {
-                auto mw = ev->getIf<sf::Event::MouseWheelScrolled>();
-                if (mw) {
-                    float delta = mw->delta;
-                    if (delta > 0) zoomFactor *= 1.1f;
-                    else if (delta < 0) zoomFactor /= 1.1f;
-                    zoomFactor = std::clamp(zoomFactor, ZOOM_MIN, ZOOM_MAX);
-                    view.setSize(sf::Vector2f{
-                        mapWf / zoomFactor,
-                        mapHf / zoomFactor
-                    });
-                    mapWin.setView(view);
-                }
+            // 鼠标滚轮事件
+            if (auto mouseWheel = ev.getIf<sf::Event::MouseWheelScrolled>()) {
+                float delta = mouseWheel->delta;
+                if (delta > 0) zoomFactor *= 1.1f;
+                else if (delta < 0) zoomFactor /= 1.1f;
+                zoomFactor = std::clamp(zoomFactor, ZOOM_MIN, ZOOM_MAX);
+                view.setSize(sf::Vector2f{
+                    mapWf / zoomFactor,
+                    mapHf / zoomFactor
+                });
+                mapWin.setView(view);
             }
 
-            if (ev->is<sf::Event::MouseButtonPressed>()) {
-                auto mb = ev->getIf<sf::Event::MouseButtonPressed>();
-                if (mb && mb->button == sf::Mouse::Button::Left) {
+            // 鼠标按下事件
+            if (auto mousePressed = ev.getIf<sf::Event::MouseButtonPressed>()) {
+                if (mousePressed->button == sf::Mouse::Button::Left) {
                     dragging = true;
-                    prevDragPixel = mb->position;
+                    prevDragPixel = mousePressed->position;
                 }
             }
-            if (ev->is<sf::Event::MouseButtonReleased>()) {
-                auto mr = ev->getIf<sf::Event::MouseButtonReleased>();
-                if (mr && mr->button == sf::Mouse::Button::Left) {
+            
+            // 鼠标释放事件
+            if (auto mouseReleased = ev.getIf<sf::Event::MouseButtonReleased>()) {
+                if (mouseReleased->button == sf::Mouse::Button::Left) {
                     dragging = false;
                 }
             }
-            if (ev->is<sf::Event::MouseMoved>()) {
-                auto mm = ev->getIf<sf::Event::MouseMoved>();
-                if (mm && dragging) {
-                    sf::Vector2i curPixel = mm->position;
+            
+            // 鼠标移动事件
+            if (auto mouseMoved = ev.getIf<sf::Event::MouseMoved>()) {
+                if (dragging) {
+                    sf::Vector2i curPixel = mouseMoved->position;
                     sf::Vector2f prevWorld = mapWin.mapPixelToCoords(prevDragPixel);
                     sf::Vector2f curWorld  = mapWin.mapPixelToCoords(curPixel);
                     sf::Vector2f diff = prevWorld - curWorld;
@@ -141,6 +162,8 @@ static void showFullMapModal(Renderer& renderer, const std::shared_ptr<TMJMap>& 
                     prevDragPixel = curPixel;
                 }
             }
+
+            evOpt = mapWin.pollEvent();
         }
 
         if (!mapWin.isOpen()) break;
@@ -261,6 +284,88 @@ static bool detectInteraction(const Character& character, const TMJMap* map, Int
     return false;
 }
 
+// ========== 新增：餐桌交互检测函数（来自你的代码） ==========
+static bool detectTableInteraction(const Character& character, const TMJMap* map, TableObject& outTable) {
+    if (!map) {
+        Logger::error("detectTableInteraction: map is null");
+        return false;
+    }
+    sf::Vector2f feet = character.getFeetPoint();
+    Logger::info("detectTableInteraction: feet coordinates = (" + std::to_string(feet.x) + "," + std::to_string(feet.y) + ")");
+    
+    const auto& tables = map->getTables();
+    // 新增日志：打印解析到的餐桌数量
+    Logger::info("detectTableInteraction: Total tables in map: " + std::to_string(tables.size()));
+    if (tables.empty()) {
+        Logger::warn("detectTableInteraction: No tables found in map");
+        return false;
+    }
+
+    for (const auto& table : tables) {
+        // 2. 加5px容差（解决SFML坐标精度问题）
+        sf::FloatRect tolerantRect = table.rect;
+        tolerantRect.position.x -= 5;  // 替代 left
+        tolerantRect.position.y -= 5;  // 替代 top
+        tolerantRect.size.x += 10;     // 替代 width
+        tolerantRect.size.y += 10;     // 替代 height
+
+        Logger::debug("detectTableInteraction: detact table → name: " + table.name + 
+                     " | original rect: (" + std::to_string(table.rect.position.x) + "," + std::to_string(table.rect.position.y) + 
+                     ") | tolerant rect: (" + std::to_string(tolerantRect.position.x) + "," + std::to_string(tolerantRect.position.y) + ")");
+
+        // 3. 检测脚部是否在容差范围内
+        if (tolerantRect.contains(feet)) {
+            outTable = table;
+            Logger::info("detectTableInteraction: matched → table name: " + table.name + 
+                         " | seatPosition: (" + std::to_string(table.seatPosition.x) + "," + std::to_string(table.seatPosition.y) + ")");
+            return true;
+        }
+    }
+
+    Logger::warn("detectTableInteraction: the character is not on any table");
+    return false;
+}
+
+// ========== 新增：食物纹理加载函数（来自你的代码） ==========
+static std::unordered_map<std::string, sf::Texture> loadFoodTextures() {
+    std::unordered_map<std::string, sf::Texture> textures;
+    sf::Texture tex;
+    
+    if (tex.loadFromFile("textures/chicken_steak.png")) {
+        textures["Chicken Steak"] = tex;
+        Logger::info("Loaded food texture: Chicken Steak");
+    } else {
+        Logger::warn("Failed to load texture: textures/chicken_steak.png");
+    }
+    
+    if (tex.loadFromFile("textures/pasta.png")) {
+        textures["Pasta"] = tex;
+        Logger::info("Loaded food texture: Pasta");
+    } else {
+        Logger::warn("Failed to load texture: textures/pasta.png");
+    }
+    
+    if (tex.loadFromFile("textures/beef_noodles.png")) {
+        textures["Beef Noodles"] = tex;
+        Logger::info("Loaded food texture: Beef Noodles");
+    } else {
+        Logger::warn("Failed to load texture: textures/beef_noodles.png");
+    }
+    
+    return textures;
+}
+
+// ========== 新增：Scan → Key 转换函数（来自你的代码） ==========
+// 手动实现 Scan → Key 转换（SFML 3.0.2 无内置方法）
+static sf::Keyboard::Key scanToKey(sf::Keyboard::Scan scanCode) {
+    switch (scanCode) {
+        case sf::Keyboard::Scan::E:      return sf::Keyboard::Key::E;
+        case sf::Keyboard::Scan::Enter:  return sf::Keyboard::Key::Enter;
+        case sf::Keyboard::Scan::Escape: return sf::Keyboard::Key::Escape;
+        default: return sf::Keyboard::Key::Unknown;
+    }
+}
+
 void runApp(
     Renderer& renderer,
     MapLoader& mapLoader,
@@ -304,6 +409,17 @@ void runApp(
         dialogInitSuccess = false;
     }
 
+    // 加载食物贴图
+    auto foodTextures = loadFoodTextures();
+    // 游戏状态（进食相关）
+    struct GameState {
+        bool isEating = false;
+        std::string currentTable;
+        std::string selectedFood;
+        float eatingProgress = 0.0f;
+    };
+    GameState gameState;
+
     // 入口确认状态
     bool waitingForEntranceConfirmation = false;
     EntranceArea pendingEntrance;
@@ -314,6 +430,7 @@ void runApp(
     sf::Clock clock;
     while (renderer.isRunning()) {
         float deltaTime = clock.restart().asSeconds();
+        if (deltaTime > 0.1f) deltaTime = 0.1f;
 
         // ========== 修复2：统一事件处理（只轮询一次） ==========
         std::optional<sf::Event> eventOpt;
@@ -350,24 +467,72 @@ void runApp(
         // ========== 修复4：E键检测（移到主循环，非事件轮询内） ==========
         if (!waitingForEntranceConfirmation && !dialogSys.isActive() && inputManager.isKeyJustPressed(sf::Keyboard::Key::E)) {
             Logger::debug("E key pressed - checking for interaction");
-            InteractionObject interactObj;
-            if (detectInteraction(character, tmjMap.get(), interactObj)) {
-                if (dialogInitSuccess) {
-                    Logger::info("Triggering Counter interaction - showing dialog");
-                    // 设置对话框内容
-                    dialogSys.setDialog(
-                        "What would you want to eat?",
-                        interactObj.options.empty() ? std::vector<std::string>{"Chicken Steak", "Pasta", "Beef Noodles"} : interactObj.options,
-                        [](const std::string& dish) {
-                            Logger::info("Selected dish: " + dish);
-                        }
-                    );
-                    renderer.setModalActive(true);
-                } else {
-                    Logger::error("Dialog system not initialized - cannot show interaction");
+            if (!gameState.isEating) {
+                // 优先检测吧台（counter）交互
+                InteractionObject counterObj;
+                if (detectInteraction(character, tmjMap.get(), counterObj)) {
+                    Logger::info("Detected counter (吧台) interaction - show food select dialog");
+                    // 触发吧台选餐对话框
+                    if (dialogInitSuccess) {
+                        dialogSys.setDialog(
+                            "What do you want to eat?",  // 对话框标题
+                            {"Chicken Steak", "Pasta", "Beef Noodles"}, // 食物选项（匹配贴图名）
+                            [&gameState](const std::string& selected) { // 选中回调
+                                gameState.selectedFood = selected; // 赋值给游戏状态，供餐桌使用
+                                Logger::info("Selected food from counter: " + selected);
+                            }
+                        );
+                        renderer.setModalActive(true); // 激活模态（遮挡其他交互）
+                    } else {
+                        Logger::error("Dialog system not initialized - cannot show food select dialog");
+                        renderer.renderModalPrompt("Dialog system not initialized", modalFont, 24);
+                    }
+                    continue; // 优先处理吧台，跳过原有逻辑
                 }
-            } else {
-                Logger::debug("E key pressed but no valid interaction found");
+
+                // 检测餐桌交互
+                TableObject currentTable;
+                if (detectTableInteraction(character, tmjMap.get(), currentTable)) {
+                    Logger::info("table interaction detected → selected food: " + (gameState.selectedFood.empty() ? "空" : gameState.selectedFood));
+                    
+                    if (gameState.selectedFood.empty()) {
+                        Logger::info("Didn't select food");
+                        renderer.renderModalPrompt("Please order food first!", modalFont, 24);
+                    } else {
+                        // 1. 验证seatPosition有效性（核心：避免移动到(0,0)）
+                        if (currentTable.seatPosition.x == 0 && currentTable.seatPosition.y == 0) {
+                            Logger::error("table " + currentTable.name + " has no valid seatPosition");
+                            renderer.renderModalPrompt("No valid seatPosition!", modalFont, 24);
+                            continue;
+                        }
+
+                        // 2. 解析left/right_table命名，设置朝向
+                        Character::Direction facingDir;
+                        bool isLeftTable = currentTable.name.find("left_table") != std::string::npos;
+                        bool isRightTable = currentTable.name.find("right_table") != std::string::npos;
+
+                        if (isLeftTable) {
+                            facingDir  = Character::Direction::Right; // 左桌朝右
+                        } else if (isRightTable) {
+                            facingDir  = Character::Direction::Left;  // 右桌朝左
+                        } else {
+                            facingDir  = Character::Direction::Down;  // 兜底默认朝向
+                        }
+
+                        // 3. 移动角色到椅子插入点 + 强制设置朝向
+                        character.setPosition(currentTable.seatPosition);
+                        character.setCurrentDirection(facingDir); // 同步朝向
+                        Logger::info("Character has been moved to the seatPosition:(" + std::to_string(currentTable.seatPosition.x) + "," + std::to_string(currentTable.seatPosition.y) + 
+                                    ") | direction: " + (isLeftTable ? "right" : "left"));
+
+                        // 4. 激活进食状态
+                        gameState.isEating = true;
+                        gameState.currentTable = currentTable.name;
+                        gameState.eatingProgress = 0.0f;
+                        Logger::info("starts eating → table: " + currentTable.name + " | food: " + gameState.selectedFood);
+                    }
+                    continue;
+                }
             }
         }
 
@@ -445,12 +610,26 @@ void runApp(
         }
 
         // ========== 修复5：角色更新（只更一次，避免重复） ==========
-        if (!waitingForEntranceConfirmation && !dialogSys.isActive()) {
+        if (!waitingForEntranceConfirmation && !dialogSys.isActive() && !gameState.isEating) {
             sf::Vector2f moveInput = inputManager.getMoveInput();
             character.update(deltaTime, moveInput, 
                             tmjMap->getWorldPixelWidth(), 
                             tmjMap->getWorldPixelHeight(),
                             tmjMap.get());
+        }
+
+        // ========== 新增：进食状态更新（来自你的代码） ==========
+        if (gameState.isEating) {
+            gameState.eatingProgress += deltaTime * 10;
+            Logger::debug("Eating progress: " + std::to_string(gameState.eatingProgress) + "%");
+            
+            if (gameState.eatingProgress >= 100.0f) {
+                gameState.isEating = false;
+                gameState.selectedFood.clear();
+                gameState.currentTable.clear();
+                gameState.eatingProgress = 0.0f;
+                Logger::info("Eating finished - reset state");
+            }
         }
 
         // ========== 原有入口检测逻辑（保留） ==========
@@ -528,6 +707,81 @@ void runApp(
                 renderer.setModalActive(false);
             }
         }
+
+       // ========== 插入：食物渲染逻辑（你的代码） ==========
+        if (gameState.isEating && !gameState.selectedFood.empty() && !gameState.currentTable.empty()) {
+            const auto& tables = tmjMap->getTables();
+            auto tableIt = std::find_if(tables.begin(), tables.end(),
+                [&](const TableObject& t) { return t.name == gameState.currentTable; });
+            
+            if (tableIt == tables.end()) {
+                Logger::error("Have not found table: " + gameState.currentTable);
+                gameState.isEating = false; // 重置状态
+                continue;
+            }
+
+            // 1. 匹配食物插入点（优先FoodAnchors，兜底餐桌中心）
+            sf::Vector2f foodPos;
+            const auto& foodAnchors = tmjMap->getFoodAnchors();
+            auto anchorIt = std::find_if(foodAnchors.begin(), foodAnchors.end(),
+                [&](const FoodAnchor& a) { return a.tableName == gameState.currentTable; });
+            
+            if (anchorIt != foodAnchors.end()) {
+                foodPos = anchorIt->position;
+                Logger::debug("Matched to food anchor → " + gameState.currentTable + " | " + std::to_string(foodPos.x) + "," + std::to_string(foodPos.y));
+            } else {
+                // SFML 3.0.2 正确的Rect成员（left/top 而非 position）
+                foodPos = sf::Vector2f(
+                    tableIt->rect.position.x + tableIt->rect.size.x / 2,
+                    tableIt->rect.position.y + tableIt->rect.size.y / 2
+                );
+                Logger::warn("Have not found food anchor for table: " + gameState.currentTable + " → fallback to table center: " + std::to_string(foodPos.x) + "," + std::to_string(foodPos.y));
+            }
+
+            // 2. 绘制食物（严格匹配贴图名，加日志）
+            auto foodTexIt = foodTextures.find(gameState.selectedFood);
+            if (foodTexIt != foodTextures.end()) {
+                sf::Sprite foodSprite(foodTexIt->second);
+                // 贴图居中（SFML 3.0.2 正确接口）
+                foodSprite.setOrigin(sf::Vector2f(
+                    static_cast<float>(foodTexIt->second.getSize().x) / 2,
+                    static_cast<float>(foodTexIt->second.getSize().y) / 2
+                ));
+                foodSprite.setPosition(foodPos);
+                foodSprite.setScale(sf::Vector2f(0.5f, 0.5f));
+                renderer.getWindow().draw(foodSprite);
+                Logger::debug("render food → " + gameState.selectedFood + " | 位置: " + std::to_string(foodPos.x) + "," + std::to_string(foodPos.y));
+            } else {
+                Logger::error("the material of food is not found → " + gameState.selectedFood);
+                // 兜底：绘制红色方块
+                sf::RectangleShape placeholder(sf::Vector2f(32, 32));
+                placeholder.setOrigin(sf::Vector2f(16.0f, 16.0f));
+                placeholder.setPosition(foodPos);
+                placeholder.setFillColor(sf::Color::Red);
+                renderer.getWindow().draw(placeholder);
+            }
+
+            // 3. 绘制Eating...文字（修复SFML 3.0.2 文字原点）
+            sf::Text eatingText(modalFont, "Eating...", 16);
+            eatingText.setFillColor(sf::Color::White);
+            eatingText.setOutlineColor(sf::Color::Black);
+            eatingText.setOutlineThickness(1);
+            
+            // 文字位置：角色头顶30px
+            sf::Vector2f charPos = character.getPosition();
+            eatingText.setPosition(sf::Vector2f(charPos.x, charPos.y - 30));
+            
+            // SFML 3.0.2 正确的文字原点计算（localBounds用left/top，而非size）
+            sf::FloatRect textBounds = eatingText.getLocalBounds();
+            eatingText.setOrigin(sf::Vector2f(
+                textBounds.position.x + textBounds.size.x / 2,
+                textBounds.position.y + textBounds.size.y / 2
+            ));
+            
+            renderer.getWindow().draw(eatingText);
+            Logger::debug("render Eating → character position: " + std::to_string(charPos.x) + "," + std::to_string(charPos.y));
+        }
+        // ========== 食物渲染逻辑结束 ==========
 
         renderer.present();
     }

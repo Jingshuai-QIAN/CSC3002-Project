@@ -103,6 +103,9 @@ public:
      */
     bool isInitialized() const { return sprite != nullptr; }
 
+    // 新增：设置朝向
+    void setCurrentDirection(Direction dir);
+
 private:
     /**
      * @brief Load texture from disk into memory.

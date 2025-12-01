@@ -124,3 +124,17 @@ struct BlockPoly {
     BlockPoly(BlockPoly&&) noexcept = default;
     BlockPoly& operator=(BlockPoly&&) noexcept = default;
 };
+
+// 桌子对象结构
+struct TableObject {
+    std::string name;          // 必须是 left_table1/right_table1
+    sf::FloatRect rect;        // 餐桌范围（left/top/width/height）
+    sf::Vector2f seatPosition; // 椅子插入点坐标（必须配置，非0）
+};
+
+// 食物显示点结构
+struct FoodAnchor {
+    std::string id;            // 唯一标识（food1/food2...）
+    sf::Vector2f position;     // 显示位置
+    std::string tableName;     // 关联的桌子名（left_table1/right_table2等）
+};

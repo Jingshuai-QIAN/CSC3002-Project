@@ -55,6 +55,9 @@ bool Character::initialize() {
         return false;
     }
 
+    // 新增显式方向初始化
+    currentDirection = Direction::Down;
+
     // Compute scale and apply to sprite.
     float targetScale = static_cast<float>(config.frameWidth) > 0 ?
         config.scale * config.frameWidth / config.frameWidth : config.scale;
@@ -167,18 +170,28 @@ void Character::handleMovement(
         movement.y /= length;
     }
 
-    // Update facing direction only when moving in a single axis.
+
+    // 合并方向更新逻辑：保留单轴判定，新增斜向优先水平的逻辑
     if (moving) {
         int horizontal = (moveInput.x < 0 ? 1 : 0) + (moveInput.x > 0 ? 1 : 0);
         int vertical = (moveInput.y < 0 ? 1 : 0) + (moveInput.y > 0 ? 1 : 0);
+        
+        // 组员逻辑：单轴输入时更新方向
         if (horizontal + vertical == 1) {
             if (moveInput.x < 0) currentDirection = Direction::Left;
             else if (moveInput.x > 0) currentDirection = Direction::Right;
             else if (moveInput.y < 0) currentDirection = Direction::Up;
             else if (moveInput.y > 0) currentDirection = Direction::Down;
         }
+        // 你的逻辑：斜向输入时优先水平方向
+        else {
+            if (std::abs(moveInput.x) > std::abs(moveInput.y)) {
+                currentDirection = (moveInput.x < 0) ? Direction::Left : Direction::Right;
+            } else {
+                currentDirection = (moveInput.y < 0) ? Direction::Up : Direction::Down;
+            }
+        }
     }
-
     // Apply speed and delta time.
     movement *= config.moveSpeed * deltaTime;
     sf::Vector2f desiredPos = sprite->getPosition() + movement;
@@ -235,10 +248,13 @@ void Character::updateAnimation(float deltaTime) {
         if (animationTimer >= config.animationInterval) {
             animationTimer -= config.animationInterval;
             currentFrameRow = (currentFrameRow + 1) % config.frameRows;
+            setAnimationFrame(currentFrameRow, config.directionMapping[static_cast<int>(currentDirection)]);
         }
     } else {
-        currentFrameRow = 1; // Use middle frame when idle
+        currentFrameRow = 0; // 本来是1
         animationTimer = 0.0f;
+        // 闲置时立即刷新帧，保持当前朝向
+        setAnimationFrame(currentFrameRow, config.directionMapping[static_cast<int>(currentDirection)]);
     }
     
     // Update sprite texture rectangle
@@ -334,4 +350,15 @@ void Character::reloadConfig() {
         currentFrameRow, 
         config.directionMapping[static_cast<int>(currentDirection)]
     );
+}
+
+// 新增：你的setCurrentDirection实现（适配组员的变量名）
+void Character::setCurrentDirection(Direction dir) {
+    if (currentDirection == dir) return;
+    currentDirection = dir;
+    setAnimationFrame(
+        currentFrameRow,
+        config.directionMapping[static_cast<int>(currentDirection)]
+    );
+    Logger::debug("Character direction updated to: " + std::to_string(static_cast<int>(dir)));
 }

@@ -58,7 +58,7 @@ struct TilesetInfo {
  *   - TMJMap stores SFML sprites referencing internal textures; ensure the
  *     TMJMap instance outlives any rendering usage that references its textures.
  */
-class TMJMap {
+class TMJMap : public sf::Drawable {
 public:
     bool loadFromFile(
         const std::string& filepath, 
@@ -82,14 +82,33 @@ public:
     const std::optional<float>& getSpawnX() const { return spawnX; }
     const std::optional<float>& getSpawnY() const { return spawnY; }
     const std::vector<Chef>& getChefs() const { return m_chefs; }
+
+    const std::vector<TableObject>& getTables() const { return m_tables; }
+    const std::vector<FoodAnchor>& getFoodAnchors() const { return m_foodAnchors; }
     
     void setSpawnPoint(float x, float y) { spawnX = x; spawnY = y; }
     
     // Collision query: check whether a feet point is blocked by NotWalkable regions
     bool feetBlockedAt(const sf::Vector2f& feet) const;
 
+    // 手动渲染方法（备用，若 draw 重载失效时调用）
+    void render(sf::RenderTarget& target) const {
+        for (const auto& tile : tiles) {
+            target.draw(tile);
+        }
+    }
+
 
 private:
+
+    // 重载 sf::Drawable 的 draw 方法（被 window.draw(map) 自动调用）
+    void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
+        // 遍历所有瓦片并绘制
+        for (const auto& tile : tiles) {
+            target.draw(tile, states);
+        }
+    }
+
     bool parseMapData(
         const nlohmann::json& j, 
         const std::string& baseDir, 
@@ -138,4 +157,7 @@ private:
     std::optional<float> spawnX;
     std::optional<float> spawnY;
 
+    // 新增：桌子和食物锚点存储（对应 TMJMap.cpp 中的解析逻辑）
+    std::vector<TableObject> m_tables;
+    std::vector<FoodAnchor> m_foodAnchors;
 };

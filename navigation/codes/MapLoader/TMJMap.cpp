@@ -583,6 +583,104 @@ void TMJMap::parseObjectLayers(const json& layers) {
                              " | Dishes: " + std::to_string(io.options.size()));
             }
         }
+
+        // 7. 桌椅对象解析
+        if (lnameLower == "tables") {
+
+            Logger::info("=====  Tables Layer =====");
+            Logger::info("layerName: " + lnameLower);
+            Logger::info("objects amount: " + std::to_string(L["objects"].size()));
+
+            int parsedFoodAnchors = 0;
+            int parsedTables = 0;
+            for (const auto& obj : L["objects"]) {
+                if (!obj.is_object()) {
+                    Logger::warn("skip non object factors");
+                    continue;
+                }
+                
+                
+                std::string objClass = obj.value("class", "");
+                std::string objName = obj.value("name", "");
+                std::string objType = obj.value("type", "");
+                Logger::debug("===== parse object =====");
+                Logger::debug("objClass: " + objClass);
+                Logger::debug("objName: " + objName);
+                Logger::debug("objType: " + objType);
+                Logger::debug("========================");
+                Logger::debug("objClass: " + objClass + " | objName: " + objName);
+                // 解析食物锚点
+                if (objType == "Food") {
+                    Logger::info("[Food] start: " + objName);
+                    FoodAnchor foodAnchor;
+                    foodAnchor.id = objName;
+                    foodAnchor.position = sf::Vector2f(
+                        obj.value("x", 0.f),
+                        obj.value("y", 0.f)
+                    );
+
+                    foodAnchor.tableName = "";
+
+                    Logger::info("[Food] " + objName + " original position: (" + 
+                        std::to_string(foodAnchor.position.x) + "," + std::to_string(foodAnchor.position.y) + ")");
+
+                    // 修复2：先解析tableName属性，再打印关联餐桌（原代码顺序反了）
+                    if (obj.contains("properties") && obj["properties"].is_array()) {
+                        Logger::debug("[Food] " + objName + " detacted properties:");
+                        for (const auto& p : obj["properties"]) {
+                            if (!p.is_object()) continue;
+                            std::string pname = p.value("name", "");
+                            Logger::info("[Food] retreive property: " + pname); // 极细粒度日志
+
+                            if (pname == "tableName" && p.contains("value") && p["value"].is_string()) {
+                                foodAnchor.tableName = p["value"].get<std::string>();
+                                Logger::info("[Food] " + objName + " parsed successfully: tableName: " + foodAnchor.tableName);
+                                break; // 找到tableName后直接退出循环，提升效率
+                            }
+                        }
+                    } else {
+                        Logger::warn("[Food] " + objName + " has no properties");
+                    }
+
+                    // 修复3：解析完tableName后再打印关联关系
+                    Logger::info("[Food] " + objName + " connected table: " + (foodAnchor.tableName.empty() ? "Empty" : foodAnchor.tableName));
+                    
+                    m_foodAnchors.push_back(foodAnchor);
+                    parsedFoodAnchors++;
+                    Logger::info("[Food] parsed successfully: " + foodAnchor.id + " | parsed food amount: " + std::to_string(parsedFoodAnchors));
+                    continue; // 关键：解析完Food锚点后跳过餐桌解析逻辑
+                }
+                
+                // 解析桌子
+                if (obj["type"] == "Table") {
+                    TableObject table;
+                    table.name = objName;
+                    table.rect = sf::FloatRect(
+                        sf::Vector2f(obj.value("x", 0.f), obj.value("y", 0.f)),
+                        sf::Vector2f(obj.value("width", 0.f), obj.value("height", 0.f))
+                    );
+                    
+                    if (obj.contains("properties") && obj["properties"].is_array()) {
+                        for (const auto& p : obj["properties"]) {
+                            if (!p.is_object()) continue;
+                            std::string pname = p.value("name", "");
+                            if (pname == "seatX" && p.contains("value") && p["value"].is_number()) {
+                                // 修复 JSON 解析：用 number_float() 替代 get<float>()
+                                table.seatPosition.x = p["value"].get<float>();
+                            } else if (pname == "seatY" && p.contains("value") && p["value"].is_number()) {
+                                // 修复 JSON 解析：用 number_float() 替代 get<float>()
+                                table.seatPosition.y = p["value"].get<float>();
+                            }
+                        }
+                    }
+                    
+                    m_tables.push_back(table);
+                    Logger::info("Parsed table object: " + table.name + 
+                            " | Position: (" + std::to_string(table.rect.position.x) + "," + std::to_string(table.rect.position.y) + ")" +
+                            " | Size: " + std::to_string(table.rect.size.x) + "x" + std::to_string(table.rect.size.y));
+                }
+            }
+        } // 外层循环结束
     }
 }
 
@@ -927,6 +1025,12 @@ void TMJMap::cleanup() {
     entranceAreas.clear();
     spawnX.reset();
     spawnY.reset();
+    gameTriggers.clear();
+    interactionObjects.clear();
+    m_chefs.clear();
+    m_tables.clear();
+    m_foodAnchors.clear();
+
 }
 
 

@@ -60,6 +60,10 @@ public:
     bool isActive() const { return m_isActive; }
     void close() { m_isActive = false; }
 
+    bool isInitialized() const { 
+        return m_dialogBgSprite != nullptr && m_bgTexture.getSize().x > 0; 
+    }
+
 
 
 private:

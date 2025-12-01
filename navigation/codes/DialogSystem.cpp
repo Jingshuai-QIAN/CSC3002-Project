@@ -116,6 +116,20 @@ void DialogSystem::setDialog(const std::string& title,
 
     if (!m_dialogBgSprite) return; // 确保背景已初始化
 
+    // ========== 新增：提前设置对话框居中位置（用兜底窗口尺寸）（来自你的代码） ==========
+    sf::Vector2f dummyWindowSize(1200, 800); 
+    float targetWidth = dummyWindowSize.x * 0.5f;
+    float scaleFactor = targetWidth / static_cast<float>(m_bgTexture.getSize().x);
+    scaleFactor = std::max(0.3f, std::min(scaleFactor, 1.0f));
+    m_dialogBgSprite->setScale(sf::Vector2f(scaleFactor, scaleFactor));
+    
+    // 提前计算居中位置并设置
+    sf::Vector2f centeredPos(
+        (dummyWindowSize.x - m_dialogBgSprite->getGlobalBounds().size.x) / 2,
+        (dummyWindowSize.y - m_dialogBgSprite->getGlobalBounds().size.y) / 2
+    );
+    m_dialogBgSprite->setPosition(centeredPos);
+
     // 获取背景位置和尺寸（适配 SFML 3.0）
     sf::Vector2f dialogPos = m_dialogBgSprite->getPosition();
     sf::Vector2f bgSize = getDialogBgSize();
@@ -132,10 +146,10 @@ void DialogSystem::setDialog(const std::string& title,
         dialogPos.x + (bgSize.x - titleBounds.size.x) / 2.0f,
         dialogPos.y + 30.0f
     ));
-    // 修复文本原点（SFML 3.0 接口）
+    // ========== 修复：文本原点计算逻辑（来自你的代码） ==========
     m_dialogTitle.setOrigin(sf::Vector2f(
-        titleBounds.position.x + titleBounds.size.x / 2.0f,
-        titleBounds.position.y
+        titleBounds.size.x / 2.0f, // 简化原点计算，避免 position.x 偏移
+        0.0f
     ));
 
     // 创建菜品按钮（适配 SFML 3.0）
@@ -165,7 +179,6 @@ void DialogSystem::setDialog(const std::string& title,
     // 布局按钮
     layoutButtons();
 }
-
 void DialogSystem::layoutButtons() {
     if (m_buttons.empty() || !m_dialogBgSprite) return;
 
@@ -185,7 +198,7 @@ void DialogSystem::layoutButtons() {
         sf::Vector2u btnTexSize = m_btnTexture.getSize(); // 替换为你实际的按钮纹理变量
         float btnScale = targetBtnWidth / static_cast<float>(btnTexSize.x);
         // 修复：std::clamp → 临时注释（如果编译报错），或保留
-        btnScale = std::clamp(btnScale, 0.5f, 1.0f);
+        btnScale = btnScale < 0.5f ? 0.5f : (btnScale > 1.0f ? 1.0f : btnScale);
         btn.sprite->setScale(sf::Vector2f(btnScale, btnScale));
 
         // 按钮尺寸（缩放后）
