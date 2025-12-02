@@ -7,7 +7,9 @@
 
 struct Task {
     std::string id;          
-    std::string description; 
+    std::string description;        // Short description for list (e.g., "Eat Food")
+    std::string detailedInstruction; // Long text for popup (e.g., "Go to Canteen...")
+    std::string achievementName;    // Text for "Achievement Unlocked: XXX"
     int expReward;
     int energyReward; 
     bool isCompleted;
@@ -18,11 +20,13 @@ public:
     // Start with 100.0 float Energy. Max Exp set to 100 for level 1.
     TaskManager() : currentExp(0), maxExp(100), currentEnergy(100.0f) {} 
 
-    void addTask(const std::string& id, const std::string& desc, int exp, int energy) {
-        tasks.push_back({id, desc, exp, energy, false});
+    // Updated addTask to include detailed instruction and achievement name
+    void addTask(const std::string& id, const std::string& desc, const std::string& detail, const std::string& achieveName, int exp, int energy) {
+        tasks.push_back({id, desc, detail, achieveName, exp, energy, false});
     }
 
-    void completeTask(const std::string& id) {
+    // Returns the Achievement Name if task was just completed, otherwise returns empty string
+    std::string completeTask(const std::string& id) {
         for (auto& task : tasks) {
             if (task.id == id && !task.isCompleted) {
                 task.isCompleted = true;
@@ -32,8 +36,10 @@ public:
                 modifyEnergy(static_cast<float>(task.energyReward));
 
                 std::cout << "[Quest] Completed: " << task.description << std::endl;
+                return task.achievementName; // Return the name for the popup
             }
         }
+        return ""; // Task already done or not found
     }
 
     void modifyEnergy(float amount) {
@@ -45,14 +51,14 @@ public:
 
     const std::vector<Task>& getTasks() const { return tasks; }
     int getExp() const { return currentExp; }
-    int getMaxExp() const { return maxExp; } // New Getter
+    int getMaxExp() const { return maxExp; }
     
-    // Return int for UI display, but keep internal float precision
     int getEnergy() const { return static_cast<int>(currentEnergy); }
+    int getMaxEnergy() const { return 100; }
 
 private:
     std::vector<Task> tasks;
     int currentExp;
-    int maxExp; // New variable to track progress
+    int maxExp; 
     float currentEnergy;
 };
