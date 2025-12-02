@@ -82,6 +82,56 @@ static bool detectProfessorInteraction(const Character& character, const TMJMap*
     return false;
 }
 
+static bool detectShopTrigger(const Character& character, const TMJMap* map, ShopTrigger& outShop) {
+    if (!map) {
+        Logger::debug("detectShopTrigger: map is null");
+        return false;
+    }
+    
+    sf::Vector2f feet = character.getFeetPoint();
+    Logger::debug("detectShopTrigger: character feet at (" + 
+                  std::to_string(feet.x) + "," + std::to_string(feet.y) + ")");
+    
+    const auto& shopTriggers = map->getShopTriggers();
+    Logger::info("detectShopTrigger: " + std::to_string(shopTriggers.size()) + " shop triggers total");
+    
+    for (const auto& shop : shopTriggers) {
+        Logger::debug("detectShopTrigger: checking Shop '" + shop.name + 
+                     "' rect (" + std::to_string(shop.rect.position.x) + "," + 
+                     std::to_string(shop.rect.position.y) + ") size (" + 
+                     std::to_string(shop.rect.size.x) + "," + 
+                     std::to_string(shop.rect.size.y) + ")");
+        
+        if (shop.rect.contains(feet)) {
+            // 检查是否面向商店中心
+            sf::Vector2f center(
+                shop.rect.position.x + shop.rect.size.x / 2.0f,
+                shop.rect.position.y + shop.rect.size.y / 2.0f
+            );
+            sf::Vector2f dir = center - feet;
+            
+            // 计算期望的朝向
+            Character::Direction desired = (std::abs(dir.x) > std::abs(dir.y)) 
+                ? (dir.x > 0 ? Character::Direction::Right : Character::Direction::Left)
+                : (dir.y > 0 ? Character::Direction::Down : Character::Direction::Up);
+            
+            Logger::debug("detectShopTrigger: Shop contains feet, desired direction: " + 
+                         std::to_string(static_cast<int>(desired)) + 
+                         ", character direction: " + 
+                         std::to_string(static_cast<int>(character.getCurrentDirection())));
+            
+            if (desired == character.getCurrentDirection()) {
+                outShop = shop;
+                Logger::info("detectShopTrigger: success - matched Shop '" + shop.name + "'");
+                return true;
+            }
+        }
+    }
+    
+    Logger::debug("detectShopTrigger: no matching Shop found");
+    return false;
+}
+
 // Helper: show the full-map modal (blocking) 
 static void showFullMapModal(Renderer& renderer, const std::shared_ptr<TMJMap>& tmjMap, const ConfigManager& configManager) {
     auto dm = sf::VideoMode::getDesktopMode();
@@ -482,6 +532,34 @@ void runApp(
     };
     GameState gameState;
 
+    struct ShoppingState {
+    bool isShopping = false;
+
+    // 一级分类 & 二级商品
+    std::string selectedCategory;
+    std::string selectedItem;
+
+    // 购物进度
+    float shoppingProgress = 0.0f;
+
+    // ===== 控制“下一步要弹什么对话”的核心状态 =====
+    bool requestNextDialog = false;
+
+    std::string nextDialogTitle;
+    std::vector<std::string> nextDialogOptions;
+
+    // ✅ ✅ ✅ 你必须新增的成员（本问题的关键）
+    enum class NextDialogKind {
+        None,
+        ShowFirstLevel,    // 显示 FamilyMart 一级分类
+        ShowSecondLevel,  // 显示 某一分类下的商品
+        ConfirmPurchase   // 显示 购买确认框
+    };
+
+    NextDialogKind nextDialogKind = NextDialogKind::None;
+};
+    ShoppingState shoppingState;
+
     // 教授回应状态（从App.cpp补充）
     static ProfessorResponseState profResponseState;
 
@@ -576,6 +654,128 @@ void runApp(
             profResponseState.pending = false;
             profResponseState.selectedOption = -1;
             Logger::info("🔄 Professor response state reset");
+        }
+
+        // ========== 处理商店购物二级菜单（新增） ==========
+        if (shoppingState.requestNextDialog && !dialogSys.isActive()) {
+            Logger::info("🛒 requestNextDialog handling | kind = " + std::to_string(static_cast<int>(shoppingState.nextDialogKind)));
+
+            // 1) 如果是展示二级菜单（例如 Food/Drink/…）
+            if (shoppingState.nextDialogKind == ShoppingState::NextDialogKind::ShowSecondLevel) {
+                dialogSys.setDialog(
+                    shoppingState.nextDialogTitle,
+                    shoppingState.nextDialogOptions,
+                    // 回调：只写状态，不直接调用 dialogSys.setDialog()
+                    [&shoppingState](const std::string& selected) {
+                        Logger::info("🔔 second-level callback selected: " + selected);
+                        if (selected == "Back") {
+                            // 请求显示一级菜单（通过设置 nextDialogKind）
+                            shoppingState.nextDialogKind = ShoppingState::NextDialogKind::ShowFirstLevel;
+                            shoppingState.nextDialogTitle = "Welcome to FamilyMart! Which section would you like to browse?";
+                            shoppingState.nextDialogOptions = {"Food", "Drink", "Daily Necessities", "Cancel"};
+                            shoppingState.requestNextDialog = true;
+                        } else {
+                            // 选中具体商品，准备弹出确认对话
+                            shoppingState.selectedItem = selected;
+                            shoppingState.nextDialogKind = ShoppingState::NextDialogKind::ConfirmPurchase;
+                            shoppingState.nextDialogTitle = "\n\nPrice:15yuan\n\nProceed with purchase?";
+                            shoppingState.nextDialogOptions = {"Yes, buy it", "No, go back"};
+                            shoppingState.requestNextDialog = true;
+                        }
+                    }
+                );
+
+                // 完成请求处理
+                shoppingState.requestNextDialog = false;
+                renderer.setModalActive(true);
+            }
+            // 2) 如果是显示一级菜单
+            else if (shoppingState.nextDialogKind == ShoppingState::NextDialogKind::ShowFirstLevel) {
+                dialogSys.setDialog(
+                    shoppingState.nextDialogTitle,
+                    shoppingState.nextDialogOptions,
+                    // 回调：处理用户选一级菜单（仍然只写状态）
+                    [&shoppingState](const std::string& selected) {
+                        Logger::info("🛒 Category Selected: " + selected);
+                        if (selected == "Cancel") {
+                            shoppingState.isShopping = false;
+                            shoppingState.nextDialogKind = ShoppingState::NextDialogKind::None;
+                            shoppingState.requestNextDialog = false;
+                            return;
+                        }
+
+                        shoppingState.selectedCategory = selected;
+                        // 根据分类准备二级菜单选项
+                        shoppingState.nextDialogKind = ShoppingState::NextDialogKind::ShowSecondLevel;
+                        if (selected == "Food") {
+                            shoppingState.nextDialogTitle = "Choose your food:";
+                            shoppingState.nextDialogOptions = {"Sandwich", "Bento", "Onigiri", "Back"};
+                        } else if (selected == "Drink") {
+                            shoppingState.nextDialogTitle = "Choose your drink:";
+                            shoppingState.nextDialogOptions = {"Water", "Coffee", "Tea", "Back"};
+                        } else if (selected == "Daily Necessities") {
+                            shoppingState.nextDialogTitle = "Choose your item:";
+                            shoppingState.nextDialogOptions = {"Tissue", "Battery", "Umbrella", "Back"};
+                        } else {
+                            // Fallback：回到一级菜单
+                            shoppingState.nextDialogKind = ShoppingState::NextDialogKind::ShowFirstLevel;
+                            shoppingState.nextDialogTitle = "Welcome to FamilyMart! Which section would you like to browse?";
+                            shoppingState.nextDialogOptions = {"Food", "Drink", "Daily Necessities", "Cancel"};
+                        }
+                        shoppingState.requestNextDialog = true;
+                    }
+                );
+
+                shoppingState.requestNextDialog = false;
+                renderer.setModalActive(true);
+            }
+            // 3) 如果是显示购买确认对话
+            else if (shoppingState.nextDialogKind == ShoppingState::NextDialogKind::ConfirmPurchase) {
+                dialogSys.setDialog(
+                    shoppingState.nextDialogTitle,
+                    shoppingState.nextDialogOptions,
+                    // 购买确认回调：不要直接生成新的 dialog，直接修改状态
+                    [&shoppingState](const std::string& choice) {
+                        Logger::info("🛒 Purchase Choice: " + choice + " for item " + shoppingState.selectedItem);
+                        if (choice == "Yes, buy it") {
+                            // 执行购买逻辑
+                            Logger::info("🛒 Purchased: " + shoppingState.selectedItem);
+                            // TODO：在这里加入扣钱 / 加物品的具体实现
+                            shoppingState.isShopping = false;
+                            shoppingState.nextDialogKind = ShoppingState::NextDialogKind::None;
+                            shoppingState.requestNextDialog = false;
+                        } else {
+                            // 回到二级商品选择（同类）
+                            shoppingState.nextDialogKind = ShoppingState::NextDialogKind::ShowSecondLevel;
+                            // 重新构建 second-level 的 title/options（基于 selectedCategory）
+                            if (shoppingState.selectedCategory == "Food") {
+                                shoppingState.nextDialogTitle = "Choose your food:";
+                                shoppingState.nextDialogOptions = {"Sandwich", "Bento", "Onigiri", "Back"};
+                            } else if (shoppingState.selectedCategory == "Drink") {
+                                shoppingState.nextDialogTitle = "Choose your drink:";
+                                shoppingState.nextDialogOptions = {"Water", "Coffee", "Tea", "Back"};
+                            } else if (shoppingState.selectedCategory == "Daily Necessities") {
+                                shoppingState.nextDialogTitle = "Choose your item:";
+                                shoppingState.nextDialogOptions = {"Tissue", "Battery", "Umbrella", "Back"};
+                            } else {
+                                // 保险回到一级菜单
+                                shoppingState.nextDialogKind = ShoppingState::NextDialogKind::ShowFirstLevel;
+                                shoppingState.nextDialogTitle = "Welcome to FamilyMart! Which section would you like to browse?";
+                                shoppingState.nextDialogOptions = {"Food", "Drink", "Daily Necessities", "Cancel"};
+                            }
+                            shoppingState.requestNextDialog = true;
+                        }
+                    }
+                );
+
+                shoppingState.requestNextDialog = false;
+                renderer.setModalActive(true);
+            }
+            // 其他情况：忽略
+            else {
+                shoppingState.requestNextDialog = false;
+                shoppingState.nextDialogKind = ShoppingState::NextDialogKind::None;
+            }
         }
 
         // === NEW: Fainting Logic Check ===
@@ -703,6 +903,62 @@ void runApp(
                     }
                     continue;
                 }
+
+                // 2. 新增：检测商店触发区域
+                ShopTrigger shopTrigger;
+                bool foundShop = detectShopTrigger(character, tmjMap.get(), shopTrigger);
+                
+                Logger::debug("   foundShop: " + std::to_string(foundShop));
+                
+                if (foundShop) {
+                    Logger::info("🛒 Triggering Shop interaction - showing FamilyMart menu");
+                    
+                    // 只有在商店触发区域内才显示商店菜单
+                    DialogSystem* ds = &dialogSys;
+                    Renderer* rd = &renderer;
+                    auto state = &shoppingState;
+                    
+                    ds->setDialog(
+                        "Welcome to FamilyMart! Which section would you like to browse?",
+                        {"Food", "Drink", "Daily Necessities", "Cancel"},
+                        [ds, rd, state](const std::string& selected) {
+                            Logger::info("🛒 Category Selected: " + selected);
+                            
+                            if (selected == "Cancel") {
+                                state->isShopping = false;
+                                return;
+                            }
+                            
+                            // 记录第一层分类
+                            state->selectedCategory = selected;
+                            
+                            // 设置下一步对话请求
+                            state->requestNextDialog = true;
+                            state->nextDialogKind = ShoppingState::NextDialogKind::ShowSecondLevel;
+                            state->nextDialogTitle.clear();
+                            state->nextDialogOptions.clear();
+                            
+                            if (selected == "Food") {
+                                state->nextDialogTitle = "Choose your food:";
+                                state->nextDialogOptions = {"Sandwich", "Bento", "Onigiri", "Back"};
+                            }
+                            else if (selected == "Drink") {
+                                state->nextDialogTitle = "Choose your drink:";
+                                state->nextDialogOptions = {"Water", "Coffee", "Tea", "Back"};
+                            }
+                            else if (selected == "Daily Necessities") {
+                                state->nextDialogTitle = "Choose your item:";
+                                state->nextDialogOptions = {"Tissue", "Battery", "Umbrella", "Back"};
+                            }
+                            
+                            // 让主循环在安全位置处理这个请求
+                            rd->setModalActive(true);
+                        }
+                    );
+                    rd->setModalActive(true);
+                    continue; // 跳过后续的餐桌检测
+                }
+
                 // ⭐⭐⭐⭐ 修复点：在餐桌检测前执行任何待处理的回调 ⭐⭐⭐⭐
                 if (dialogSys.hasPendingCallback()) {
                     Logger::info("Executing pending dialog callback before table check");
@@ -1004,6 +1260,8 @@ void runApp(
         renderer.renderGameTriggerAreas(tmjMap->getGameTriggers());  // 新增：渲染游戏触发区域
         renderer.renderChefs(tmjMap->getChefs());
         renderer.renderProfessors(tmjMap->getProfessors());  // 教授渲染（从App.cpp补充）
+        renderer.renderShopTriggerAreas(tmjMap->getShopTriggers()); // 渲染便利店门口触发区域
+
         
         // 教授位置调试信息（从App.cpp补充）
         static bool showProfessorDebug = true;
