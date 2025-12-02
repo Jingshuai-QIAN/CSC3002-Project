@@ -160,3 +160,10 @@ struct LawnArea {
     LawnArea(std::string n, float x, float y, float w, float h)
         : name(std::move(n)), rect({x, y}, {w, h}) {}
 };
+
+// ✅ 便利店门口触发区
+struct ShopTrigger {
+    std::string name;      // familymart_door_1 / 2
+    std::string type;      // convenience
+    sf::FloatRect rect;   // 交互区域（世界坐标）
+};
