@@ -221,6 +221,9 @@ void Renderer::cleanup() {
     m_chefTexture = sf::Texture(); // 释放纹理
     m_chefSprite.reset(); // 释放精灵
     
+    m_professorTexture = sf::Texture(); // 释放教授纹理
+    m_professorSprite.reset(); // 释放教授精灵
+    
     // Close the window if it's open
     if (window.isOpen()) {
         window.close();
@@ -738,6 +741,51 @@ void Renderer::renderGameTriggerAreas(const std::vector<GameTriggerArea>& areas)
         rect.setOutlineThickness(gameTriggerOutlineThickness);
         rect.setOutlineColor(gameTriggerOutlineColor);
         window.draw(rect);
+    }
+}
+
+/**
+ * @brief 初始化教授纹理
+ * 
+ * 加载教授角色的纹理文件，并创建对应的精灵对象。
+ * 
+ * @return true 如果纹理成功加载，false 如果加载失败
+ */
+bool Renderer::initializeProfessorTexture() {
+    if (!m_professorTexture.loadFromFile("tiles/M_10.png")) { // 使用不同的角色纹理
+        Logger::error("Failed to load professor texture: tiles/M_10.png");
+        return false;
+    }
+    
+    // SFML 3.0+ 使用 Vector2i 构造 IntRect
+    sf::IntRect professorFrame(
+        sf::Vector2i(0, 0),    // 左上角坐标
+        sf::Vector2i(16, 17)   // 帧尺寸
+    );
+    m_professorSprite = std::make_unique<sf::Sprite>(m_professorTexture, professorFrame);
+    return true;
+}
+
+/**
+ * @brief 渲染教授对象
+ * 
+ * 在屏幕上绘制所有可交互的教授角色。
+ * 
+ * @param professors 教授对象的向量
+ */
+void Renderer::renderProfessors(const std::vector<Professor>& professors) {
+    if (!m_professorSprite || !m_professorTexture.getSize().x) return;
+    
+    for (const auto& prof : professors) {
+        if (!prof.available) continue; // 跳过不可交互的教授
+        
+        // 计算精灵位置（居中显示）
+        sf::Vector2f spritePos(
+            prof.rect.position.x + prof.rect.size.x / 2 - 8,   // 水平居中
+            prof.rect.position.y + prof.rect.size.y / 2 - 8.5f // 垂直居中
+        );
+        m_professorSprite->setPosition(spritePos);
+        window.draw(*m_professorSprite);
     }
 }
 
