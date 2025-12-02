@@ -3,11 +3,78 @@
 #include <stdexcept>
 #include <algorithm>
 #include <iostream>
+#include <sstream>
+#include "Utils/Logger.h"
+
+// ======================================================
+// ✅ 新增：文本自动换行函数（从DialogSystem.cpp复制）
+// ======================================================
+static std::string wrapText(
+    const std::string& str,
+    const sf::Font& font,
+    unsigned int characterSize,
+    float maxWidth
+) {
+    sf::Text measure(font, "", characterSize);
+    float spaceWidth = measure.getFont().getGlyph(' ', characterSize, false).advance;
+
+    std::string result;
+    std::string word;
+    float lineWidth = 0.f;
+
+    auto wordWidthCalc = [&](const std::string& w)->float {
+        float ww = 0.f;
+        for (unsigned char ch : w) {
+            ww += measure.getFont().getGlyph(ch, characterSize, false).advance;
+        }
+        return ww;
+    };
+
+    for (size_t i = 0; i < str.size(); ++i) {
+        char c = str[i];
+        if (c == ' ' || c == '\n') {
+            if (!word.empty()) {
+                float w = wordWidthCalc(word);
+                if (lineWidth > 0.f && lineWidth + w > maxWidth) {
+                    result.push_back('\n');
+                    lineWidth = 0.f;
+                } else if (lineWidth > 0.f) {
+                    result.push_back(' ');
+                    lineWidth += spaceWidth;
+                }
+                result += word;
+                lineWidth += w;
+                word.clear();
+            }
+            if (c == '\n') {
+                result.push_back('\n');
+                lineWidth = 0.f;
+            }
+        } else {
+            word.push_back(c);
+        }
+    }
+
+    if (!word.empty()) {
+        float w = wordWidthCalc(word);
+        if (lineWidth > 0.f && lineWidth + w > maxWidth) {
+            result.push_back('\n');
+        } else if (lineWidth > 0.f) {
+            result.push_back(' ');
+        }
+        result += word;
+    }
+
+    return result;
+}
 
 void DialogSystem::initialize(const std::string& bgPath, 
                               const std::string& btnPath, 
                               const sf::Font& font, 
                               unsigned int fontSize) {
+    m_fontSize = fontSize;
+    m_font = font; // 保存字体引用
+
     // 1. 加载背景纹理 + 创建带纹理的 Sprite
     if (!m_bgTexture.loadFromFile(bgPath)) {
         throw std::runtime_error("Failed to load dialog bg: " + bgPath);
@@ -24,23 +91,15 @@ void DialogSystem::initialize(const std::string& bgPath,
     m_btnTex = m_btnTexture;
     m_btnSize = sf::Vector2f(m_btnTexture.getSize().x, m_btnTexture.getSize().y);
     
-    // 3. 初始化文本
-    m_textObject.setFont(font);
-    m_textObject.setCharacterSize(fontSize);
-    m_textObject.setFillColor(sf::Color::Black);
-    
-    for (auto& optText : m_optionTexts) {
-        optText.setFont(font);
-        optText.setCharacterSize(fontSize);
-        optText.setFillColor(sf::Color::Black);
-    }
-
-    m_fontSize = fontSize;
+    m_dialogTitle.setFont(m_font);
+    m_dialogTitle.setCharacterSize(m_fontSize);
+    m_dialogTitle.setFillColor(sf::Color::White);
+    m_dialogTitle.setLineSpacing(1.2f); // 新增：设置行间距
 }
 
 // 新增：计算对话框居中位置（核心）
 sf::Vector2f DialogSystem::getCenteredPosition(const sf::RenderWindow& window) {
-    if (!m_bgSprite) return {0, 0}; // 空指针保护
+    if (!m_dialogBgSprite) return {0, 0}; // 空指针保护
 
     sf::Vector2u windowSize = window.getSize();
     float windowW = static_cast<float>(windowSize.x);
@@ -48,7 +107,7 @@ sf::Vector2f DialogSystem::getCenteredPosition(const sf::RenderWindow& window) {
     
     // 缩放对话框到窗口宽度的 60%（SFML 3.0 setScale 传 Vector2f）
     float scaleFactor = windowW * 0.6f / m_dialogSize.x;
-    m_bgSprite->setScale(sf::Vector2f(scaleFactor, scaleFactor)); // 修复：传 Vector2f
+    m_dialogBgSprite->setScale(sf::Vector2f(scaleFactor, scaleFactor)); // 修复：传 Vector2f
     
     // 更新缩放后的尺寸（SFML 3.0 用 size.x/size.y 替代 width/height）
     sf::Vector2f scaledDialogSize = sf::Vector2f(
@@ -107,11 +166,54 @@ sf::Vector2f DialogSystem::getDialogBgSize() const {
     return {bgBounds.size.x, bgBounds.size.y};
 }
 
+// ======================================================
+// ✅ 新增：带索引回调的方法（从DialogSystem.cpp复制）
+// ======================================================
+void DialogSystem::setDialogWithIndex(const std::string& title,
+                                      const std::vector<std::string>& options,
+                                      const OptionCallback& selectCallback) {
+    m_isActive = true;
+    m_optionCallback = selectCallback;
+    m_simpleCallback = nullptr;  // 清除旧的回调
+    m_useIndexCallback = true;   // 使用新的回调
+    m_buttons.clear();
+
+    m_dialogTitle.setFont(m_font);
+    m_dialogTitle.setCharacterSize(m_fontSize);
+    m_dialogTitle.setFillColor(sf::Color::White);
+    m_dialogTitle.setLineSpacing(1.2f);
+    m_dialogTitle.setString(title);
+
+    // 创建按钮 - 使用带索引的回调
+    for (size_t i = 0; i < options.size(); ++i) {
+        const auto& option = options[i];
+        Button btn(m_font, m_fontSize);
+        btn.text = option;
+        
+        // 带索引的回调：传递选项索引和文本
+        btn.callback = [selectCallback, i, option]() {
+            if (selectCallback) {
+                selectCallback(static_cast<int>(i), option);
+            }
+        };
+
+        btn.textObj.setFont(m_font);
+        btn.textObj.setCharacterSize(m_fontSize);
+        btn.textObj.setString(option);
+        btn.textObj.setFillColor(sf::Color::Black);
+
+        btn.sprite = std::make_unique<sf::Sprite>(m_btnTex);
+        m_buttons.push_back(std::move(btn));
+    }
+}
+
 void DialogSystem::setDialog(const std::string& title,
                              const std::vector<std::string>& dishOptions,
                              const std::function<void(const std::string&)>& selectCallback) {
     m_isActive = true;
-    m_selectCallback = selectCallback;
+    m_simpleCallback = selectCallback; // 修改：使用新的成员变量名
+    m_optionCallback = nullptr;  // 清除新的回调
+    m_useIndexCallback = false;  // 使用旧的回调
     m_buttons.clear();
 
     if (!m_dialogBgSprite) return; // 确保背景已初始化
@@ -130,48 +232,37 @@ void DialogSystem::setDialog(const std::string& title,
     );
     m_dialogBgSprite->setPosition(centeredPos);
 
-    // 获取背景位置和尺寸（适配 SFML 3.0）
-    sf::Vector2f dialogPos = m_dialogBgSprite->getPosition();
-    sf::Vector2f bgSize = getDialogBgSize();
-
-    // 设置标题（修复 SFML 3.0 FloatRect 接口）
+    // 设置标题
     m_dialogTitle.setFont(m_font);
     m_dialogTitle.setString(title);
     m_dialogTitle.setCharacterSize(m_fontSize);
     m_dialogTitle.setFillColor(sf::Color::White);
-    
-    auto titleBounds = m_dialogTitle.getLocalBounds();
-    // SFML 3.0：用 size.x 替代 width，position.x 替代 left
-    m_dialogTitle.setPosition(sf::Vector2f(
-        dialogPos.x + (bgSize.x - titleBounds.size.x) / 2.0f,
-        dialogPos.y + 30.0f
-    ));
-    // ========== 修复：文本原点计算逻辑（来自你的代码） ==========
-    m_dialogTitle.setOrigin(sf::Vector2f(
-        titleBounds.size.x / 2.0f, // 简化原点计算，避免 position.x 偏移
-        0.0f
-    ));
+    m_dialogTitle.setLineSpacing(1.2f);
+
+    // 获取背景位置和尺寸（适配 SFML 3.0）
+    sf::Vector2f dialogPos = m_dialogBgSprite->getPosition();
+    sf::Vector2f bgSize = getDialogBgSize();
 
     // 创建菜品按钮（适配 SFML 3.0）
     for (const auto& dish : dishOptions) {
         Button btn(m_font, m_fontSize);
         btn.text = dish;
+        
+        // 简单回调：只传递文本
         btn.callback = [this, dish]() {
-            m_selectCallback(dish);
-            this->close();
+            if (m_simpleCallback) {
+                m_simpleCallback(dish);
+            }
         };
+
         // 设置按钮文字
+        btn.textObj.setFont(m_font);
+        btn.textObj.setCharacterSize(m_fontSize);
         btn.textObj.setString(dish);
         btn.textObj.setFillColor(sf::Color::Black);
+        
         // 创建按钮 Sprite（SFML 3.0 必须传纹理）
         btn.sprite = std::make_unique<sf::Sprite>(m_btnTex);
-        
-        // 按钮缩放（SFML 3.0 setScale 传 Vector2f）
-        float btnScale = (bgSize.x * 0.6f) / m_btnTex.getSize().x;
-        btn.sprite->setScale(sf::Vector2f(btnScale, btnScale));
-        
-        // 计算按钮碰撞盒（SFML 3.0 FloatRect）
-        btn.bounds = btn.sprite->getGlobalBounds();
         
         m_buttons.push_back(std::move(btn));
     }
@@ -179,41 +270,47 @@ void DialogSystem::setDialog(const std::string& title,
     // 布局按钮
     layoutButtons();
 }
+
+// ======================================================
+// ✅ 新增：根据标题动态布局按钮（防止遮挡）- 修复版本
+// ======================================================
 void DialogSystem::layoutButtons() {
     if (m_buttons.empty() || !m_dialogBgSprite) return;
 
     sf::Vector2f dialogPos = m_dialogBgSprite->getPosition();
     sf::Vector2f bgSize = getDialogBgSize();
-    
+
     float btnSpacing = 15.0f;
-    float btnTopOffset = 80.0f;
     float btnWidthRatio = 0.7f;
+
+    // 计算按钮起始位置 - 基于标题文本的底部
+    float btnTopOffset = 80.0f; // 默认偏移
+    
+    // 如果标题有内容，根据标题的实际底部位置计算
+    if (!m_dialogTitle.getString().isEmpty()) {
+        sf::FloatRect titleGlobal = m_dialogTitle.getGlobalBounds();
+        float titleBottom = titleGlobal.position.y + titleGlobal.size.y;
+        btnTopOffset = (titleBottom - dialogPos.y) + 20.0f; // 标题底部 + 间距
+    }
 
     for (size_t i = 0; i < m_buttons.size(); ++i) {
         Button& btn = m_buttons[i];
         if (!btn.sprite) continue;
 
-        // 按钮自适应缩放
         float targetBtnWidth = bgSize.x * btnWidthRatio;
-        sf::Vector2u btnTexSize = m_btnTexture.getSize(); // 替换为你实际的按钮纹理变量
+        sf::Vector2u btnTexSize = m_btnTexture.getSize();
         float btnScale = targetBtnWidth / static_cast<float>(btnTexSize.x);
-        // 修复：std::clamp → 临时注释（如果编译报错），或保留
-        btnScale = btnScale < 0.5f ? 0.5f : (btnScale > 1.0f ? 1.0f : btnScale);
+        btnScale = std::clamp(btnScale, 0.5f, 1.0f);
         btn.sprite->setScale(sf::Vector2f(btnScale, btnScale));
 
-        // 按钮尺寸（缩放后）
         sf::FloatRect btnBounds = btn.sprite->getGlobalBounds();
-        
-        // 按钮水平居中
         float btnX = dialogPos.x + (bgSize.x - btnBounds.size.x) / 2.0f;
-        // 按钮垂直分布
         float btnY = dialogPos.y + btnTopOffset + i * (btnBounds.size.y + btnSpacing);
 
-        // 设置按钮位置
         btn.sprite->setPosition(sf::Vector2f(btnX, btnY));
         btn.bounds = btn.sprite->getGlobalBounds();
-        
-        // 按钮文字居中
+
+        // 按钮文本居中
         sf::FloatRect textBounds = btn.textObj.getLocalBounds();
         btn.textObj.setOrigin(sf::Vector2f(
             textBounds.position.x + textBounds.size.x / 2.0f,
@@ -226,6 +323,9 @@ void DialogSystem::layoutButtons() {
     }
 }
 
+// ======================================================
+// ✅ 修改：事件处理（点击 + ESC + Hover）- 安全版本
+// ======================================================
 void DialogSystem::handleEvent(const sf::Event& event, const sf::RenderWindow& window) {
     if (!m_isActive) return;
 
@@ -240,19 +340,28 @@ void DialogSystem::handleEvent(const sf::Event& event, const sf::RenderWindow& w
             // 2. 转换到窗口默认视图的坐标（对话框渲染的视图）
             sf::Vector2f mouseWorldPos = window.mapPixelToCoords(mousePixelPos, window.getDefaultView());
             
+            std::function<void()> pendingCallback = nullptr;
+
             // 3. 遍历按钮检测点击
             for (auto& btn : m_buttons) {
                 if (!btn.sprite) continue;
                 // 按钮的 bounds 是基于默认视图的坐标，直接检测
                 if (btn.bounds.contains(mouseWorldPos)) {
-                    // 触发回调
-                    if (btn.callback) {
-                        btn.callback();
-                    }
-                    // 关闭对话框
+                    if (btn.callback)
+                        pendingCallback = btn.callback;
+
                     m_isActive = false;
                     break;
                 }
+            }
+
+            if (pendingCallback) {
+                // ✅ ✅ ✅ 【关键修复】
+                // 不要在这里清空 m_simpleCallback！
+                // 否则 pendingCallback 执行时就是"空回调"
+
+                m_buttons.clear();           // 清按钮是安全的
+                m_pendingCallback = pendingCallback;  // 转交给主循环执行
             }
         }
     }
@@ -282,6 +391,30 @@ void DialogSystem::handleEvent(const sf::Event& event, const sf::RenderWindow& w
     }
 }
 
+// ======================================================
+// ✅ 新增：回调处理相关方法
+// ======================================================
+bool DialogSystem::hasPendingCallback() const {
+    return m_pendingCallback != nullptr;
+}
+
+std::function<void()> DialogSystem::consumePendingCallback() {
+    auto callback = m_pendingCallback;
+    m_pendingCallback = nullptr;
+    return callback;
+}
+
+// ======================================================
+// ✅ 新增：关闭对话框方法
+// ======================================================
+void DialogSystem::close() {
+    m_isActive = false;
+    m_buttons.clear();
+    m_simpleCallback = nullptr;
+    m_optionCallback = nullptr;
+    m_pendingCallback = nullptr; // 清除待处理回调
+}
+
 // 修改：渲染逻辑（适配居中+尺寸）
 void DialogSystem::render(sf::RenderWindow& window) {
     if (!m_isActive || !m_dialogBgSprite) return;
@@ -296,17 +429,27 @@ void DialogSystem::render(sf::RenderWindow& window) {
     
     // 2. 重新计算背景尺寸（缩放后）
     sf::Vector2f bgSize = getDialogBgSize();
-
-    // 3. 更新标题位置（基于最新的居中位置）
-    auto titleBounds = m_dialogTitle.getLocalBounds();
+    
+    // ========== 新增：自动换行处理 ==========
+    float padding = 30.f;
+    float maxTextWidth = bgSize.x - padding * 2.0f;
+    std::string currentTitle = m_dialogTitle.getString().toAnsiString();
+    std::string wrappedTitle = wrapText(currentTitle, m_font, m_fontSize, maxTextWidth);
+    m_dialogTitle.setString(wrappedTitle);
+    
+    // 计算文本位置 - 修复多行文本布局
+    sf::FloatRect titleBounds = m_dialogTitle.getLocalBounds();
+    
+    // 设置文本位置（居中，但考虑多行高度）
     m_dialogTitle.setPosition(sf::Vector2f(
-        centeredPos.x + (bgSize.x - titleBounds.size.x) / 2.0f,
-        centeredPos.y + 30.0f // 标题距对话框顶部 30px
+        centeredPos.x + bgSize.x / 2.0f,  // 水平居中
+        centeredPos.y + 30.0f             // 距离顶部固定距离
     ));
-    // 标题原点居中（避免文字偏移）
+    
+    // 设置原点为中心点，便于居中
     m_dialogTitle.setOrigin(sf::Vector2f(
-        titleBounds.position.x + titleBounds.size.x / 2.0f,
-        titleBounds.position.y
+        titleBounds.size.x / 2.0f + titleBounds.position.x,
+        titleBounds.size.y / 2.0f + titleBounds.position.y
     ));
 
     // 4. 重新布局按钮（适配最新的对话框位置和尺寸）
