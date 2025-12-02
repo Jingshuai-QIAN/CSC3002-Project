@@ -643,7 +643,52 @@ void TMJMap::parseObjectLayers(const json& layers) {
             }
         }
 
-        // 9) 桌椅对象解析
+        // ✅ 解析 ShopTrigger (便利店交互区域)
+        if (lnameLower == "convenience_triggers") {  
+            // 这里的图层名必须和你在 Tiled 里的一模一样
+            Logger::info("===== Parsing Shop Triggers =====");
+
+            for (const auto& obj : L["objects"]) {
+                if (!obj.is_object()) continue;
+
+                ShopTrigger shop;
+                shop.name = obj.value("name", "shop");
+                shop.type = obj.value("type", "convenience"); // Tiled里的type字段
+
+                // SFML 3.x：rect.position 和 rect.size
+                float x = obj.value("x", 0.f);
+                float y = obj.value("y", 0.f);
+                float w = obj.value("width", 0.f);
+                float h = obj.value("height", 0.f);
+                shop.rect.position = sf::Vector2f(x, y);
+                shop.rect.size = sf::Vector2f(w, h);
+
+                // 可选：解析自定义 properties
+                if (obj.contains("properties") && obj["properties"].is_array()) {
+                    for (const auto& p : obj["properties"]) {
+                        if (!p.is_object()) continue;
+                        std::string pname = p.value("name", "");
+                        if (pname == "type") {
+                            shop.type = p.value("value", "convenience");
+                        }
+                    }
+                }
+
+                m_shopTriggers.push_back(shop);
+
+                Logger::info("✅ Parsed ShopTrigger: " + shop.name +
+                            " | Rect: (" +
+                            std::to_string(shop.rect.position.x) + "," +
+                            std::to_string(shop.rect.position.y) + ") " +
+                            std::to_string(shop.rect.size.x) + "x" +
+                            std::to_string(shop.rect.size.y));
+            }
+        }
+
+
+
+
+        // 10) 桌椅对象解析
         if (lnameLower == "tables") {
 
             Logger::info("=====  Tables Layer =====");
@@ -741,7 +786,7 @@ void TMJMap::parseObjectLayers(const json& layers) {
             }
         } 
 
-        // 10) 解析草坪区域
+        // 11) 解析草坪区域
         if (lnameLower == "lawn") { // 匹配"Lawn"图层（不区分大小写）
             for (const auto& obj : L["objects"]) {
                 if (!obj.is_object()) continue;
@@ -1110,6 +1155,7 @@ void TMJMap::cleanup() {
     m_foodAnchors.clear();
     lawnAreas.clear();
     m_professors.clear();  // 添加教授对象的清理
+    m_shopTriggers.clear();   // ✅ 清理便利店触发区域
 
 }
 
