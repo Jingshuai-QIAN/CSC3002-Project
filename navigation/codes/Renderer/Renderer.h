@@ -228,6 +228,7 @@ public:
      *        Each GameTriggerArea can be highlighted differently by gameType.
      */
     void renderGameTriggerAreas(const std::vector<GameTriggerArea>& areas);
+    void renderShopTriggerAreas(const std::vector<ShopTrigger>& areas);
     
     /**
      * @brief Render a simple modal prompt overlay using the UI/default view.
@@ -341,4 +342,8 @@ private:
     sf::Color gameTriggerFillColor = sf::Color(255, 215, 0, 140);
     sf::Color gameTriggerOutlineColor = sf::Color(200, 170, 0, 255);
     float gameTriggerOutlineThickness = 2.0f;
+
+    sf::Color shopTriggerFillColor = sf::Color(255, 165, 0, 100); // 半透明橙色
+    sf::Color shopTriggerOutlineColor = sf::Color(255, 140, 0, 255);
+    float shopTriggerOutlineThickness = 2.f;
 };
