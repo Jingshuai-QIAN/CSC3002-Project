@@ -62,6 +62,26 @@ static bool detectGameTrigger(const Character& character, const TMJMap* map, Gam
     return false;
 }
 
+// 教授交互检测函数（从App.cpp补充）
+static bool detectProfessorInteraction(const Character& character, const TMJMap* map, Professor& outProf) {
+    if (!map) return false;
+
+    sf::Vector2f center = character.getPosition();  // ✅ 用人物中心
+    const auto& professors = map->getProfessors();
+
+    for (const auto& prof : professors) {
+        if (!prof.available) continue;
+
+        if (prof.rect.contains(center)) {
+            Logger::info("🎯 SUCCESS: Player touched Professor: " + prof.name);
+            outProf = prof;
+            return true;
+        }
+    }
+
+    return false;
+}
+
 // Helper: show the full-map modal (blocking) 
 static void showFullMapModal(Renderer& renderer, const std::shared_ptr<TMJMap>& tmjMap, const ConfigManager& configManager) {
     auto dm = sf::VideoMode::getDesktopMode();
@@ -381,6 +401,16 @@ static bool isCharacterInLawn(const Character& character, const TMJMap* map) {
     return false;
 }
 
+// 教授回应状态结构体（从App.cpp补充）
+struct ProfessorResponseState {
+    bool pending = false;
+    std::string professorName;
+    std::string professorCourse;
+    std::string dialogType;
+    int selectedOption = -1;
+    std::string selectedText;
+};
+
 void runApp(
     Renderer& renderer,
     MapLoader& mapLoader,
@@ -400,8 +430,15 @@ void runApp(
     taskManager.addTask("attend_class", "Attend Class (Quiz)", 20, 5); // Completion bonus
     taskManager.addTask("rest_lawn", "Rest on Lawn", 10, 2);
     // =============================================
+    
     if (!renderer.initializeChefTexture()) {
         Logger::error("Failed to initialize chef texture");
+        return;
+    }
+    
+    // 教授纹理初始化（从App.cpp补充）
+    if (!renderer.initializeProfessorTexture()) {
+        Logger::error("Failed to initialize professor texture");
         return;
     }
     
@@ -438,11 +475,15 @@ void runApp(
     // 游戏状态（进食相关）
     struct GameState {
         bool isEating = false;
+        bool hasOrderedFood = false; // 从App.cpp补充：标记是否已点餐
         std::string currentTable;
         std::string selectedFood;
         float eatingProgress = 0.0f;
     };
     GameState gameState;
+
+    // 教授回应状态（从App.cpp补充）
+    static ProfessorResponseState profResponseState;
 
     // === NEW: Fainting State ===
     bool isFainted = false;
@@ -458,6 +499,17 @@ void runApp(
     // 主循环
     sf::Clock clock;
     while (renderer.isRunning()) {
+        // ✅✅✅ 在"新的一帧刚开始"时安全执行对话回调（从App.cpp补充）
+        if (dialogSys.hasPendingCallback()) {
+            Logger::info("🔄 Executing pending dialog callback...");
+            auto cb = dialogSys.consumePendingCallback();
+            cb();
+            Logger::info("🔄 Dialog callback executed");
+            // 回调执行后关闭对话框
+            dialogSys.close();
+            renderer.setModalActive(false);
+        }
+
         float deltaTime = clock.restart().asSeconds();
         if (deltaTime > 0.1f) deltaTime = 0.1f;
         timeManager.update(deltaTime);
@@ -469,6 +521,62 @@ void runApp(
         const float PASSIVE_DEPLETION_RATE = 5.0f / 30.0f;
         taskManager.modifyEnergy(-PASSIVE_DEPLETION_RATE * deltaTime);
         // =====================================
+
+        // ========== 处理教授回应的逻辑（从App.cpp补充） ==========
+        if (profResponseState.pending && !dialogSys.isActive()) {
+            Logger::info("🔄 Processing professor response - pending: true, option: " + 
+                std::to_string(profResponseState.selectedOption));
+            std::string response;
+            std::string profName = profResponseState.professorName;
+            std::string profCourse = profResponseState.professorCourse;
+            std::string profDialogType = profResponseState.dialogType;
+            int optionIndex = profResponseState.selectedOption;
+            Logger::info("📋 Professor info: " + profName + ", course: " + profCourse + 
+                ", dialogType: " + profDialogType);
+            switch (optionIndex) {
+                case 0:
+                    if (profDialogType == "lecture") {
+                        response = "I'm teaching " + profCourse + " this semester. It's a fascinating subject!";
+                    } else {
+                        response = "Studies are going well! Remember to review materials regularly.";
+                    }
+                    break;
+                case 1:
+                    if (profDialogType == "lecture") {
+                        response = "My office hours are Monday and Wednesday 2-4 PM. Feel free to visit!";
+                    } else {
+                        response = "My advice: focus on understanding concepts rather than memorizing.";
+                    }
+                    break;
+                case 2:
+                    if (profDialogType == "lecture") {
+                        response = "Hello! Nice to see you. Don't hesitate to ask questions.";
+                    } else {
+                        response = "Goodbye! Keep up the good work!";
+                    }
+                    break;
+                default:
+                    response = "Thank you for your interest!";
+                    break;
+            }
+            
+            Logger::info("Professor " + profName + " responds: " + response);
+            
+            // 显示回应对话框
+            dialogSys.setDialog(
+                response,
+                {"OK"},
+                [](const std::string&) {
+                    Logger::info("Professor response dialog closed");
+                }
+            );
+            renderer.setModalActive(true);
+            
+            // 重置状态
+            profResponseState.pending = false;
+            profResponseState.selectedOption = -1;
+            Logger::info("🔄 Professor response state reset");
+        }
 
         // === NEW: Fainting Logic Check ===
         // Must not be currently eating/interacting/fainted
@@ -532,15 +640,25 @@ void runApp(
             if (!gameState.isEating) {
                 // 优先检测吧台（counter）交互
                 InteractionObject counterObj;
-                if (detectInteraction(character, tmjMap.get(), counterObj)) {
-                    Logger::info("Detected counter (吧台) interaction - show food select dialog");
-                    // 触发吧台选餐对话框
+                Professor professor;  // 教授对象（从App.cpp补充）
+                
+                bool foundCounter = detectInteraction(character, tmjMap.get(), counterObj);
+                bool foundProfessor = detectProfessorInteraction(character, tmjMap.get(), professor);  // 教授检测（从App.cpp补充）
+                
+                Logger::debug("   foundCounter: " + std::to_string(foundCounter));
+                Logger::debug("   foundProfessor: " + std::to_string(foundProfessor));
+                
+                if (foundCounter) {
+                    Logger::info("🎯 Triggering Counter interaction - show food select dialog");
                     if (dialogInitSuccess) {
                         dialogSys.setDialog(
                             "What do you want to eat?",  // 对话框标题
                             {"Chicken Steak", "Pasta", "Beef Noodles"}, // 食物选项（匹配贴图名）
                             [&gameState](const std::string& selected) { // 选中回调
+                                Logger::error("🔥🔥🔥 FOOD CALLBACK EXECUTED 🔥🔥🔥");
+                                Logger::info("🍽️ Selected: " + selected);
                                 gameState.selectedFood = selected; // 赋值给游戏状态，供餐桌使用
+                                gameState.hasOrderedFood = true; // 标记已点餐
                                 Logger::info("Selected food from counter: " + selected);
                             }
                         );
@@ -551,13 +669,61 @@ void runApp(
                     }
                     continue; // 优先处理吧台，跳过原有逻辑
                 }
+                // 教授交互部分（从App.cpp补充）
+                else if (foundProfessor) {
+                    Logger::info("🎓 Triggering Professor interaction - showing dialog");
+                    if (dialogInitSuccess) {
+                        std::vector<std::string> options;
+                        if (professor.dialogType == "lecture") {
+                            options = {"Ask about " + professor.course, "Request office hours", "Say hello"};
+                        } else {
+                            options = {"Talk about studies", "Ask for advice", "Say goodbye"};
+                        }
+                        
+                        std::string greeting = "Hello! I'm " + professor.name + ". How can I help you today?";
+                        
+                        // 存储教授信息到回应状态
+                        profResponseState.professorName = professor.name;
+                        profResponseState.professorCourse = professor.course;
+                        profResponseState.dialogType = professor.dialogType;
+                        
+                        dialogSys.setDialogWithIndex(
+                            greeting,
+                            options,
+                            [](int optionIndex, const std::string& optionText) {
+                                Logger::info("Player chose option " + std::to_string(optionIndex) + ": " + optionText);
+                                
+                                // 存储用户选择到回应状态
+                                profResponseState.selectedOption = optionIndex;
+                                profResponseState.selectedText = optionText;
+                                profResponseState.pending = true; // 标记需要显示回应
+                            }
+                        );
+                        renderer.setModalActive(true);
+                    }
+                    continue;
+                }
+                // ⭐⭐⭐⭐ 修复点：在餐桌检测前执行任何待处理的回调 ⭐⭐⭐⭐
+                if (dialogSys.hasPendingCallback()) {
+                    Logger::info("Executing pending dialog callback before table check");
+                    auto cb = dialogSys.consumePendingCallback();
+                    if (cb) {
+                        cb();
+                        Logger::info("Dialog callback executed - food should be selected now");
+                    }
+                }
+                
+                // 添加食物选择状态验证
+                Logger::info("Food selection status before table check: " + 
+                            (gameState.selectedFood.empty() ? "[EMPTY]" : gameState.selectedFood));
+        
 
                 // 检测餐桌交互
                 TableObject currentTable;
                 if (detectTableInteraction(character, tmjMap.get(), currentTable)) {
                     Logger::info("table interaction detected → selected food: " + (gameState.selectedFood.empty() ? "空" : gameState.selectedFood));
                     
-                    if (gameState.selectedFood.empty()) {
+                    if (!gameState.hasOrderedFood) {
                         Logger::info("Didn't select food");
                         renderer.renderModalPrompt("Please order food first!", modalFont, 24, std::nullopt);
                     } else {
@@ -592,6 +758,7 @@ void runApp(
                         gameState.currentTable = currentTable.name;
                         gameState.eatingProgress = 0.0f;
                         Logger::info("starts eating → table: " + currentTable.name + " | food: " + gameState.selectedFood);
+                        gameState.hasOrderedFood = false;
                     }
                     continue;
                 }
@@ -836,6 +1003,19 @@ void runApp(
         renderer.renderEntranceAreas(tmjMap->getEntranceAreas());
         renderer.renderGameTriggerAreas(tmjMap->getGameTriggers());  // 新增：渲染游戏触发区域
         renderer.renderChefs(tmjMap->getChefs());
+        renderer.renderProfessors(tmjMap->getProfessors());  // 教授渲染（从App.cpp补充）
+        
+        // 教授位置调试信息（从App.cpp补充）
+        static bool showProfessorDebug = true;
+        if (showProfessorDebug) {
+            for (const auto& prof : tmjMap->getProfessors()) {
+                Logger::debug("📍 Professor '" + prof.name + 
+                            "' at: (" + std::to_string((int)prof.rect.position.x) + 
+                            ", " + std::to_string((int)prof.rect.position.y) + ")");
+            }
+            showProfessorDebug = false; // 只显示一次
+        }
+        
         renderer.drawSprite(character.getSprite());
 
         //休息状态文本渲染
