@@ -273,6 +273,12 @@ public:
      */
     sf::Vector2i getMousePosition() const;
 
+    // 新增：初始化教授纹理
+    bool initializeProfessorTexture();
+
+    // 新增：渲染所有教授对象
+    void renderProfessors(const std::vector<Professor>& professors);
+
     // 新增：初始化厨师纹理
     bool initializeChefTexture() {
         if (!m_chefTexture.loadFromFile("tiles/F_05.png")) {
@@ -321,6 +327,8 @@ private:
     sf::View view;
     sf::Texture m_chefTexture;  // 厨师纹理
     std::unique_ptr<sf::Sprite> m_chefSprite;    // 厨师精灵（复用同一个精灵渲染所有厨师）
+    sf::Texture m_professorTexture;  // 教授纹理
+    std::unique_ptr<sf::Sprite> m_professorSprite;  // 教授精灵
     std::vector<std::unique_ptr<sf::Texture>> loadedTextures;
     std::unique_ptr<TextRenderer> textRenderer;
     std::unique_ptr<sf::Font> uiFont;                // font used for UI (map button)
