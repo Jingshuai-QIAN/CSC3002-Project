@@ -28,6 +28,12 @@ public:
         Button& operator=(Button&&) = default;
     };
 
+    // 保留旧的回调类型（用于食堂）
+    using SimpleCallback = std::function<void(const std::string& optionText)>;
+    
+    // 新的回调类型（用于教授）
+    using OptionCallback = std::function<void(int optionIndex, const std::string& optionText)>;
+
     // DialogSystem 构造函数：
     DialogSystem(const sf::Font& font, unsigned int fontSize)
         : m_font(font), m_fontSize(fontSize),
@@ -50,6 +56,11 @@ public:
                    const std::vector<std::string>& dishOptions,
                    const std::function<void(const std::string&)>& selectCallback);
 
+                     // 添加新的方法（用于教授）
+    void setDialogWithIndex(const std::string& title, 
+                           const std::vector<std::string>& options,
+                           const OptionCallback& selectCallback);
+
     // 处理鼠标/键盘事件（hover/点击/ESC关闭）
     void handleEvent(const sf::Event& event, const sf::RenderWindow& window);
 
@@ -58,13 +69,15 @@ public:
 
     // 状态控制
     bool isActive() const { return m_isActive; }
-    void close() { m_isActive = false; }
+    void close();
 
     bool isInitialized() const { 
         return m_dialogBgSprite != nullptr && m_bgTexture.getSize().x > 0; 
     }
 
+    bool hasPendingCallback() const;
 
+    std::function<void()> consumePendingCallback();
 
 private:
     // 辅助方法（删除重复定义，统一命名）
@@ -75,8 +88,11 @@ private:
 
     // 状态成员
     bool m_isActive = false;
-    const sf::Font& m_font;
+    sf::Font m_font;
     unsigned int m_fontSize;
+    SimpleCallback m_simpleCallback;  // 旧的回调
+    OptionCallback m_optionCallback;  // 新的回调
+    bool m_useIndexCallback = false;  // 标记使用哪种回调
     std::function<void(const std::string&)> m_selectCallback;
 
     // 图形资源：只保留纹理，Sprite 在 initialize 中创建（带纹理）
@@ -96,4 +112,5 @@ private:
     std::vector<sf::Text> m_optionTexts; // 选项文本（你的原变量）
 
     std::vector<Button> m_buttons;
+    std::function<void()> m_pendingCallback;
 };
