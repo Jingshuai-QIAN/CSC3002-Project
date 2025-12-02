@@ -30,6 +30,7 @@ for %%f in (MapLoader\*.cpp) do set "SRC_FILES=!SRC_FILES! %%f"
 for %%f in (QuizGame\*.cpp) do set "SRC_FILES=!SRC_FILES! %%f"
 for %%f in (Renderer\*.cpp) do set "SRC_FILES=!SRC_FILES! %%f"
 for %%f in (Utils\*.cpp) do set "SRC_FILES=!SRC_FILES! %%f"
+for %%f in (Login\*.cpp) do set "SRC_FILES=!SRC_FILES! %%f"
 
 echo Compiling...
 
