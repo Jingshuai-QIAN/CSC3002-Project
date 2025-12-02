@@ -511,7 +511,66 @@ void TMJMap::parseObjectLayers(const json& layers) {
                          std::to_string(chef.rect.position.y) + ")");
         }
 
-        // 6) 解析GameTriggerArea (新增)
+        // 6) Parse Professor objects - 添加教授对象解析
+        for (const auto& obj : L["objects"]) {
+            if (!obj.is_object()) continue;
+
+            bool isProfessor = false;
+            if (obj.contains("type") && obj["type"].is_string()) {
+                std::string t = toLower(obj["type"].get<std::string>());
+                if (t == "professor") isProfessor = true;
+            }
+            if (!isProfessor && obj.contains("class") && obj["class"].is_string()) {
+                std::string c = toLower(obj["class"].get<std::string>());
+                if (c == "professor") isProfessor = true;
+            }
+
+            if (!isProfessor) continue;
+
+            Professor prof;
+            prof.name = obj.value("name", "professor");
+            prof.rect = sf::FloatRect(
+                sf::Vector2f(obj.value("x", 0.f), obj.value("y", 0.f)),
+                sf::Vector2f(obj.value("width", 16.f), obj.value("height", 17.f))
+            );
+            
+            // 解析自定义属性
+            if (obj.contains("properties") && obj["properties"].is_array()) {
+                for (const auto& p : obj["properties"]) {
+                    if (!p.is_object()) continue;
+                    std::string pname = p.value("name", "");
+                    if (pname == "course" && p.contains("value") && p["value"].is_string()) {
+                        prof.course = p["value"].get<std::string>();
+                    } else if (pname == "dialogType" && p.contains("value") && p["value"].is_string()) {
+                        prof.dialogType = p["value"].get<std::string>();
+                    } else if (pname == "available" && p.contains("value") && p["value"].is_boolean()) {
+                        prof.available = p["value"].get<bool>();
+                    }
+                }
+            }
+
+            m_professors.push_back(std::move(prof));
+            Logger::info("Parsed professor object: " + prof.name + " at (" + 
+                        std::to_string(prof.rect.position.x) + ", " + 
+                        std::to_string(prof.rect.position.y) + ")");
+            
+            // ========== 新增：将教授区域添加到碰撞区域 ==========
+            // 创建教授区域的碰撞矩形
+            sf::FloatRect professorCollisionRect(
+                sf::Vector2f(obj.value("x", 0.f), obj.value("y", 0.f)),
+                sf::Vector2f(obj.value("width", 16.f), obj.value("height", 17.f))
+            );
+            notWalkRects.push_back(professorCollisionRect);
+            
+            Logger::info("✅ Added professor collision area for: " + prof.name + 
+                        " at (" + std::to_string(professorCollisionRect.position.x) + ", " + 
+                        std::to_string(professorCollisionRect.position.y) + ") size " +
+                        std::to_string(professorCollisionRect.size.x) + "x" + 
+                        std::to_string(professorCollisionRect.size.y));
+            // ========== 新增代码结束 ==========
+        }
+
+        // 7) 解析GameTriggerArea (新增)
         layerName = L.value("name", "");
         if (layerName == "game_triggers") { // 确保Tiled中图层名为"game_triggers"
             for (const auto& obj : L["objects"]) {
@@ -539,7 +598,7 @@ void TMJMap::parseObjectLayers(const json& layers) {
             }
         }
 
-        // 7) Parse Interaction objects (Counter)
+        // 8) Parse Interaction objects (Counter)
         if (lnameLower == "interaction") {
             for (const auto& obj : L["objects"]) {
                 if (!obj.is_object()) continue;
@@ -584,7 +643,7 @@ void TMJMap::parseObjectLayers(const json& layers) {
             }
         }
 
-        // 7. 桌椅对象解析
+        // 9) 桌椅对象解析
         if (lnameLower == "tables") {
 
             Logger::info("=====  Tables Layer =====");
@@ -682,7 +741,7 @@ void TMJMap::parseObjectLayers(const json& layers) {
             }
         } 
 
-        // 7) 解析草坪区域
+        // 10) 解析草坪区域
         if (lnameLower == "lawn") { // 匹配"Lawn"图层（不区分大小写）
             for (const auto& obj : L["objects"]) {
                 if (!obj.is_object()) continue;
@@ -1050,6 +1109,7 @@ void TMJMap::cleanup() {
     m_tables.clear();
     m_foodAnchors.clear();
     lawnAreas.clear();
+    m_professors.clear();  // 添加教授对象的清理
 
 }
 
