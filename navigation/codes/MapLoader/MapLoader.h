@@ -95,7 +95,7 @@ public:
      */
     std::shared_ptr<TMJMap> loadTMJMap(
         const std::string& filepath, 
-        int extrude = 1
+        int extrude = 0
     );
 
 
@@ -215,4 +215,5 @@ private:
     std::string currentMapPath;
     // per-map spawn overrides stored in-memory
     std::unordered_map<std::string, sf::Vector2f> spawnOverrides;
+
 };
