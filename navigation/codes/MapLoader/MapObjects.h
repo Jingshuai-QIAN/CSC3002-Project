@@ -94,6 +94,18 @@ struct Chef {
     std::string name;       // 对象名称（可用于区分不同厨师）
     sf::FloatRect rect;     // 矩形对象的位置和大小（从Tiled导出）
 };
+
+struct Professor {
+    std::string name;
+    sf::FloatRect rect;        // 位置和碰撞框
+    std::string course;        // 教授的课程
+    std::string dialogType;    // 对话类型
+    bool available;           // 是否可交互
+    
+    // 构造函数
+    Professor() : available(true) {}
+};
+
 /**
  * @struct BlockPoly
  * @brief Polygonal blocking region parsed from a "NotWalkable" object layer.
