@@ -17,7 +17,19 @@ class ConfigManager;
  * needs to perform initialization and cleanup. It takes references to the key
  * subsystems and the currently loaded TMJMap instance.
  */
-void runApp(
+
+namespace sf {
+    class View;
+}
+
+// What the main app loop decided to do when it finishes.
+enum class AppResult {
+    QuitGame,   // Player closed the window or chose to exit
+    BackToLogin // Player finished the day and chose "Back to Home"
+};
+
+// Run the main game loop (one "day" on campus)
+AppResult runApp(
     Renderer& renderer,
     MapLoader& mapLoader,
     std::shared_ptr<TMJMap>& tmjMap,
