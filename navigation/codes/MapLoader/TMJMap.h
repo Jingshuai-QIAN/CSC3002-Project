@@ -82,7 +82,7 @@ public:
     const std::optional<float>& getSpawnX() const { return spawnX; }
     const std::optional<float>& getSpawnY() const { return spawnY; }
     const std::vector<Chef>& getChefs() const { return m_chefs; }
-
+    const std::vector<Professor>& getProfessors() const { return m_professors; }
     const std::vector<TableObject>& getTables() const { return m_tables; }
     const std::vector<FoodAnchor>& getFoodAnchors() const { return m_foodAnchors; }
     const std::vector<LawnArea>& getLawnAreas() const { return lawnAreas; }
@@ -149,6 +149,7 @@ private:
     std::vector<EntranceArea> entranceAreas;
     std::vector<GameTriggerArea> gameTriggers;
     std::vector<Chef> m_chefs;
+    std::vector<Professor> m_professors;
     std::vector<InteractionObject> interactionObjects;
     
     // Not-walkable regions parsed from object layers
