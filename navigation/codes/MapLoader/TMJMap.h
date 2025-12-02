@@ -86,6 +86,7 @@ public:
     const std::vector<TableObject>& getTables() const { return m_tables; }
     const std::vector<FoodAnchor>& getFoodAnchors() const { return m_foodAnchors; }
     const std::vector<LawnArea>& getLawnAreas() const { return lawnAreas; }
+    const std::vector<ShopTrigger>& getShopTriggers() const { return m_shopTriggers; }
     
     void setSpawnPoint(float x, float y) { spawnX = x; spawnY = y; }
     
@@ -164,4 +165,5 @@ private:
     std::vector<FoodAnchor> m_foodAnchors;
 
     std::vector<LawnArea> lawnAreas;
+    std::vector<ShopTrigger> m_shopTriggers;
 };
