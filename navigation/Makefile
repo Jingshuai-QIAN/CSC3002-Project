@@ -22,7 +22,9 @@ SOURCES = codes/main.cpp \
           codes/Input/InputManager.cpp \
 		  codes/QuizGame/QuizGame.cpp \
 		  codes/DialogSystem.cpp \
-		  codes/Manager/TimeManager.cpp
+		  codes/Manager/TimeManager.cpp \
+		  codes/Login/LoginScreen.cpp \
+		  codes/Login/MapGuideScreen.cpp
 
 # =======================
 # OBJECT FILES
@@ -65,5 +67,6 @@ rebuild: clean $(TARGET)
 # Mark utility targets as phony to prevent conflicts with files
 
 .PHONY: clean rebuild
+
 
 
