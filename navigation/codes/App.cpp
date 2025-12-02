@@ -20,11 +20,22 @@
 #include <SFML/Window/Event.hpp>
 #include <optional>
 #include <cmath>
-// Added in New Script:
 #include "Manager/TimeManager.h"
 #include "Manager/TaskManager.h"
 
+// --- Global variables for Achievement System ---
+static std::string g_achievementText = "";
+static float g_achievementTimer = 0.0f;
 
+// Helper to trigger task completion and show popup
+static void handleTaskCompletion(TaskManager& taskManager, const std::string& taskId) {
+    std::string achievement = taskManager.completeTask(taskId);
+    if (!achievement.empty()) {
+        g_achievementText = "Achievement Unlocked: " + achievement;
+        g_achievementTimer = 3.0f; // Show for 3 seconds
+        Logger::info("🏆 Achievement Unlocked: " + achievement);
+    }
+}
 
 // Result of the "end of day" popup
 enum class EndOfDayChoice {
@@ -34,7 +45,6 @@ enum class EndOfDayChoice {
 };
 
 // Popup that uses the same UI sheet as the Login screen.
-// It asks: "You have finished a day in CUHKSZ, go back to the real world?"
 static EndOfDayChoice showEndOfDayPopup(Renderer& renderer, const sf::Font& font)
 {
     sf::RenderWindow& window = renderer.getWindow();
@@ -44,40 +54,25 @@ static EndOfDayChoice showEndOfDayPopup(Renderer& renderer, const sf::Font& font
     const float winW = static_cast<float>(winSize.x);
     const float winH = static_cast<float>(winSize.y);
 
-    // Load the same UI spritesheet used by the login screen
     sf::Texture uiTexture;
     if (!uiTexture.loadFromFile("assets/uipack_rpg_sheet.png")) {
         std::cerr << "[EndOfDay] Failed to load assets/uipack_rpg_sheet.png\n";
         return EndOfDayChoice::KeepExploring;
     }
 
-    // Same panel rect as login screen background panel
-    const sf::IntRect BG_PANEL_RECT{
-        sf::Vector2i{0, 376},
-        sf::Vector2i{100, 100}
-    };
-
+    const sf::IntRect BG_PANEL_RECT{ sf::Vector2i{0, 376}, sf::Vector2i{100, 100} };
     sf::Sprite bgPanel(uiTexture, BG_PANEL_RECT);
-    const float bgW = static_cast<float>(BG_PANEL_RECT.size.x);
-    const float bgH = static_cast<float>(BG_PANEL_RECT.size.y);
-    bgPanel.setScale(sf::Vector2f{ winW / bgW, winH / bgH });
+    bgPanel.setScale(sf::Vector2f{ winW / static_cast<float>(BG_PANEL_RECT.size.x), winH / static_cast<float>(BG_PANEL_RECT.size.y) });
     bgPanel.setPosition(sf::Vector2f{ 0.f, 0.f });
 
     const sf::Color deepBrown(150, 100, 60);
-
-    // Same khaki button rect as in the login screen
-    const sf::IntRect BUTTON_KHAKI_RECT{
-        sf::Vector2i{2, 240},
-        sf::Vector2i{188, 40}
-    };
+    const sf::IntRect BUTTON_KHAKI_RECT{ sf::Vector2i{2, 240}, sf::Vector2i{188, 40} };
 
     sf::Sprite btnYes(uiTexture, BUTTON_KHAKI_RECT);
     sf::Sprite btnNo (uiTexture, BUTTON_KHAKI_RECT);
 
-    // Scale buttons based on window width
     const float baseButtonW = static_cast<float>(BUTTON_KHAKI_RECT.size.x);
     const float baseButtonH = static_cast<float>(BUTTON_KHAKI_RECT.size.y);
-
     const float targetButtonWidth = winW * 0.25f;
     const float buttonScaleX      = targetButtonWidth / baseButtonW;
     const float buttonScaleY      = buttonScaleX * 1.3f;
@@ -85,109 +80,58 @@ static EndOfDayChoice showEndOfDayPopup(Renderer& renderer, const sf::Font& font
     btnYes.setScale(sf::Vector2f{buttonScaleX, buttonScaleY});
     btnNo .setScale(sf::Vector2f{buttonScaleX, buttonScaleY});
 
-    // Place two buttons horizontally centered
     const float centerX = winW * 0.5f;
     const float btnY    = winH * 0.60f;
     const float gapX    = winW * 0.18f;
 
     btnYes.setOrigin(sf::Vector2f{baseButtonW / 2.f, baseButtonH / 2.f});
     btnNo .setOrigin(sf::Vector2f{baseButtonW / 2.f, baseButtonH / 2.f});
-
     btnYes.setPosition(sf::Vector2f{centerX - gapX, btnY});
     btnNo .setPosition(sf::Vector2f{centerX + gapX, btnY});
 
-    // Title / message / button texts
-    const unsigned int titleSize  = static_cast<unsigned int>(winH * 0.05f);
-    const unsigned int msgSize    = static_cast<unsigned int>(winH * 0.035f);
-    const unsigned int buttonSize = static_cast<unsigned int>(winH * 0.035f);
-
-    sf::Text title(font);
-    title.setString("Congratulations! You've completed a full day at CUHKSZ!");
-    title.setCharacterSize(titleSize);
+    sf::Text title(font, "Congratulations! You've completed a full day at CUHKSZ!", static_cast<unsigned int>(winH * 0.05f));
     title.setFillColor(sf::Color::White);
-    {
-        sf::FloatRect b = title.getLocalBounds();
-        title.setOrigin(sf::Vector2f{
-            b.position.x + b.size.x / 2.f,
-            b.position.y + b.size.y / 2.f
-        });
-        title.setPosition(sf::Vector2f{centerX, winH * 0.30f});
-    }
+    sf::FloatRect b = title.getLocalBounds();
+    title.setOrigin(sf::Vector2f{ b.position.x + b.size.x / 2.f, b.position.y + b.size.y / 2.f });
+    title.setPosition(sf::Vector2f{centerX, winH * 0.30f});
 
-    sf::Text msg(font);
-    msg.setString("Do you want to return to the real world?");
-    msg.setCharacterSize(msgSize);
+    sf::Text msg(font, "Do you want to return to the real world?", static_cast<unsigned int>(winH * 0.035f));
     msg.setFillColor(sf::Color::White);
-    {
-        sf::FloatRect b = msg.getLocalBounds();
-        msg.setOrigin(sf::Vector2f{
-            b.position.x + b.size.x / 2.f,
-            b.position.y + b.size.y / 2.f
-        });
-        msg.setPosition(sf::Vector2f{centerX, winH * 0.40f});
-    }
+    b = msg.getLocalBounds();
+    msg.setOrigin(sf::Vector2f{ b.position.x + b.size.x / 2.f, b.position.y + b.size.y / 2.f });
+    msg.setPosition(sf::Vector2f{centerX, winH * 0.40f});
 
-    sf::Text yesText(font);
-    yesText.setString("Go back to Home");
-    yesText.setCharacterSize(buttonSize);
+    sf::Text yesText(font, "Go back to Home", static_cast<unsigned int>(winH * 0.035f));
+    sf::Text noText(font, "Keep exploring", static_cast<unsigned int>(winH * 0.035f));
     yesText.setFillColor(sf::Color::White);
-
-    sf::Text noText(font);
-    noText.setString("Keep exploring");
-    noText.setCharacterSize(buttonSize);
     noText.setFillColor(sf::Color::White);
 
     auto centerTextOnButton = [](sf::Text& text, const sf::Sprite& btn) {
         sf::FloatRect tb = text.getLocalBounds();
         sf::FloatRect bb = btn.getGlobalBounds();
-        text.setOrigin(sf::Vector2f{
-            tb.position.x + tb.size.x / 2.f,
-            tb.position.y + tb.size.y / 2.f
-        });
-        text.setPosition(sf::Vector2f{
-            bb.position.x + bb.size.x / 2.f,
-            bb.position.y + bb.size.y / 2.f
-        });
+        text.setOrigin(sf::Vector2f{ tb.position.x + tb.size.x / 2.f, tb.position.y + tb.size.y / 2.f });
+        text.setPosition(sf::Vector2f{ bb.position.x + bb.size.x / 2.f, bb.position.y + bb.size.y / 2.f });
     };
-
     centerTextOnButton(yesText, btnYes);
     centerTextOnButton(noText,  btnNo);
 
-    // Local event loop: block the game until the player chooses
     while (window.isOpen()) {
         std::optional<sf::Event> evOpt;
         while ((evOpt = window.pollEvent()).has_value()) {
             const sf::Event& ev = *evOpt;
-
-            if (ev.is<sf::Event::Closed>()) {
-                return EndOfDayChoice::ExitGame;
-            }
-
+            if (ev.is<sf::Event::Closed>()) return EndOfDayChoice::ExitGame;
             if (const auto* mb = ev.getIf<sf::Event::MouseButtonPressed>()) {
                 if (mb->button == sf::Mouse::Button::Left) {
-                    sf::Vector2f mousePos(
-                        static_cast<float>(mb->position.x),
-                        static_cast<float>(mb->position.y)
-                    );
-                    if (btnYes.getGlobalBounds().contains(mousePos)) {
-                        return EndOfDayChoice::BackToHome;
-                    }
-                    if (btnNo.getGlobalBounds().contains(mousePos)) {
-                        return EndOfDayChoice::KeepExploring;
-                    }
+                    sf::Vector2f mousePos(static_cast<float>(mb->position.x), static_cast<float>(mb->position.y));
+                    if (btnYes.getGlobalBounds().contains(mousePos)) return EndOfDayChoice::BackToHome;
+                    if (btnNo.getGlobalBounds().contains(mousePos)) return EndOfDayChoice::KeepExploring;
                 }
             }
-
             if (const auto* key = ev.getIf<sf::Event::KeyPressed>()) {
-                if (key->code == sf::Keyboard::Key::Enter) {
-                    return EndOfDayChoice::BackToHome;
-                }
-                if (key->code == sf::Keyboard::Key::Escape) {
-                    return EndOfDayChoice::KeepExploring;
-                }
+                if (key->code == sf::Keyboard::Key::Enter) return EndOfDayChoice::BackToHome;
+                if (key->code == sf::Keyboard::Key::Escape) return EndOfDayChoice::KeepExploring;
             }
         }
-
         window.clear(deepBrown);
         window.draw(bgPanel);
         window.draw(title);
@@ -198,11 +142,8 @@ static EndOfDayChoice showEndOfDayPopup(Renderer& renderer, const sf::Font& font
         window.draw(noText);
         window.display();
     }
-
     return EndOfDayChoice::ExitGame;
 }
-
-
 
 // Helper: detect whether character is inside an entrance and facing it.
 static bool detectEntranceTrigger(const Character& character, const TMJMap* map, EntranceArea& outArea) {
@@ -229,7 +170,7 @@ static bool detectEntranceTrigger(const Character& character, const TMJMap* map,
 
 static bool detectGameTrigger(const Character& character, const TMJMap* map, GameTriggerArea& outArea) {
     if (!map) return false;
-    sf::Vector2f feet = character.getFeetPoint(); // 角色脚部位置（现有逻辑）
+    sf::Vector2f feet = character.getFeetPoint(); 
     for (const auto& gta : map->getGameTriggers()) {
         // 检测角色是否在触发区域内
         sf::FloatRect rect(sf::Vector2f(gta.x, gta.y), sf::Vector2f(gta.width, gta.height));
@@ -640,6 +581,12 @@ struct ProfessorResponseState {
     std::string selectedText;
 };
 
+// NEW: Struct to store clickable task areas for the Event Loop
+struct TaskHitbox {
+    sf::FloatRect bounds;
+    std::string detailText;
+};
+
 AppResult runApp(
     Renderer& renderer,
     MapLoader& mapLoader,
@@ -657,10 +604,36 @@ AppResult runApp(
     bool endOfDayPopupShown = false;          // Ensure we only show the popup once
 
     // Load initial tasks (Updated to separate Energy Logic from Task Logic)
-    // Energy reward is now small (Bonus), actual restoration happens during the action.
-    taskManager.addTask("eat_food", "Eat Food at Canteen", 5, 2); 
-    taskManager.addTask("attend_class", "Attend Class (Quiz)", 20, 5); // Completion bonus
-    taskManager.addTask("rest_lawn", "Rest on Lawn", 10, 2);
+    // Params: id, description, detailed instruction, achievement name, xp, energy
+    taskManager.addTask("eat_food", 
+        "Eat Food at Canteen", 
+        "Go to the Student Canteen and press E at the counter to order food, then sit at a table to eat.", 
+        "Foodie", 
+        5, 0); 
+    
+    taskManager.addTask("attend_class", 
+        "Attend Class (Quiz)", 
+        "Find a classroom or puzzle area. Enter the trigger zone to start the class quiz.", 
+        "Scholar", 
+        20, 0);
+    
+    taskManager.addTask("rest_lawn", 
+        "Rest on Lawn", 
+        "Walk onto any green lawn area. Your character will automatically rest to recover energy.", 
+        "Nature Lover", 
+        10, 0);
+    
+    taskManager.addTask("buy_item", 
+        "Buy Item at FamilyMart", 
+        "Locate the FamilyMart shop. Press E near the entrance to browse and buy items.", 
+        "Big Spender", 
+        10, 0); 
+    
+    taskManager.addTask("talk_professor", 
+        "Talk to a Professor", 
+        "Find a professor on the map. Press E to start a conversation.", 
+        "Networker", 
+        15, 0); 
     // =============================================
     
     if (!renderer.initializeChefTexture()) {
@@ -756,6 +729,9 @@ AppResult runApp(
     bool hasSuppressedEntrance = false;
     sf::FloatRect suppressedEntranceRect;
 
+    // Vector to store hitboxes of tasks drawn in the previous frame
+    std::vector<TaskHitbox> activeTaskHitboxes;
+
     // 主循环
     sf::Clock clock;
     while (renderer.isRunning()) {
@@ -774,11 +750,16 @@ AppResult runApp(
         if (deltaTime > 0.1f) deltaTime = 0.1f;
         timeManager.update(deltaTime);
 
+        // Achievement Timer
+        if (g_achievementTimer > 0.0f) {
+            g_achievementTimer -= deltaTime;
+        }
+
         // === NEW: Passive Energy Depletion ===
-        // Goal: 5 Energy per Game Hour. 
-        // 1 Real Sec = 2 Game Mins. 1 Game Hour = 30 Real Seconds.
-        // Rate = 5 / 30 = ~0.1666 energy per second.
-        const float PASSIVE_DEPLETION_RATE = 5.0f / 30.0f;
+        // Goal: 10 Energy per Game Hour. 
+        // 1 Game Hour = 30 Real Seconds.
+        // Rate = 10 / 30 = ~0.333 energy per second.
+        const float PASSIVE_DEPLETION_RATE = 10.0f / 30.0f;
         taskManager.modifyEnergy(-PASSIVE_DEPLETION_RATE * deltaTime);
         // =====================================
 
@@ -841,6 +822,11 @@ AppResult runApp(
             
             Logger::info("Professor " + profName + " responds: " + response);
             
+            // === NEW: Trigger Task Completion & Deduct Energy ===
+            handleTaskCompletion(taskManager, "talk_professor");
+            taskManager.modifyEnergy(-2.0f);            
+            // ====================================================
+
             // 显示回应对话框
             dialogSys.setDialog(
                 response,
@@ -936,12 +922,17 @@ AppResult runApp(
                     shoppingState.nextDialogTitle,
                     shoppingState.nextDialogOptions,
                     // 购买确认回调：不要直接生成新的 dialog，直接修改状态
-                    [&shoppingState](const std::string& choice) {
+                    [&shoppingState, &taskManager](const std::string& choice) {
                         Logger::info("🛒 Purchase Choice: " + choice + " for item " + shoppingState.selectedItem);
                         if (choice == "Yes, buy it") {
                             // 执行购买逻辑
                             Logger::info("🛒 Purchased: " + shoppingState.selectedItem);
-                            // TODO：在这里加入扣钱 / 加物品的具体实现
+                            
+                            // === NEW: Trigger Task Completion & Deduct Energy ===
+                            handleTaskCompletion(taskManager, "buy_item");
+                            taskManager.modifyEnergy(-5.0f);      
+                            // ====================================================
+
                             shoppingState.isShopping = false;
                             shoppingState.nextDialogKind = ShoppingState::NextDialogKind::None;
                             shoppingState.requestNextDialog = false;
@@ -994,9 +985,9 @@ AppResult runApp(
         // Handle Faint Timer
         if (isFainted) {
             faintTimer += deltaTime;
-            if (faintTimer > 6.0f) { // Pass out for 6 seconds
+            if (faintTimer > 6.0f) { 
                 isFainted = false;
-                taskManager.modifyEnergy(5.0f); // Restore 5 Energy
+                taskManager.modifyEnergy(5.0f); 
                 Logger::info("Character woke up.");
             }
         }
@@ -1026,8 +1017,26 @@ AppResult runApp(
                 auto mb = event.getIf<sf::Event::MouseButtonPressed>();
                 if (mb && mb->button == sf::Mouse::Button::Left) {
                     sf::Vector2i mpos = mb->position;
+                    // Check Map Button
                     if (renderer.mapButtonContainsPoint(mpos)) {
                         showFullMapModal(renderer, tmjMap, configManager);
+                    }
+                    // === NEW: Check Task Clicks ===
+                    else {
+                        sf::Vector2f mouseUiPos(static_cast<float>(mpos.x), static_cast<float>(mpos.y));
+                        for (const auto& hit : activeTaskHitboxes) {
+                            if (hit.bounds.contains(mouseUiPos)) {
+                                Logger::info("Clicked Task. Showing details.");
+                                // Show detail dialog using existing system
+                                dialogSys.setDialog(
+                                    "Task Details",
+                                    { hit.detailText, "Close" },
+                                    [](const std::string&){}
+                                );
+                                renderer.setModalActive(true);
+                                break; 
+                            }
+                        }
                     }
                 }
             }
@@ -1227,8 +1236,8 @@ AppResult runApp(
                     // 强制设置角色朝向为「下」
                     character.setCurrentDirection(Character::Direction::Down);
                     Logger::info("Character started resting on lawn (facing down)");
-                    // === NEW: Completed Task (Reward is Bonus) ===
-                    taskManager.completeTask("rest_lawn");
+                    // === NEW: Trigger Task Completion (Bonus Reward) ===
+                    handleTaskCompletion(taskManager, "rest_lawn");
                     // ===============================
                 }
             }
@@ -1306,8 +1315,8 @@ AppResult runApp(
                     newPos.y = std::clamp(newPos.y, 0.0f, mapH);
 
                     character.setPosition(newPos);
-                    // === NEW: Task Completion Hook ===
-                    taskManager.completeTask("attend_class");
+                    // === NEW: Trigger Task Completion ===
+                    handleTaskCompletion(taskManager, "attend_class");
                     // =================================
                 }
             }
@@ -1360,8 +1369,8 @@ AppResult runApp(
                 gameState.currentTable.clear();
                 gameState.eatingProgress = 0.0f;
                 Logger::info("Eating finished - reset state");
-                // === NEW: Task Completion Hook (Bonus Reward) ===
-                taskManager.completeTask("eat_food");
+                // === NEW: Trigger Task Completion (Bonus Reward) ===
+                handleTaskCompletion(taskManager, "eat_food");
                 // =================================
             }
         }
@@ -1497,8 +1506,6 @@ AppResult runApp(
     
         renderer.getWindow().draw(restingText);
     }
-        // ------------------------------------------------
-    // ==========================================================
     // === FIXED: UI & OVERLAY RENDER (SCREEN SPACE) ===
         // 1. Save the current Game Camera (View)
         sf::View gameView = renderer.getWindow().getView();
@@ -1551,6 +1558,16 @@ AppResult runApp(
         renderer.getWindow().draw(energyBarBg);
         renderer.getWindow().draw(energyBarFg);
 
+        // === NEW: Numerical Display on Energy Bar ===
+        sf::Text energyNumText(modalFont, "Energy: " + std::to_string(taskManager.getEnergy()) + "/" + std::to_string(taskManager.getMaxEnergy()), 14);
+        energyNumText.setFillColor(sf::Color::White);
+        energyNumText.setOutlineColor(sf::Color::Black);
+        energyNumText.setOutlineThickness(1);
+        sf::FloatRect enBounds = energyNumText.getLocalBounds();
+        energyNumText.setOrigin(sf::Vector2f(enBounds.position.x + enBounds.size.x/2.0f, enBounds.position.y + enBounds.size.y/2.0f));
+        energyNumText.setPosition(sf::Vector2f(20.f + 100.f, 60.f + 10.f)); // Center of bar
+        renderer.getWindow().draw(energyNumText);
+
         // === NEW: EXP BAR (Purple, below Energy Bar) ===
         sf::RectangleShape expBarBg(sf::Vector2f(200.f, 10.f));
         expBarBg.setPosition(sf::Vector2f(20.f, 85.f)); // Below Energy Bar
@@ -1568,6 +1585,16 @@ AppResult runApp(
 
         renderer.getWindow().draw(expBarBg);
         renderer.getWindow().draw(expBarFg);
+
+        // === NEW: Numerical Display on EXP Bar ===
+        sf::Text expNumText(modalFont, "EXP: " + std::to_string(taskManager.getExp()) + "/" + std::to_string(taskManager.getMaxExp()), 10);
+        expNumText.setFillColor(sf::Color::White);
+        expNumText.setOutlineColor(sf::Color::Black);
+        expNumText.setOutlineThickness(1);
+        sf::FloatRect xpBounds = expNumText.getLocalBounds();
+        expNumText.setOrigin(sf::Vector2f(xpBounds.position.x + xpBounds.size.x/2.0f, xpBounds.position.y + xpBounds.size.y/2.0f));
+        expNumText.setPosition(sf::Vector2f(20.f + 100.f, 85.f + 5.f)); 
+        renderer.getWindow().draw(expNumText);
         // ===============================================
 
         // --- D. TASK LIST ---
@@ -1580,14 +1607,30 @@ AppResult runApp(
         renderer.getWindow().draw(taskHeader);
         
         taskY += 30.f;
+        activeTaskHitboxes.clear(); // Reset hitboxes for this frame
         for (const auto& t : taskManager.getTasks()) {
             if (!t.isCompleted) {
                 sf::Text taskText(modalFont, "- " + t.description, 18);
                 taskText.setPosition(sf::Vector2f(25.f, taskY));
-                taskText.setFillColor(sf::Color::White);
+                
+                // Highlight if mouse is hovering
+                sf::Vector2i mpos = sf::Mouse::getPosition(renderer.getWindow());
+                sf::FloatRect bounds = taskText.getGlobalBounds();
+                
+                // === FIXED SFML 3 CHECK HERE ===
+                if (bounds.contains(sf::Vector2f(static_cast<float>(mpos.x), static_cast<float>(mpos.y)))) {
+                    taskText.setFillColor(sf::Color::Yellow);
+                } else {
+                    taskText.setFillColor(sf::Color::White);
+                }
+
                 taskText.setOutlineColor(sf::Color::Black);
                 taskText.setOutlineThickness(1);
                 renderer.getWindow().draw(taskText);
+                
+                // Store hitbox for click detection in next frame
+                activeTaskHitboxes.push_back({bounds, t.detailedInstruction});
+
                 taskY += 25.f;
             }
         }
@@ -1607,6 +1650,23 @@ AppResult runApp(
             renderer.getWindow().draw(faintText);
         }
         // =======================
+
+        // === NEW: Achievement Popup ===
+        if (g_achievementTimer > 0.0f) {
+            sf::RectangleShape popBg(sf::Vector2f(uiWidth, 60.f));
+            popBg.setPosition(sf::Vector2f(0.f, uiHeight / 2.0f - 30.f));
+            popBg.setFillColor(sf::Color(0, 0, 0, 150)); // Semi-transparent black strip
+            renderer.getWindow().draw(popBg);
+
+            sf::Text achText(modalFont, g_achievementText, 30);
+            achText.setFillColor(sf::Color::Yellow);
+            achText.setOutlineColor(sf::Color::Black);
+            achText.setOutlineThickness(2);
+            sf::FloatRect ab = achText.getLocalBounds();
+            achText.setOrigin(sf::Vector2f(ab.position.x + ab.size.x/2.0f, ab.position.y + ab.size.y/2.0f));
+            achText.setPosition(sf::Vector2f(uiWidth/2.0f, uiHeight/2.0f));
+            renderer.getWindow().draw(achText);
+        }
         
         // 3. Restore the Game Camera (So the next frame renders the map correctly)
         renderer.getWindow().setView(gameView);
