@@ -10,6 +10,7 @@
 #include "Renderer/TextRenderer.h"
 #include <filesystem>
 #include "App.h"
+#include "Login/LoginScreen.h"
 
 /**
  * @file main.cpp
@@ -86,89 +87,108 @@ int main() {
         return -1;
     }
 
-    // Initialize map loader
-    MapLoader mapLoader;
-    std::string mapPath = configManager.getFullMapPath();
-    auto tmjMap = mapLoader.loadTMJMap(mapPath);
+    // 3. Main loop: we can come back to Login screen multiple times
+    while (true) {
+        // Run login / home screen on the same window.
+        // If it returns false, the player chose to exit, so we quit before loading the map.
+        if (!runLoginScreen(renderer)) {
+            renderer.cleanup();
+            return 0;
+        }
 
-    if (!tmjMap) {
-        Logger::error("Failed to load map: " + mapPath);
-        return -1;
-    }
+        // Initialize map loader
+        MapLoader mapLoader;
+        std::string mapPath = configManager.getFullMapPath();
+        auto tmjMap = mapLoader.loadTMJMap(mapPath);
 
-    Logger::info(
-        "Map pixel dimensions: " + 
-        std::to_string(tmjMap->getWorldPixelWidth()) + "x" + 
-        std::to_string(tmjMap->getWorldPixelHeight())
-    );
-    Logger::info(
-        "Tile dimensions: " + 
-        std::to_string(tmjMap->getTileWidth()) + "x" + 
-        std::to_string(tmjMap->getTileHeight())
-    );
-    
+        if (!tmjMap) {
+            Logger::error("Failed to load map: " + mapPath);
+            return -1;
+        }
 
-    // Initialize character
-    Character character;
-    if (!character.initialize()) {
-        Logger::error("Failed to initialize character");
-        return -1;
-    }
-
-    // Set initial character position
-    sf::Vector2f spawnPosition;
-    if (tmjMap->getSpawnX() && tmjMap->getSpawnY()) {
-        spawnPosition = sf::Vector2f(*tmjMap->getSpawnX(), *tmjMap->getSpawnY());
-    } else {
-        // Use map center as fallback spawn point
-        spawnPosition = sf::Vector2f(
-            tmjMap->getWorldPixelWidth() * 0.5f,
-            tmjMap->getWorldPixelHeight() * 0.5f
+        Logger::info(
+            "Map pixel dimensions: " + 
+            std::to_string(tmjMap->getWorldPixelWidth()) + "x" + 
+            std::to_string(tmjMap->getWorldPixelHeight())
         );
+        Logger::info(
+            "Tile dimensions: " + 
+            std::to_string(tmjMap->getTileWidth()) + "x" + 
+            std::to_string(tmjMap->getTileHeight())
+        );
+        
+
+        // Initialize character
+        Character character;
+        if (!character.initialize()) {
+            Logger::error("Failed to initialize character");
+            return -1;
+        }
+
+        // Set initial character position
+        sf::Vector2f spawnPosition;
+        if (tmjMap->getSpawnX() && tmjMap->getSpawnY()) {
+            spawnPosition = sf::Vector2f(*tmjMap->getSpawnX(), *tmjMap->getSpawnY());
+        } else {
+            // Use map center as fallback spawn point
+            spawnPosition = sf::Vector2f(
+                tmjMap->getWorldPixelWidth() * 0.5f,
+                tmjMap->getWorldPixelHeight() * 0.5f
+            );
+        }
+        character.setPosition(spawnPosition);
+
+        // Retrieve configuration
+        const auto& appConfig = configManager.getAppConfig();
+
+        // Compute view size (based on configured tile counts)
+        const float viewW = appConfig.mapDisplay.tilesWidth * tmjMap->getTileWidth();
+        const float viewH = appConfig.mapDisplay.tilesHeight * tmjMap->getTileHeight();
+
+        // Create view
+        sf::View view(sf::Vector2f(0, 0), sf::Vector2f(viewW, viewH));
+        view.setCenter(spawnPosition);
+
+        // Set renderer view
+        renderer.setView(view);
+        // configure map button from app config
+        renderer.setMapButtonConfig(configManager.getAppConfig().mapButton);
+
+        Logger::info("Map pixel dimensions: " + 
+                std::to_string(tmjMap->getWorldPixelWidth()) + "x" + 
+                std::to_string(tmjMap->getWorldPixelHeight()));
+        Logger::info("Tile dimensions: " + 
+                    std::to_string(tmjMap->getTileWidth()) + "x" + 
+                    std::to_string(tmjMap->getTileHeight()));
+        Logger::info("Spawn position: (" + 
+                    std::to_string(spawnPosition.x) + ", " + 
+                    std::to_string(spawnPosition.y) + ")");
+        Logger::info("Calculated view size: " + 
+                    std::to_string(viewW) + "x" + 
+                    std::to_string(viewH) + 
+                    " (based on " + std::to_string(appConfig.mapDisplay.tilesWidth) + 
+                    "x" + std::to_string(appConfig.mapDisplay.tilesHeight) + " tiles)");
+        Logger::info("View center: (" + 
+                    std::to_string(view.getCenter().x) + ", " + 
+                    std::to_string(view.getCenter().y) + ")");
+        
+        // 3.5 Run main game loop
+        AppResult appResult = runApp(renderer, mapLoader, tmjMap, character, view, configManager);
+
+        // Clean up per-run resources
+        character.cleanup();
+        mapLoader.cleanup();
+
+        if (appResult == AppResult::QuitGame) {
+            // Quit the whole application
+            break;
+        } else if (appResult == AppResult::BackToLogin) {
+            // Go back to the top of the while-loop and show Login/Home again
+            continue;
+        }
     }
-    character.setPosition(spawnPosition);
 
-    // Retrieve configuration
-    const auto& appConfig = configManager.getAppConfig();
-
-    // Compute view size (based on configured tile counts)
-    const float viewW = appConfig.mapDisplay.tilesWidth * tmjMap->getTileWidth();
-    const float viewH = appConfig.mapDisplay.tilesHeight * tmjMap->getTileHeight();
-
-    // Create view
-    sf::View view(sf::Vector2f(0, 0), sf::Vector2f(viewW, viewH));
-    view.setCenter(spawnPosition);
-
-    // Set renderer view
-    renderer.setView(view);
-    // configure map button from app config
-    renderer.setMapButtonConfig(configManager.getAppConfig().mapButton);
-
-    Logger::info("Map pixel dimensions: " + 
-             std::to_string(tmjMap->getWorldPixelWidth()) + "x" + 
-             std::to_string(tmjMap->getWorldPixelHeight()));
-    Logger::info("Tile dimensions: " + 
-                std::to_string(tmjMap->getTileWidth()) + "x" + 
-                std::to_string(tmjMap->getTileHeight()));
-    Logger::info("Spawn position: (" + 
-                std::to_string(spawnPosition.x) + ", " + 
-                std::to_string(spawnPosition.y) + ")");
-    Logger::info("Calculated view size: " + 
-                std::to_string(viewW) + "x" + 
-                std::to_string(viewH) + 
-                " (based on " + std::to_string(appConfig.mapDisplay.tilesWidth) + 
-                "x" + std::to_string(appConfig.mapDisplay.tilesHeight) + " tiles)");
-    Logger::info("View center: (" + 
-                std::to_string(view.getCenter().x) + ", " + 
-                std::to_string(view.getCenter().y) + ")");
-
-    // Run the main application loop (moved into App module)
-    runApp(renderer, mapLoader, tmjMap, character, view, configManager);
-
-    // Cleanup resources
-    character.cleanup();
-    mapLoader.cleanup();
+    // 4. Final renderer cleanup
     renderer.cleanup();
-
     return 0;
 }
