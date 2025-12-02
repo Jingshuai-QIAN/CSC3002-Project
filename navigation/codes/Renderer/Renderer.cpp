@@ -744,6 +744,23 @@ void Renderer::renderGameTriggerAreas(const std::vector<GameTriggerArea>& areas)
     }
 }
 
+
+void Renderer::renderShopTriggerAreas(const std::vector<ShopTrigger>& areas) {
+    if (!window.isOpen()) return;
+
+    for (const auto& area : areas) {
+        sf::RectangleShape rect(area.rect.size);             // size.x / size.y
+        rect.setPosition(area.rect.position);               // position.x / position.y
+        rect.setFillColor(shopTriggerFillColor);
+        rect.setOutlineThickness(shopTriggerOutlineThickness);
+        rect.setOutlineColor(shopTriggerOutlineColor);
+        window.draw(rect);
+    }
+}
+
+
+
+
 /**
  * @brief 初始化教授纹理
  * 
