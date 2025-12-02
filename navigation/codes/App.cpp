@@ -25,6 +25,185 @@
 #include "Manager/TaskManager.h"
 
 
+
+// Result of the "end of day" popup
+enum class EndOfDayChoice {
+    BackToHome,     // Go back to Home/Login
+    KeepExploring,  // Stay in the current scene and keep exploring
+    ExitGame        // Close the game window
+};
+
+// Popup that uses the same UI sheet as the Login screen.
+// It asks: "You have finished a day in CUHKSZ, go back to the real world?"
+static EndOfDayChoice showEndOfDayPopup(Renderer& renderer, const sf::Font& font)
+{
+    sf::RenderWindow& window = renderer.getWindow();
+    window.setView(window.getDefaultView());
+
+    const auto winSize = window.getSize();
+    const float winW = static_cast<float>(winSize.x);
+    const float winH = static_cast<float>(winSize.y);
+
+    // Load the same UI spritesheet used by the login screen
+    sf::Texture uiTexture;
+    if (!uiTexture.loadFromFile("assets/uipack_rpg_sheet.png")) {
+        std::cerr << "[EndOfDay] Failed to load assets/uipack_rpg_sheet.png\n";
+        return EndOfDayChoice::KeepExploring;
+    }
+
+    // Same panel rect as login screen background panel
+    const sf::IntRect BG_PANEL_RECT{
+        sf::Vector2i{0, 376},
+        sf::Vector2i{100, 100}
+    };
+
+    sf::Sprite bgPanel(uiTexture, BG_PANEL_RECT);
+    const float bgW = static_cast<float>(BG_PANEL_RECT.size.x);
+    const float bgH = static_cast<float>(BG_PANEL_RECT.size.y);
+    bgPanel.setScale(sf::Vector2f{ winW / bgW, winH / bgH });
+    bgPanel.setPosition(sf::Vector2f{ 0.f, 0.f });
+
+    const sf::Color deepBrown(150, 100, 60);
+
+    // Same khaki button rect as in the login screen
+    const sf::IntRect BUTTON_KHAKI_RECT{
+        sf::Vector2i{2, 240},
+        sf::Vector2i{188, 40}
+    };
+
+    sf::Sprite btnYes(uiTexture, BUTTON_KHAKI_RECT);
+    sf::Sprite btnNo (uiTexture, BUTTON_KHAKI_RECT);
+
+    // Scale buttons based on window width
+    const float baseButtonW = static_cast<float>(BUTTON_KHAKI_RECT.size.x);
+    const float baseButtonH = static_cast<float>(BUTTON_KHAKI_RECT.size.y);
+
+    const float targetButtonWidth = winW * 0.25f;
+    const float buttonScaleX      = targetButtonWidth / baseButtonW;
+    const float buttonScaleY      = buttonScaleX * 1.3f;
+
+    btnYes.setScale(sf::Vector2f{buttonScaleX, buttonScaleY});
+    btnNo .setScale(sf::Vector2f{buttonScaleX, buttonScaleY});
+
+    // Place two buttons horizontally centered
+    const float centerX = winW * 0.5f;
+    const float btnY    = winH * 0.60f;
+    const float gapX    = winW * 0.18f;
+
+    btnYes.setOrigin(sf::Vector2f{baseButtonW / 2.f, baseButtonH / 2.f});
+    btnNo .setOrigin(sf::Vector2f{baseButtonW / 2.f, baseButtonH / 2.f});
+
+    btnYes.setPosition(sf::Vector2f{centerX - gapX, btnY});
+    btnNo .setPosition(sf::Vector2f{centerX + gapX, btnY});
+
+    // Title / message / button texts
+    const unsigned int titleSize  = static_cast<unsigned int>(winH * 0.05f);
+    const unsigned int msgSize    = static_cast<unsigned int>(winH * 0.035f);
+    const unsigned int buttonSize = static_cast<unsigned int>(winH * 0.035f);
+
+    sf::Text title(font);
+    title.setString("Congratulations! You've completed a full day at CUHKSZ!");
+    title.setCharacterSize(titleSize);
+    title.setFillColor(sf::Color::White);
+    {
+        sf::FloatRect b = title.getLocalBounds();
+        title.setOrigin(sf::Vector2f{
+            b.position.x + b.size.x / 2.f,
+            b.position.y + b.size.y / 2.f
+        });
+        title.setPosition(sf::Vector2f{centerX, winH * 0.30f});
+    }
+
+    sf::Text msg(font);
+    msg.setString("Do you want to return to the real world?");
+    msg.setCharacterSize(msgSize);
+    msg.setFillColor(sf::Color::White);
+    {
+        sf::FloatRect b = msg.getLocalBounds();
+        msg.setOrigin(sf::Vector2f{
+            b.position.x + b.size.x / 2.f,
+            b.position.y + b.size.y / 2.f
+        });
+        msg.setPosition(sf::Vector2f{centerX, winH * 0.40f});
+    }
+
+    sf::Text yesText(font);
+    yesText.setString("Go back to Home");
+    yesText.setCharacterSize(buttonSize);
+    yesText.setFillColor(sf::Color::White);
+
+    sf::Text noText(font);
+    noText.setString("Keep exploring");
+    noText.setCharacterSize(buttonSize);
+    noText.setFillColor(sf::Color::White);
+
+    auto centerTextOnButton = [](sf::Text& text, const sf::Sprite& btn) {
+        sf::FloatRect tb = text.getLocalBounds();
+        sf::FloatRect bb = btn.getGlobalBounds();
+        text.setOrigin(sf::Vector2f{
+            tb.position.x + tb.size.x / 2.f,
+            tb.position.y + tb.size.y / 2.f
+        });
+        text.setPosition(sf::Vector2f{
+            bb.position.x + bb.size.x / 2.f,
+            bb.position.y + bb.size.y / 2.f
+        });
+    };
+
+    centerTextOnButton(yesText, btnYes);
+    centerTextOnButton(noText,  btnNo);
+
+    // Local event loop: block the game until the player chooses
+    while (window.isOpen()) {
+        std::optional<sf::Event> evOpt;
+        while ((evOpt = window.pollEvent()).has_value()) {
+            const sf::Event& ev = *evOpt;
+
+            if (ev.is<sf::Event::Closed>()) {
+                return EndOfDayChoice::ExitGame;
+            }
+
+            if (const auto* mb = ev.getIf<sf::Event::MouseButtonPressed>()) {
+                if (mb->button == sf::Mouse::Button::Left) {
+                    sf::Vector2f mousePos(
+                        static_cast<float>(mb->position.x),
+                        static_cast<float>(mb->position.y)
+                    );
+                    if (btnYes.getGlobalBounds().contains(mousePos)) {
+                        return EndOfDayChoice::BackToHome;
+                    }
+                    if (btnNo.getGlobalBounds().contains(mousePos)) {
+                        return EndOfDayChoice::KeepExploring;
+                    }
+                }
+            }
+
+            if (const auto* key = ev.getIf<sf::Event::KeyPressed>()) {
+                if (key->code == sf::Keyboard::Key::Enter) {
+                    return EndOfDayChoice::BackToHome;
+                }
+                if (key->code == sf::Keyboard::Key::Escape) {
+                    return EndOfDayChoice::KeepExploring;
+                }
+            }
+        }
+
+        window.clear(deepBrown);
+        window.draw(bgPanel);
+        window.draw(title);
+        window.draw(msg);
+        window.draw(btnYes);
+        window.draw(btnNo);
+        window.draw(yesText);
+        window.draw(noText);
+        window.display();
+    }
+
+    return EndOfDayChoice::ExitGame;
+}
+
+
+
 // Helper: detect whether character is inside an entrance and facing it.
 static bool detectEntranceTrigger(const Character& character, const TMJMap* map, EntranceArea& outArea) {
     if (!map) return false;
@@ -461,7 +640,7 @@ struct ProfessorResponseState {
     std::string selectedText;
 };
 
-void runApp(
+AppResult runApp(
     Renderer& renderer,
     MapLoader& mapLoader,
     std::shared_ptr<TMJMap>& tmjMap,
@@ -474,6 +653,9 @@ void runApp(
     TimeManager timeManager;
     TaskManager taskManager;
 
+    AppResult result = AppResult::QuitGame;   // Default: quit game
+    bool endOfDayPopupShown = false;          // Ensure we only show the popup once
+
     // Load initial tasks (Updated to separate Energy Logic from Task Logic)
     // Energy reward is now small (Bonus), actual restoration happens during the action.
     taskManager.addTask("eat_food", "Eat Food at Canteen", 5, 2); 
@@ -483,20 +665,20 @@ void runApp(
     
     if (!renderer.initializeChefTexture()) {
         Logger::error("Failed to initialize chef texture");
-        return;
+        return AppResult::QuitGame;
     }
     
     // 教授纹理初始化（从App.cpp补充）
     if (!renderer.initializeProfessorTexture()) {
         Logger::error("Failed to initialize professor texture");
-        return;
+        return AppResult::QuitGame;
     }
     
     // 加载模态字体
     sf::Font modalFont;
     if (!modalFont.openFromFile(configManager.getRenderConfig().text.fontPath)) {
         Logger::error("Failed to load modal font!");
-        return;
+        return AppResult::QuitGame;
     }
     
     // ：只初始化一次对话框（避免重复加载）
@@ -599,6 +781,25 @@ void runApp(
         const float PASSIVE_DEPLETION_RATE = 5.0f / 30.0f;
         taskManager.modifyEnergy(-PASSIVE_DEPLETION_RATE * deltaTime);
         // =====================================
+
+        // === NEW: End-of-day EXP check ===
+        if (!endOfDayPopupShown && taskManager.getExp() >= taskManager.getMaxExp()) {
+            endOfDayPopupShown = true;
+
+            EndOfDayChoice choice = showEndOfDayPopup(renderer, modalFont);
+
+            if (choice == EndOfDayChoice::BackToHome) {
+                // Player chose to go back to Home/Login
+                result = AppResult::BackToLogin;
+                break;  // Leave the main game loop
+            } else if (choice == EndOfDayChoice::ExitGame) {
+                // Player closed the popup window / chose exit
+                result = AppResult::QuitGame;
+                renderer.quit();
+                break;
+            }
+            // If choice == KeepExploring: just continue the game loop
+        }
 
         // ========== 处理教授回应的逻辑（从App.cpp补充） ==========
         if (profResponseState.pending && !dialogSys.isActive()) {
@@ -812,11 +1013,13 @@ void runApp(
                 continue;
             }
 
-            // 窗口关闭事件
+            // Window close event
             if (event.is<sf::Event::Closed>()) {
+                result = AppResult::QuitGame;
                 renderer.quit();
                 break;
             }
+
 
             // 全屏地图按钮（原有逻辑）
             if (event.is<sf::Event::MouseButtonPressed>()) {
@@ -1294,7 +1497,7 @@ void runApp(
     
         renderer.getWindow().draw(restingText);
     }
-// ------------------------------------------------
+        // ------------------------------------------------
     // ==========================================================
     // === FIXED: UI & OVERLAY RENDER (SCREEN SPACE) ===
         // 1. Save the current Game Camera (View)
@@ -1487,4 +1690,5 @@ void runApp(
 
         renderer.present();
     }
+    return result;
 }
