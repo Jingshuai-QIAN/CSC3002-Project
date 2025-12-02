@@ -84,6 +84,12 @@ navigation/
 │   │   ├── Logger.h
 │   │   ├── FileUtils.h
 │   │   └── StringUtils.h
+│   └──  Login/                   # Login screen
+│   │   ├── LoginScreen.cpp
+│   │   ├── LoginScreen.h
+│   │   ├── LoginScreen.o
+│   │   ├── MapGuideScreen.cpp
+│   │   └── MapGuideScreen.h
 ├── config/                      # Configuration files
 │   ├── app_config.json
 │   ├── render_config.json
@@ -100,13 +106,18 @@ navigation/
 │   ├── teaching_building.tmj
 │   └── spawns.json
 └── tiles/
-    ├── exterior.png
-    ├── F_01.png
-    ├── free_overview.png
-    ├── Interior.png
-    ├── Modern_City.png
-    ├── roguelikeIndoor_transparent.png
-    ├── Small_Battle.png
-    ├── tile_modern.png
-    └── tilemap_packed.png
+│   ├── exterior.png
+│   ├── F_01.png
+│   ├── free_overview.png
+│   ├── Interior.png
+│   ├── Modern_City.png
+│   ├── roguelikeIndoor_transparent.png
+│   ├── Small_Battle.png
+│   ├── tile_modern.png
+│   └── tilemap_packed.png
+└── assets/
+    ├── keyboard-&-mouse_sheet_default.png
+    ├── ui_map_guide.png
+    ├── uipack_rpg_sheet.png
+    └── panelInset_brown.png
 ```
