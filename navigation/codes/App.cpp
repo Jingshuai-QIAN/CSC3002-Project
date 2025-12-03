@@ -603,29 +603,31 @@ AppResult runApp(
     AppResult result = AppResult::QuitGame;   // Default: quit game
     bool endOfDayPopupShown = false;          // Ensure we only show the popup once
 
-    // Load initial tasks (Updated to separate Energy Logic from Task Logic)
+    // Load initial tasks
     // Params: id, description, detailed instruction, achievement name, xp, energy
+    
+    // Sum = 100 XP Total
     taskManager.addTask("eat_food", 
         "Eat Food at Canteen", 
-        "Go to the Student Canteen and press E at the counter to order food, then sit at a table to eat.", 
+        "Go to the Student Centre and press E at the counter to order food, then sit at a table and press E to eat.", 
         "Foodie", 
-        5, 0); 
+        10, 0); 
     
     taskManager.addTask("attend_class", 
         "Attend Class (Quiz)", 
-        "Find a classroom or puzzle area. Enter the trigger zone to start the class quiz.", 
+        "Find a classroom. Enter the trigger zone to start the class quiz.", 
         "Scholar", 
         20, 0);
     
     taskManager.addTask("rest_lawn", 
         "Rest on Lawn", 
-        "Walk onto any green lawn area. Your character will automatically rest to recover energy.", 
+        "Walk onto the green lawn before the library. Press E to rest and recover energy.", 
         "Nature Lover", 
         10, 0);
     
     taskManager.addTask("buy_item", 
         "Buy Item at FamilyMart", 
-        "Locate the FamilyMart shop. Press E near the entrance to browse and buy items.", 
+        "Locate the FamilyMart shop. Press E at the entrance to buy items.", 
         "Big Spender", 
         10, 0); 
     
@@ -634,6 +636,18 @@ AppResult runApp(
         "Find a professor on the map. Press E to start a conversation.", 
         "Networker", 
         15, 0); 
+
+    taskManager.addTask("bookstore_quiz", 
+        "Solve Bookstore Puzzle", 
+        "Go to the Bookstore. Enter the trigger area to solve the CUHK(SZ) questions.", 
+        "Bookworm", 
+        25, 0);
+
+    taskManager.addTask("sprint_practice", 
+        "Learn to Sprint", 
+        "Hold the 'Z' key while moving to run faster.", 
+        "Speedster", 
+        10, 0);
     // =============================================
     
     if (!renderer.initializeChefTexture()) {
@@ -755,10 +769,6 @@ AppResult runApp(
             g_achievementTimer -= deltaTime;
         }
 
-        // === NEW: Passive Energy Depletion ===
-        // Goal: 10 Energy per Game Hour. 
-        // 1 Game Hour = 30 Real Seconds.
-        // Rate = 10 / 30 = ~0.333 energy per second.
         const float PASSIVE_DEPLETION_RATE = 10.0f / 30.0f;
         taskManager.modifyEnergy(-PASSIVE_DEPLETION_RATE * deltaTime);
         // =====================================
@@ -1263,6 +1273,9 @@ AppResult runApp(
                     quizGame.run();   // ✅ 正式进入小游戏（阻塞式）
 
                     std::cout << "✅ QuizGame finished, returning to map." << std::endl;
+                    // === NEW: Trigger Task Completion ===
+                    handleTaskCompletion(taskManager, "bookstore_quiz");
+                    // ===================================
                 }
                 // 教室问答触发（可配置题库）
                 else if (detectedTrigger.gameType == "classroom_quiz") {
@@ -1274,15 +1287,13 @@ AppResult runApp(
                     quiz.run();
 
                     std::cout << "✅ Classroom Quiz finished, moving character out of trigger." << std::endl;
-                    // Log the exp/energy effects so teammates can consume them
+                    // Log the exp/energy effects
                     {
                         QuizGame::Effects eff = quiz.getResultEffects();
                         Logger::info("Classroom quiz effects -> exp: " + std::to_string(eff.exp) +
                                      " energy: " + std::to_string(eff.energy));
                     }
-                    
-                    // === NEW: Apply Energy Cost for Class ===
-                    // Class makes you tired (-20 Energy)
+
                     taskManager.modifyEnergy(-20.0f); 
                     // ========================================
 
@@ -1334,6 +1345,9 @@ AppResult runApp(
             float speedMultiplier = 1.0f;
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Z)) {
                 speedMultiplier = 2.0f; // Walk 2x faster
+                // === NEW: Trigger Task Completion ===
+                handleTaskCompletion(taskManager, "sprint_practice");
+                // ===================================
             }
             // Pass the modified deltaTime to make character move faster
             character.update(deltaTime * speedMultiplier, moveInput, 
@@ -1342,24 +1356,17 @@ AppResult runApp(
                             tmjMap.get());
             // ===================================
         }
-        
-        // === NEW: Resting Energy Recovery (Nerfed) ===
+
         if (character.getIsResting()) {
-            // Resting restores 10 Energy Total over 5 seconds (Duration defined in Character.h)
-            // Rate = 10 / 5 = 2.0 energy per second.
             taskManager.modifyEnergy(2.0f * deltaTime);
         }
         // ====================================
 
         // 进食状态更新
         if (gameState.isEating) {
-            // Eating Speed: Progress increases by 10 per second -> 10 seconds total.
             gameState.eatingProgress += deltaTime * 10;
             Logger::debug("Eating progress: " + std::to_string(gameState.eatingProgress) + "%");
-            
-            // === NEW: Eating Energy Recovery (Nerfed) ===
-            // Target: 30 Energy Total. Duration: 10 seconds.
-            // Rate = 30 / 10 = 3.0 energy per second.
+
             taskManager.modifyEnergy(3.0f * deltaTime);
             // ===================================
 
@@ -1506,6 +1513,8 @@ AppResult runApp(
     
         renderer.getWindow().draw(restingText);
     }
+        // ------------------------------------------------
+    // ==========================================================
     // === FIXED: UI & OVERLAY RENDER (SCREEN SPACE) ===
         // 1. Save the current Game Camera (View)
         sf::View gameView = renderer.getWindow().getView();
@@ -1568,7 +1577,6 @@ AppResult runApp(
         energyNumText.setPosition(sf::Vector2f(20.f + 100.f, 60.f + 10.f)); // Center of bar
         renderer.getWindow().draw(energyNumText);
 
-        // === NEW: EXP BAR (Purple, below Energy Bar) ===
         sf::RectangleShape expBarBg(sf::Vector2f(200.f, 10.f));
         expBarBg.setPosition(sf::Vector2f(20.f, 85.f)); // Below Energy Bar
         expBarBg.setFillColor(sf::Color(50, 50, 50));
@@ -1674,8 +1682,6 @@ AppResult runApp(
         // ==========================================================
 
         renderer.drawMapButton();
-        
-        // ... [Rest of your rendering code: modal prompts, dialogs, present()] ...
 
         if (waitingForEntranceConfirmation) {
             std::string prompt = "Do you want to enter " + pendingEntrance.name + "?  Enter=Yes  Esc=No";
