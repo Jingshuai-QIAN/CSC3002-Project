@@ -746,6 +746,10 @@ AppResult runApp(
     // Vector to store hitboxes of tasks drawn in the previous frame
     std::vector<TaskHitbox> activeTaskHitboxes;
 
+    // === NEW: Unstuck State ===
+    sf::Vector2f lastFramePos = character.getPosition();
+    float stuckTimer = 0.0f;
+
     // 主循环
     sf::Clock clock;
     while (renderer.isRunning()) {
@@ -1246,7 +1250,7 @@ AppResult runApp(
                     // 强制设置角色朝向为「下」
                     character.setCurrentDirection(Character::Direction::Down);
                     Logger::info("Character started resting on lawn (facing down)");
-                    // === NEW: Trigger Task Completion (Bonus Reward) ===
+                    // === NEW: Complete Lawn Task ===
                     handleTaskCompletion(taskManager, "rest_lawn");
                     // ===============================
                 }
@@ -1287,7 +1291,7 @@ AppResult runApp(
                     quiz.run();
 
                     std::cout << "✅ Classroom Quiz finished, moving character out of trigger." << std::endl;
-                    // Log the exp/energy effects
+                    // Log the exp/energy effects so teammates can consume them
                     {
                         QuizGame::Effects eff = quiz.getResultEffects();
                         Logger::info("Classroom quiz effects -> exp: " + std::to_string(eff.exp) +
@@ -1355,6 +1359,63 @@ AppResult runApp(
                             tmjMap->getWorldPixelHeight(),
                             tmjMap.get());
             // ===================================
+
+            // === NEW: Unstuck Failsafe Logic ===
+            // Check if player is trying to move but position isn't changing
+            if ((moveInput.x != 0.f || moveInput.y != 0.f)) {
+                sf::Vector2f currentPos = character.getPosition();
+                
+                // Calculate distance moved this frame
+                float dist = std::sqrt(std::pow(currentPos.x - lastFramePos.x, 2) + 
+                                       std::pow(currentPos.y - lastFramePos.y, 2));
+                
+                if (dist < 0.1f) {
+                    stuckTimer += deltaTime;
+                    if (stuckTimer > 3.0f) {
+                        Logger::warn("⚠️ Character appears stuck! Attempting emergency unstuck...");
+                        
+                        // Attempt to find a safe spot nearby
+                        bool foundSafe = false;
+                        float step = 32.0f; 
+                        std::vector<sf::Vector2f> offsets = {
+                            {0.f, step}, {0.f, -step}, {step, 0.f}, {-step, 0.f},
+                            {step, step}, {step, -step}, {-step, step}, {-step, -step}
+                        };
+
+                        for (const auto& off : offsets) {
+                            sf::Vector2f candidate = currentPos + off;
+                            if (candidate.x >= 0 && candidate.y >= 0 && 
+                                candidate.x < tmjMap->getWorldPixelWidth() && 
+                                candidate.y < tmjMap->getWorldPixelHeight()) {
+                                
+                                if (!tmjMap->feetBlockedAt(candidate)) {
+                                    character.setPosition(candidate);
+                                    Logger::info("✅ Unstuck successful! Moved to: " + 
+                                        std::to_string(candidate.x) + ", " + std::to_string(candidate.y));
+                                    foundSafe = true;
+                                    stuckTimer = 0.0f;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (!foundSafe) {
+                            Logger::error("❌ Failed to find safe spot. Resetting to spawn.");
+                            if (tmjMap->getSpawnX() && tmjMap->getSpawnY()) {
+                                character.setPosition(sf::Vector2f(*tmjMap->getSpawnX(), *tmjMap->getSpawnY()));
+                            }
+                            stuckTimer = 0.0f;
+                        }
+                    }
+                } else {
+                    stuckTimer = 0.0f;
+                }
+            } else {
+                stuckTimer = 0.0f;
+            }
+            // Update last pos for next frame
+            lastFramePos = character.getPosition();
+            // ======================================
         }
 
         if (character.getIsResting()) {
