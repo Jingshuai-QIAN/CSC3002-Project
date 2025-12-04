@@ -602,6 +602,8 @@ AppResult runApp(
 
     AppResult result = AppResult::QuitGame;   // Default: quit game
     bool endOfDayPopupShown = false;          // Ensure we only show the popup once
+    bool pendingEndOfDayCheck = false;        // NEW: 已经到“可以结束一天”，但还在等当前任务结束
+
 
     // Load initial tasks
     // Params: id, description, detailed instruction, achievement name, xp, energy
@@ -775,26 +777,49 @@ AppResult runApp(
 
         const float PASSIVE_DEPLETION_RATE = 10.0f / 30.0f;
         taskManager.modifyEnergy(-PASSIVE_DEPLETION_RATE * deltaTime);
-        // =====================================
+        
+        // === End-of-day EXP check (等任务 + 成就提示结束再弹窗) ===
+        // 1) 先记录：EXP 已经达到“可以结束一天”的条件
+        if (!endOfDayPopupShown &&
+            !pendingEndOfDayCheck &&
+            taskManager.getExp() >= taskManager.getMaxExp())
+        {
+            pendingEndOfDayCheck = true;
+        }
 
-        // === NEW: End-of-day EXP check ===
-        if (!endOfDayPopupShown && taskManager.getExp() >= taskManager.getMaxExp()) {
-            endOfDayPopupShown = true;
+        // 2) 当前是否在忙别的“任务动作”
+        bool isBusyWithTask =
+            dialogSys.isActive() ||          // 还在对话框
+            gameState.isEating   ||          // 正在吃饭
+            shoppingState.isShopping ||      // 正在便利店购物
+            isFainted            ||          // 晕倒动画中
+            waitingForEntranceConfirmation;  // 正在问“是否进入某建筑”
+
+        // 3) 只有当：已经满足结束条件 + 不在忙任务 + 成就提示已经结束，才弹结束弹窗
+        if (pendingEndOfDayCheck &&
+            !endOfDayPopupShown &&
+            !isBusyWithTask &&
+            g_achievementTimer <= 0.0f)      // ⭐ 确保 Achievement Popup 已经展示完
+        {
+            endOfDayPopupShown   = true;
+            pendingEndOfDayCheck = false;
 
             EndOfDayChoice choice = showEndOfDayPopup(renderer, modalFont);
 
             if (choice == EndOfDayChoice::BackToHome) {
-                // Player chose to go back to Home/Login
+                // 回到 Home/Login
                 result = AppResult::BackToLogin;
-                break;  // Leave the main game loop
+                break;
             } else if (choice == EndOfDayChoice::ExitGame) {
-                // Player closed the popup window / chose exit
+                // 直接退出游戏
                 result = AppResult::QuitGame;
                 renderer.quit();
                 break;
             }
-            // If choice == KeepExploring: just continue the game loop
+            // KeepExploring: 什么都不做，玩家继续在地图上走
         }
+
+
 
         // ========== 处理教授回应的逻辑（从App.cpp补充） ==========
         if (profResponseState.pending && !dialogSys.isActive()) {
