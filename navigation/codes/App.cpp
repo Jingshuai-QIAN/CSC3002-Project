@@ -602,11 +602,10 @@ AppResult runApp(
 
     AppResult result = AppResult::QuitGame;   // Default: quit game
     bool endOfDayPopupShown = false;          // Ensure we only show the popup once
-    bool pendingEndOfDayCheck = false;        // NEW: 已经到“可以结束一天”，但还在等当前任务结束
-
+    bool pendingEndOfDayCheck = false;        // NEW: 已达到“可以结束一天”，但还在等当前任务结束
 
     // Load initial tasks
-    // Params: id, description, detailed instruction, achievement name, xp, energy
+    // Params: id, description, detailed instruction, achievement name, points, energy
     
     // Sum = 100 XP Total
     taskManager.addTask("eat_food", 
@@ -645,11 +644,7 @@ AppResult runApp(
         "Bookworm", 
         25, 0);
 
-    taskManager.addTask("sprint_practice", 
-        "Learn to Sprint", 
-        "Hold the 'Z' key while moving to run faster.", 
-        "Speedster", 
-        10, 0);
+    // === REMOVED "sprint_practice" TASK ===
     // =============================================
     
     if (!renderer.initializeChefTexture()) {
@@ -777,49 +772,48 @@ AppResult runApp(
 
         const float PASSIVE_DEPLETION_RATE = 10.0f / 30.0f;
         taskManager.modifyEnergy(-PASSIVE_DEPLETION_RATE * deltaTime);
-        
-        // === End-of-day EXP check (等任务 + 成就提示结束再弹窗) ===
-        // 1) 先记录：EXP 已经达到“可以结束一天”的条件
-        if (!endOfDayPopupShown &&
-            !pendingEndOfDayCheck &&
-            taskManager.getExp() >= taskManager.getMaxExp())
-        {
+        // =====================================
+
+        // === NEW: End-of-day Check Logic (Teammate's update) ===
+        // 1) 先记录: Points 已经达到“可以结束一天”的条件
+        if (!endOfDayPopupShown && !pendingEndOfDayCheck && taskManager.getPoints() >= taskManager.getDailyGoal()) {
             pendingEndOfDayCheck = true;
         }
 
-        // 2) 当前是否在忙别的“任务动作”
-        bool isBusyWithTask =
-            dialogSys.isActive() ||          // 还在对话框
-            gameState.isEating   ||          // 正在吃饭
-            shoppingState.isShopping ||      // 正在便利店购物
-            isFainted            ||          // 晕倒动画中
-            waitingForEntranceConfirmation;  // 正在问“是否进入某建筑”
+        // 2) 当前是否在忙碌“任务动作”
+        bool isBusyWithTask = 
+            dialogSys.isActive() ||         // 还在对话框
+            gameState.isEating ||           // 正在吃饭
+            shoppingState.isShopping ||     // 正在便利店购物
+            isFainted ||                    // 晕倒动画中
+            waitingForEntranceConfirmation; // 正在问“是否进入某建筑”
 
-        // 3) 只有当：已经满足结束条件 + 不在忙任务 + 成就提示已经结束，才弹结束弹窗
-        if (pendingEndOfDayCheck &&
-            !endOfDayPopupShown &&
-            !isBusyWithTask &&
-            g_achievementTimer <= 0.0f)      // ⭐ 确保 Achievement Popup 已经展示完
+        // 3) 只有当: 已经满足结束条件 + 不在忙任务 + 成就提示已经结束, 才弹结束弹窗
+        if (pendingEndOfDayCheck && 
+            !endOfDayPopupShown && 
+            !isBusyWithTask && 
+            g_achievementTimer <= 0.0f) // ⭐ 确保 Achievement Popup 已经展示完
         {
-            endOfDayPopupShown   = true;
+            endOfDayPopupShown = true;
             pendingEndOfDayCheck = false;
 
             EndOfDayChoice choice = showEndOfDayPopup(renderer, modalFont);
 
             if (choice == EndOfDayChoice::BackToHome) {
+                // Player chose to go back to Home/Login
                 // 回到 Home/Login
                 result = AppResult::BackToLogin;
-                break;
+                break; // Leave the main game loop
             } else if (choice == EndOfDayChoice::ExitGame) {
+                // Player closed the popup window / chose exit
                 // 直接退出游戏
                 result = AppResult::QuitGame;
                 renderer.quit();
                 break;
             }
-            // KeepExploring: 什么都不做，玩家继续在地图上走
+            // If choice == KeepExploring: 什么都不做，玩家继续在地图上走
         }
-
-
+        // ========================================================
 
         // ========== 处理教授回应的逻辑（从App.cpp补充） ==========
         if (profResponseState.pending && !dialogSys.isActive()) {
@@ -1373,10 +1367,8 @@ AppResult runApp(
             // === NEW: Sprint Feature (Z Key) ===
             float speedMultiplier = 1.0f;
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Z)) {
-                speedMultiplier = 2.0f; // Walk 2x faster
-                // === NEW: Trigger Task Completion ===
-                handleTaskCompletion(taskManager, "sprint_practice");
-                // ===================================
+                speedMultiplier = 3.0f; // Walk 3x faster
+                // Removed Sprint Task call here
             }
             // Pass the modified deltaTime to make character move faster
             character.update(deltaTime * speedMultiplier, moveInput, 
@@ -1663,36 +1655,17 @@ AppResult runApp(
         energyNumText.setPosition(sf::Vector2f(20.f + 100.f, 60.f + 10.f)); // Center of bar
         renderer.getWindow().draw(energyNumText);
 
-        sf::RectangleShape expBarBg(sf::Vector2f(200.f, 10.f));
-        expBarBg.setPosition(sf::Vector2f(20.f, 85.f)); // Below Energy Bar
-        expBarBg.setFillColor(sf::Color(50, 50, 50));
-        expBarBg.setOutlineThickness(1);
-        expBarBg.setOutlineColor(sf::Color::White);
-        
-        // Calculate ratio
-        float expPct = static_cast<float>(taskManager.getExp()) / static_cast<float>(taskManager.getMaxExp());
-        if (expPct > 1.0f) expPct = 1.0f;
-
-        sf::RectangleShape expBarFg(sf::Vector2f(200.f * expPct, 10.f));
-        expBarFg.setPosition(sf::Vector2f(20.f, 85.f));
-        expBarFg.setFillColor(sf::Color(150, 0, 255)); // Purple
-
-        renderer.getWindow().draw(expBarBg);
-        renderer.getWindow().draw(expBarFg);
-
-        // === NEW: Numerical Display on EXP Bar ===
-        sf::Text expNumText(modalFont, "EXP: " + std::to_string(taskManager.getExp()) + "/" + std::to_string(taskManager.getMaxExp()), 10);
-        expNumText.setFillColor(sf::Color::White);
+        // === REPLACED EXP BAR WITH POINTS TEXT ===
+        sf::Text expNumText(modalFont, "Points: " + std::to_string(taskManager.getPoints()), 20);
+        expNumText.setFillColor(sf::Color::Cyan); // Cyan for points
         expNumText.setOutlineColor(sf::Color::Black);
-        expNumText.setOutlineThickness(1);
-        sf::FloatRect xpBounds = expNumText.getLocalBounds();
-        expNumText.setOrigin(sf::Vector2f(xpBounds.position.x + xpBounds.size.x/2.0f, xpBounds.position.y + xpBounds.size.y/2.0f));
-        expNumText.setPosition(sf::Vector2f(20.f + 100.f, 85.f + 5.f)); 
+        expNumText.setOutlineThickness(2);
+        expNumText.setPosition(sf::Vector2f(20.f, 90.f)); // Position where EXP bar used to be
         renderer.getWindow().draw(expNumText);
         // ===============================================
 
         // --- D. TASK LIST ---
-        float taskY = 110.f;
+        float taskY = 120.f;
         sf::Text taskHeader(modalFont, "Tasks:", 20);
         taskHeader.setPosition(sf::Vector2f(20.f, taskY));
         taskHeader.setFillColor(sf::Color::Cyan);
@@ -1703,30 +1676,29 @@ AppResult runApp(
         taskY += 30.f;
         activeTaskHitboxes.clear(); // Reset hitboxes for this frame
         for (const auto& t : taskManager.getTasks()) {
-            if (!t.isCompleted) {
-                sf::Text taskText(modalFont, "- " + t.description, 18);
-                taskText.setPosition(sf::Vector2f(25.f, taskY));
-                
-                // Highlight if mouse is hovering
-                sf::Vector2i mpos = sf::Mouse::getPosition(renderer.getWindow());
-                sf::FloatRect bounds = taskText.getGlobalBounds();
-                
-                // === FIXED SFML 3 CHECK HERE ===
-                if (bounds.contains(sf::Vector2f(static_cast<float>(mpos.x), static_cast<float>(mpos.y)))) {
-                    taskText.setFillColor(sf::Color::Yellow);
-                } else {
-                    taskText.setFillColor(sf::Color::White);
-                }
-
-                taskText.setOutlineColor(sf::Color::Black);
-                taskText.setOutlineThickness(1);
-                renderer.getWindow().draw(taskText);
-                
-                // Store hitbox for click detection in next frame
-                activeTaskHitboxes.push_back({bounds, t.detailedInstruction});
-
-                taskY += 25.f;
+            // === REMOVED "isCompleted" check so tasks always show ===
+            sf::Text taskText(modalFont, "- " + t.description, 18);
+            taskText.setPosition(sf::Vector2f(25.f, taskY));
+            
+            // Highlight if mouse is hovering
+            sf::Vector2i mpos = sf::Mouse::getPosition(renderer.getWindow());
+            sf::FloatRect bounds = taskText.getGlobalBounds();
+            
+            // === FIXED SFML 3 CHECK HERE ===
+            if (bounds.contains(sf::Vector2f(static_cast<float>(mpos.x), static_cast<float>(mpos.y)))) {
+                taskText.setFillColor(sf::Color::Yellow);
+            } else {
+                taskText.setFillColor(sf::Color::White);
             }
+
+            taskText.setOutlineColor(sf::Color::Black);
+            taskText.setOutlineThickness(1);
+            renderer.getWindow().draw(taskText);
+            
+            // Store hitbox for click detection in next frame
+            activeTaskHitboxes.push_back({bounds, t.detailedInstruction});
+
+            taskY += 25.f;
         }
         
         // --- E. FAINTED TEXT ---
