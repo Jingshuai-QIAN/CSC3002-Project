@@ -8,7 +8,7 @@ public:
     // Updates time based on delta time
     void update(float dt);
 
-    // Returns formatted string "HH:MM"
+    // Returns formatted string "Mon 9/1 08:00"
     std::string getFormattedTime() const;
     
     // Returns 0.0 (Darkest Night) to 1.0 (Full Daylight)
@@ -21,6 +21,11 @@ private:
     int hour;
     int minute;
     
-    // 1 real second = [2] game minutes
-    const float SECONDS_PER_GAME_MINUTE = 1.0f; 
+    // === Date System Variables ===
+    int month;
+    int day;
+    int weekday; // 0=Mon, 1=Tue, ... 6=Sun
+    
+    // 1 real second = 2 game minutes
+    const float SECONDS_PER_GAME_MINUTE = 0.5f; 
 };
