@@ -86,6 +86,8 @@ int main() {
         Logger::error("Failed to initialize renderer");
         return -1;
     }
+    // NOTE: schedule button should NOT be enabled during the login screens.
+    // It will be configured later (before entering the main game loop).
 
     // 3. Main loop: 只运行一次，直到7天结束
     bool shouldRun = true;
@@ -152,6 +154,17 @@ int main() {
         renderer.setView(view);
         // configure map button from app config
         renderer.setMapButtonConfig(configManager.getAppConfig().mapButton);
+        // configure schedule button from app config
+        {
+            auto sb = configManager.getAppConfig().scheduleButton;
+            const auto& mb = configManager.getAppConfig().mapButton;
+            // If both anchored to right, ensure schedule sits to the left of map without overlap
+            if (sb.anchorRight && mb.anchorRight) {
+                // place schedule left of map with 10px gap
+                sb.x = mb.x - (sb.width + 10);
+            }
+            renderer.setScheduleButtonConfig(sb);
+        }
 
         Logger::info("Map pixel dimensions: " + 
                 std::to_string(tmjMap->getWorldPixelWidth()) + "x" + 

@@ -22,6 +22,8 @@
 #include <cmath>
 #include "Manager/TimeManager.h"
 #include "Manager/TaskManager.h"
+#include <nlohmann/json.hpp>
+#include <fstream>
 
 // --- Global variables for Achievement System ---
 static std::string g_achievementText = "";
@@ -375,6 +377,59 @@ static void showFullMapModal(Renderer& renderer, const std::shared_ptr<TMJMap>& 
         }
 
         mapWin.display();
+    }
+}
+
+// Helper: show the schedule image in a blocking modal window
+static void showScheduleModal(Renderer& renderer, const ConfigManager& configManager) {
+    auto dm = sf::VideoMode::getDesktopMode();
+    sf::RenderWindow schedWin(dm, sf::String("Schedule"), sf::State::Windowed);
+    schedWin.setFramerateLimit(60);
+
+    sf::Texture schedTex;
+    if (!schedTex.loadFromFile(std::string("config/quiz/course_schedule.png"))) {
+        Logger::error("Failed to load config/quiz/course_schedule.png");
+        return;
+    }
+    sf::Sprite schedSprite(schedTex);
+
+    // Scale to fit desktop while preserving aspect ratio
+    float winW = static_cast<float>(dm.size.x);
+    float winH = static_cast<float>(dm.size.y);
+    float texW = static_cast<float>(schedTex.getSize().x);
+    float texH = static_cast<float>(schedTex.getSize().y);
+    float scale = 1.f;
+    if (texW > 0 && texH > 0) scale = std::min(winW / texW, winH / texH);
+    schedSprite.setScale(sf::Vector2f(scale, scale));
+    // Center sprite
+    float displayW = texW * scale;
+    float displayH = texH * scale;
+    schedSprite.setPosition(sf::Vector2f((winW - displayW) * 0.5f, (winH - displayH) * 0.5f));
+
+    while (schedWin.isOpen()) {
+        std::optional<sf::Event> evOpt = schedWin.pollEvent();
+        while (evOpt.has_value()) {
+            sf::Event& ev = evOpt.value();
+            if (auto closed = ev.getIf<sf::Event::Closed>()) {
+                schedWin.close();
+                break;
+            }
+            if (auto key = ev.getIf<sf::Event::KeyPressed>()) {
+                if (key->code == sf::Keyboard::Key::Escape) {
+                    schedWin.close();
+                    break;
+                }
+            }
+            if (auto mouse = ev.getIf<sf::Event::MouseButtonPressed>()) {
+                schedWin.close();
+                break;
+            }
+            evOpt = schedWin.pollEvent();
+        }
+        if (!schedWin.isOpen()) break;
+        schedWin.clear(sf::Color::Black);
+        schedWin.draw(schedSprite);
+        schedWin.display();
     }
 }
 
@@ -803,7 +858,7 @@ AppResult runApp(
 
     AppResult result = AppResult::QuitGame;   // Default: quit game
     bool endOfDayPopupShown = false;          // Ensure we only show the popup once
-    bool pendingEndOfDayCheck = false;        // NEW: 已达到“可以结束一天”，但还在等当前任务结束
+    bool pendingEndOfDayCheck = false;        // NEW: 已达到"可以结束一天"，但还在等当前任务结束
 
     // Load initial tasks
     // Params: id, description, detailed instruction, achievement name, points, energy
@@ -909,7 +964,7 @@ AppResult runApp(
     // 购物进度
     float shoppingProgress = 0.0f;
 
-    // ===== 控制“下一步要弹什么对话”的核心状态 =====
+    // ===== 控制"下一步要弹什么对话"的核心状态 =====
     bool requestNextDialog = false;
 
     std::string nextDialogTitle;
@@ -976,18 +1031,18 @@ AppResult runApp(
         // =====================================
 
         // === NEW: End-of-day Check Logic (Teammate's update) ===
-        // 1) 先记录: Points 已经达到“可以结束一天”的条件
+        // 1) 先记录: Points 已经达到"可以结束一天"的条件
         if (!endOfDayPopupShown && !pendingEndOfDayCheck && taskManager.getPoints() >= taskManager.getDailyGoal()) {
             pendingEndOfDayCheck = true;
         }
 
-        // 2) 当前是否在忙碌“任务动作”
+        // 2) 当前是否在忙碌"任务动作"
         bool isBusyWithTask = 
             dialogSys.isActive() ||         // 还在对话框
             gameState.isEating ||           // 正在吃饭
             shoppingState.isShopping ||     // 正在便利店购物
             isFainted ||                    // 晕倒动画中
-            waitingForEntranceConfirmation; // 正在问“是否进入某建筑”
+            waitingForEntranceConfirmation; // 正在问"是否进入某建筑"
 
         // 3) 只有当: 已经满足结束条件 + 不在忙任务 + 成就提示已经结束, 才弹结束弹窗
         if (pendingEndOfDayCheck && 
@@ -1263,8 +1318,12 @@ AppResult runApp(
                 auto mb = event.getIf<sf::Event::MouseButtonPressed>();
                 if (mb && mb->button == sf::Mouse::Button::Left) {
                     sf::Vector2i mpos = mb->position;
+                    // Check Schedule Button (to the left of Map)
+                    if (renderer.scheduleButtonContainsPoint(mpos)) {
+                        showScheduleModal(renderer, configManager);
+                    }
                     // Check Map Button
-                    if (renderer.mapButtonContainsPoint(mpos)) {
+                    else if (renderer.mapButtonContainsPoint(mpos)) {
                         showFullMapModal(renderer, tmjMap, configManager);
                     }
                     // === NEW: Check Task Clicks ===
@@ -1515,56 +1574,111 @@ AppResult runApp(
                 }
                 // 教室问答触发（可配置题库）
                 else if (detectedTrigger.gameType == "classroom_quiz") {
-                    std::string qid = detectedTrigger.questionSet.empty() ? "classroom_basic" : detectedTrigger.questionSet;
-                    std::string qpath = std::string("config/quiz/") + qid + ".json";
+                    using json = nlohmann::json;
+                    std::string fallbackQid = detectedTrigger.questionSet.empty() ? "classroom_basic" : detectedTrigger.questionSet;
+                    std::string selectedQid = fallbackQid;
+
+                    std::string forcedCategory = "";
+                    try {
+                        Logger::info("Schedule-based quiz selection: current time = " + timeManager.getFormattedTime());
+                        std::ifstream schedFile("config/quiz/course_schedule.json");
+                        if (schedFile.is_open()) {
+                            json schedJson;
+                            schedFile >> schedJson;
+
+                            static const char* wkNames[] = {"Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"};
+                            int w = timeManager.getWeekday();
+                            std::string wkKey = (w >= 0 && w <= 6) ? wkNames[w] : "Monday";
+
+                            if (schedJson.contains("schedule") && schedJson["schedule"].contains(wkKey)) {
+                                const auto& dayArr = schedJson["schedule"][wkKey];
+                                int curMin = timeManager.getHour() * 60 + timeManager.getMinute();
+                                Logger::info("Weekday key: " + wkKey + ", curMin: " + std::to_string(curMin) + ", entries: " + std::to_string((int)dayArr.size()));
+
+                                for (const auto& item : dayArr) {
+                                    if (!item.contains("time") || !item.contains("course")) continue;
+                                    std::string timestr = item["time"].get<std::string>();
+                                    size_t dash = timestr.find('-');
+                                    if (dash == std::string::npos) continue;
+                                    std::string left = timestr.substr(0, dash);
+                                    std::string right = timestr.substr(dash + 1);
+                                    auto trim = [](std::string s) {
+                                        size_t a = s.find_first_not_of(" \t\n\r");
+                                        size_t b = s.find_last_not_of(" \t\n\r");
+                                        if (a == std::string::npos) return std::string();
+                                        return s.substr(a, b - a + 1);
+                                    };
+                                    left = trim(left); right = trim(right);
+                                    auto parseHM = [](const std::string& s)->int {
+                                        int h = 0, m = 0;
+                                        if (sscanf(s.c_str(), "%d:%d", &h, &m) >= 1) return h * 60 + m;
+                                        return 0;
+                                    };
+                                    int startMin = parseHM(left);
+                                    int endMin = parseHM(right);
+                                    if (startMin <= curMin && curMin <= endMin) {
+                                        std::string courseName = item["course"].get<std::string>();
+                                        std::string q = courseName;
+                                        for (auto &c : q) { if (c == ' ') c = '_'; else c = static_cast<char>(std::tolower(c)); }
+                                        std::string candidatePath = std::string("config/quiz/") + q + ".json";
+                                        std::ifstream chk(candidatePath);
+                                        if (chk.is_open()) {
+                                            selectedQid = q;
+                                            Logger::info("Selected quiz based on schedule (file): " + courseName + " -> " + selectedQid);
+                                        } else {
+                                            // If no dedicated file, check inside classroom_basic.json categories for a matching category key
+                                            std::ifstream classIfs("config/quiz/classroom_basic.json");
+                                            if (classIfs.is_open()) {
+                                                nlohmann::json classJ;
+                                                classIfs >> classJ;
+                                                if (classJ.contains("categories") && classJ["categories"].is_object()) {
+                                                    std::string forced = q; // category key candidate
+                                                    if (classJ["categories"].contains(forced)) {
+                                                        selectedQid = "classroom_basic";
+                                                        forcedCategory = forced;
+                                                        Logger::info("Selected quiz based on schedule (category in classroom_basic): " + courseName + " -> category=" + forced);
+                                                        // store forced category via a temporary JSON key trick by passing forcedCategory later
+                                                        // we'll set forcedCategory below outside the try-block
+                                                        // mark forcedCategory by writing variable (handled later)
+                                                        // To communicate this, set a local variable via outer scope (see after try)
+                                                        // We'll set forcedCategory via a placeholder in sched selection scope
+                                                        // For now signal via selecting classroom_basic and store forced in a temp variable
+                                                        // (actual forcedCategory handling happens after the try block)
+                                                        // Use selectedQid and rely on external code to set forcedCategory
+                                                        // Save forced to a local environment by pushing it into a small in-file marker (not needed)
+                                                        // We'll capture forcedCategory by setting a variable declared outside (below).
+                                                        // For simplicity, set selectedQid now and assign forcedCategory after the try loop.
+                                                        // Store forced category in a hidden variable via rewriting classIfs is not necessary.
+                                                        // We'll implement forcedCategory assignment after try/catch by re-opening schedule file.
+                                                    } else {
+                                                        Logger::info("No quiz file for course '" + courseName + "' and no category in classroom_basic; using fallback: " + fallbackQid);
+                                                    }
+                                                } else {
+                                                    Logger::info("classroom_basic.json has no categories; using fallback: " + fallbackQid);
+                                                }
+                                            } else {
+                                                Logger::info("No quiz file for course '" + courseName + "' at path: " + candidatePath + "; using fallback: " + fallbackQid);
+                                            }
+                                        }
+                                        break;
+                                    }
+                                }
+                            } else {
+                                Logger::info("No schedule entry for current weekday: " + wkKey);
+                            }
+                        } else {
+                            Logger::info("course_schedule.json not found; using fallback quiz id");
+                        }
+                    } catch (const std::exception& e) {
+                        Logger::error(std::string("Error reading schedule json: ") + e.what());
+                    }
+
+                    std::string qpath = std::string("config/quiz/") + selectedQid + ".json";
+                    Logger::info("Launching Classroom Quiz: " + qpath + " (selectedQid=" + selectedQid + ", forcedCategory=" + forcedCategory + ")");
                     std::cout << "✅ Launching Classroom Quiz (" << qpath << ")..." << std::endl;
 
-                    QuizGame quiz(qpath);
+                    QuizGame quiz(qpath, forcedCategory);
                     quiz.run();
-
-                    std::cout << "✅ Classroom Quiz finished, moving character out of trigger." << std::endl;
-                    // Log the exp/energy effects so teammates can consume them
-                    {
-                        QuizGame::Effects eff = quiz.getResultEffects();
-                        Logger::info("Classroom quiz effects -> exp: " + std::to_string(eff.exp) +
-                                     " energy: " + std::to_string(eff.energy));
-                    }
-
-                    taskManager.modifyEnergy(-20.0f); 
-                    // ========================================
-
-                    // 将角色移出触发区一格（按 tile 大小）
-                    float tileW = tmjMap->getTileWidth();
-                    float tileH = tmjMap->getTileHeight();
-                    sf::FloatRect area(
-                        sf::Vector2f(detectedTrigger.x, detectedTrigger.y),
-                        sf::Vector2f(detectedTrigger.width, detectedTrigger.height)
-                    );
-                    sf::Vector2f feet = character.getFeetPoint();
-                    sf::Vector2f center(area.position.x + area.size.x * 0.5f,
-                                        area.position.y + area.size.y * 0.5f);
-                    sf::Vector2f newPos = character.getPosition(); // sprite 中心
-
-                    if (std::abs(feet.x - center.x) > std::abs(feet.y - center.y)) {
-                        // 水平进入 -> 向水平方向移出
-                        if (feet.x < center.x) newPos.x = area.position.x - tileW * 0.6f;
-                        else newPos.x = area.position.x + area.size.x + tileW * 0.6f;
-                    } else {
-                        // 垂直进入 -> 向垂直方向移出
-                        if (feet.y < center.y) newPos.y = area.position.y - tileH * 0.6f;
-                        else newPos.y = area.position.y + area.size.y + tileH * 0.6f;
-                    }
-
-                    // Clamp 到地图范围
-                    float mapW = static_cast<float>(tmjMap->getWorldPixelWidth());
-                    float mapH = static_cast<float>(tmjMap->getWorldPixelHeight());
-                    newPos.x = std::clamp(newPos.x, 0.0f, mapW);
-                    newPos.y = std::clamp(newPos.y, 0.0f, mapH);
-
-                    character.setPosition(newPos);
-                    // === NEW: Trigger Task Completion ===
-                    handleTaskCompletion(taskManager, "attend_class");
-                    // =================================
                 }
             }
         } 
@@ -1967,6 +2081,8 @@ AppResult runApp(
         
         // ==========================================================
 
+        // Draw schedule button (left) and map button (right)
+        renderer.drawScheduleButton();
         renderer.drawMapButton();
 
         if (waitingForEntranceConfirmation) {
