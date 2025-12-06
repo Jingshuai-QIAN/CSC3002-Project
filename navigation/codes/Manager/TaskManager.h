@@ -66,6 +66,7 @@ public:
         if (currentEnergy > 100.0f) currentEnergy = 100.0f;
     }
 
+
 private:
     std::vector<Task> tasks;
     long long currentPoints; 

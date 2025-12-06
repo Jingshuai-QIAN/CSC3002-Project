@@ -87,10 +87,9 @@ int main() {
         return -1;
     }
 
-    // 3. Main loop: we can come back to Login screen multiple times
-    while (true) {
-        // Run login / home screen on the same window.
-        // If it returns false, the player chose to exit, so we quit before loading the map.
+    // 3. Main loop: 只运行一次，直到7天结束
+    bool shouldRun = true;
+    while (shouldRun) {
         if (!runLoginScreen(renderer)) {
             renderer.cleanup();
             return 0;
@@ -179,13 +178,8 @@ int main() {
         character.cleanup();
         mapLoader.cleanup();
 
-        if (appResult == AppResult::QuitGame) {
-            // Quit the whole application
-            break;
-        } else if (appResult == AppResult::BackToLogin) {
-            // Go back to the top of the while-loop and show Login/Home again
-            continue;
-        }
+        // 无论结果如何都退出（因为7天已结束）
+        shouldRun = false;
     }
 
     // 4. Final renderer cleanup

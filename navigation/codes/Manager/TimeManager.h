@@ -16,6 +16,9 @@ public:
 
     int getHour() const { return hour; }
 
+    int getDay() const { return day; }
+
+
 private:
     float accumulator;
     int hour;

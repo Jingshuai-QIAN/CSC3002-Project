@@ -571,6 +571,202 @@ static bool isCharacterInLawn(const Character& character, const TMJMap* map) {
     return false;
 }
 
+// 新增：计算最终评级
+FinalResult calculateFinalResult(int totalPoints) {
+    FinalResult result;
+    result.totalPoints = totalPoints;
+
+    // 计算星级（1-5）
+    if (totalPoints >= 300) {
+        result.starCount = 5;
+        result.grade = Grade::A;
+    } else if (totalPoints >= 225) {
+        result.starCount = 4;
+        result.grade = Grade::B;
+    } else if (totalPoints >= 150) {
+        result.starCount = 3;
+        result.grade = Grade::C;
+    } else if (totalPoints >= 75) {
+        result.starCount = 2;
+        result.grade = Grade::D;
+    } else {
+        result.starCount = 1;
+        result.grade = Grade::F;
+    }
+    return result;
+}
+
+bool isFinalResultShown = false;     // 结算面板显示标记
+bool pendingEndOfDayCheck = false;   // 结束检查标记
+bool endOfDayPopupShown = false;     // 结束弹窗标记
+
+
+// 新增：显示结算界面
+bool showFinalResultScreen(Renderer& renderer, const FinalResult& result) {
+    sf::RenderWindow& window = renderer.getWindow();
+    sf::Font font;
+    if (!font.openFromFile("fonts/arial.ttf")) {
+        Logger::error("Failed to load font for final result");
+        return true;
+    }
+
+    //  独立加载结束面板背景（复用素材但独立控制） 
+    sf::Texture bgTexture;
+    if (!bgTexture.loadFromFile("textures/dialog_bg.png")) { // 复用素材文件
+        Logger::error("Failed to load dialog_bg.png");
+        return true;
+    }
+    sf::Sprite bgSprite(bgTexture);
+
+    //  独立计算结束面板的缩放和居中（核心解耦逻辑）
+    // 目标尺寸：窗口的 70% 宽高（可独立调整，不影响DialogSystem）
+    const float PANEL_SCALE_RATIO = 0.7f; 
+    sf::Vector2u windowSize = window.getSize();
+    sf::Vector2u bgTexSize = bgTexture.getSize();
+
+    // 计算缩放比例（等比缩放，适配窗口70%尺寸）
+    float scaleX = (windowSize.x * PANEL_SCALE_RATIO) / bgTexSize.x;
+    float scaleY = (windowSize.y * PANEL_SCALE_RATIO) / bgTexSize.y;
+    float finalScale = std::min(scaleX, scaleY); // 等比缩放，避免拉伸
+
+    // 设置背景缩放（独立于DialogSystem的缩放）
+    bgSprite.setScale(sf::Vector2f(finalScale, finalScale));
+
+    // 计算居中位置（独立计算，不依赖DialogSystem的居中逻辑）
+    sf::FloatRect bgBounds = bgSprite.getGlobalBounds();
+    float bgX = (windowSize.x - bgBounds.size.x) / 2.0f;  
+    float bgY = (windowSize.y - bgBounds.size.y) / 2.0f; 
+    bgSprite.setPosition(sf::Vector2f(bgX, bgY));
+
+    // 等级文本（独立排版）
+    sf::Text gradeText(font, "", 36);
+    std::string gradeStr;
+    switch (result.grade) {
+        case Grade::A: gradeStr = "A"; break;
+        case Grade::B: gradeStr = "B"; break;
+        case Grade::C: gradeStr = "C"; break;
+        case Grade::D: gradeStr = "D"; break;
+        case Grade::F: gradeStr = "F"; break;
+    }
+    gradeText.setString("You got an " + gradeStr + " in the game!");
+    gradeText.setFillColor(sf::Color::White);
+    gradeText.setCharacterSize(36);
+    // 文本居中（相对于面板）
+    sf::FloatRect gradeBounds = gradeText.getLocalBounds();
+    gradeText.setOrigin(sf::Vector2f(gradeBounds.size.x / 2, gradeBounds.size.y / 2));
+    gradeText.setPosition(sf::Vector2f(
+        windowSize.x / 2.0f,          // 窗口水平居中
+        bgY + bgBounds.size.y * 0.3f  // 面板垂直30%位置（修复：height → size.y）
+    ));
+
+    //  星星显示
+    const float starSize = 50.f;
+    sf::Texture starYTexture, starGTexture;
+    if (!starYTexture.loadFromFile("textures/star_y.png") || !starGTexture.loadFromFile("textures/star_g.png")) {
+        Logger::error("Failed to load star textures");
+        return true;
+    }
+    std::vector<sf::Sprite> stars;
+    // 星星区域居中
+    float starStartX = (windowSize.x - (starSize * 5 + 20.f * 4)) / 2;
+    float starY = bgY + bgBounds.size.y * 0.5f;
+    for (int i = 0; i < 5; ++i) {
+        sf::Sprite star(i < result.starCount ? starYTexture : starGTexture);
+        star.setScale(sf::Vector2f(
+            starSize / starYTexture.getSize().x, 
+            starSize / starYTexture.getSize().y
+        ));
+        star.setPosition(sf::Vector2f(
+            starStartX + i * (starSize + 20.f), 
+            starY
+        ));
+        stars.push_back(star);
+    }
+
+    // 双按钮布局（退出+重来）
+    const float btnWidth = 180.f;  // 按钮宽度（缩小一点适配双按钮）
+    const float btnHeight = 60.f;  // 按钮高度
+
+    // 按钮2：退出（深棕色）
+    sf::RectangleShape exitBtn(sf::Vector2f(btnWidth, btnHeight));
+    exitBtn.setFillColor(sf::Color(139, 69, 19)); // 深棕色
+    exitBtn.setOutlineColor(sf::Color(80, 40, 10));
+    exitBtn.setOutlineThickness(2.f);
+
+    // 双按钮居中布局（整体居中，左右分布）
+    float btnX = (windowSize.x - btnWidth) / 2;  // 水平居中
+    float btnY = bgY + bgBounds.size.y * 0.7f;    // 垂直位置（面板70%处）
+    exitBtn.setPosition(sf::Vector2f(btnX, btnY));
+
+
+    // 按钮文本：退出
+    sf::Text exitText(font, "Exit", 24);
+    exitText.setFillColor(sf::Color::White);
+    sf::FloatRect exitTextBounds = exitText.getLocalBounds();
+    exitText.setOrigin(sf::Vector2f(exitTextBounds.size.x / 2, exitTextBounds.size.y / 2));
+    exitText.setPosition(sf::Vector2f(
+        exitBtn.getPosition().x + btnWidth / 2,
+        exitBtn.getPosition().y + btnHeight / 2
+    ));
+
+    // 事件循环（双按钮交互）
+    sf::View originalView = window.getView();
+    window.setView(window.getDefaultView());
+
+    bool shouldExit = false;
+    bool isRunning = true;
+
+    while (window.isOpen() && isRunning) {
+        std::optional<sf::Event> event;
+        while ((event = window.pollEvent()).has_value()) {
+            // 窗口关闭
+            if (event->is<sf::Event::Closed>()) {
+                window.close();
+                isRunning = false;
+                shouldExit = true;
+            }
+
+            // 鼠标点击事件（仅检测 Exit 按钮）
+            if (const auto* mouseEvent = event->getIf<sf::Event::MouseButtonPressed>()) {
+                if (mouseEvent->button == sf::Mouse::Button::Left) {
+                    sf::Vector2f mousePos = window.mapPixelToCoords(
+                        sf::Vector2i(mouseEvent->position.x, mouseEvent->position.y)
+                    );
+
+                    // 仅处理退出按钮点击
+                    if (exitBtn.getGlobalBounds().contains(mousePos)) {
+                        shouldExit = true;
+                        isRunning = false;
+                    }
+                }
+            }
+        }
+
+        //  鼠标悬停效果
+        sf::Vector2i mousePixelPos = sf::Mouse::getPosition(window);
+        sf::Vector2f mouseWorldPos = window.mapPixelToCoords(mousePixelPos);
+        if (exitBtn.getGlobalBounds().contains(mouseWorldPos)) {
+            exitBtn.setFillColor(sf::Color(150, 80, 30));
+        } else {
+            exitBtn.setFillColor(sf::Color(139, 69, 19));
+        }
+
+
+        // 独立渲染
+        window.clear(sf::Color(40, 40, 40));
+        window.draw(bgSprite);
+        window.draw(gradeText);
+        for (const auto& star : stars) window.draw(star);
+        window.draw(exitBtn);
+        window.draw(exitText);
+        window.display();
+    }
+
+    // 恢复视图（防止影响后续游戏渲染）
+    window.setView(originalView);
+    return shouldExit;
+}
+
 // 教授回应状态结构体（从App.cpp补充）
 struct ProfessorResponseState {
     bool pending = false;
@@ -587,6 +783,8 @@ struct TaskHitbox {
     std::string detailText;
 };
 
+
+
 AppResult runApp(
     Renderer& renderer,
     MapLoader& mapLoader,
@@ -595,6 +793,9 @@ AppResult runApp(
     sf::View& view,
     ConfigManager& configManager
 ) {
+
+    int currentDay = 1;               // 初始天数
+    bool isFinalResultShown = false;  // 是否显示过最终结果
     auto& inputManager = InputManager::getInstance();
     // === NEW: Initialize Systems (Time & Tasks) ===
     TimeManager timeManager;
@@ -807,14 +1008,26 @@ AppResult runApp(
             } else if (choice == EndOfDayChoice::ExitGame) {
                 // Player closed the popup window / chose exit
                 // 直接退出游戏
-                result = AppResult::QuitGame;
+                AppResult appResult = AppResult::QuitGame;
                 renderer.quit();
                 break;
             }
             // If choice == KeepExploring: 什么都不做，玩家继续在地图上走
         }
         // ========================================================
+        if (timeManager.getFormattedTime() == "23:59" && !isFinalResultShown) {
+            // 触发结算
+            FinalResult result;
+            result.starCount = (taskManager.getPoints() >= taskManager.getDailyGoal()) ? 5 : taskManager.getPoints() / 100;
+            result.grade = (result.starCount >= 5) ? Grade::A : Grade::F;
 
+            // 调用结束面板（仅返回是否退出）
+            bool shouldExit = showFinalResultScreen(renderer, result);
+            if (shouldExit) {
+                return AppResult::QuitGame; // 点击退出则退出游戏
+            }
+            isFinalResultShown = true;
+        }
         // ========== 处理教授回应的逻辑（从App.cpp补充） ==========
         if (profResponseState.pending && !dialogSys.isActive()) {
             Logger::info("🔄 Processing professor response - pending: true, option: " + 
@@ -1544,6 +1757,21 @@ AppResult runApp(
             }
         }
 
+        // 新增：检查是否达到7天
+        if (currentDay > 7 && !isFinalResultShown) {
+            FinalResult result = calculateFinalResult(taskManager.getPoints());
+            bool shouldExit = showFinalResultScreen(renderer, result);
+            if (shouldExit) {
+                return AppResult::QuitGame; // 仅处理退出
+            }
+            isFinalResultShown = true;
+        }
+        // 新增：检测天数变化（假设TimeManager有获取当前天数的方法）
+        if (timeManager.getDay() > currentDay) {
+            currentDay = timeManager.getDay();
+            Logger::info("Day " + std::to_string(currentDay) + " started");
+        }
+
         // ========== 相机更新（改进：始终以角色为中心，避免弹窗时切换到地图中心） ==========
         renderer.updateCamera(character.getPosition(),
                               tmjMap->getWorldPixelWidth(),
@@ -1814,5 +2042,5 @@ AppResult runApp(
 
         renderer.present();
     }
-    return result;
+    return AppResult::QuitGame;
 }

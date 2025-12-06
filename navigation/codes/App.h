@@ -24,9 +24,25 @@ namespace sf {
 
 // What the main app loop decided to do when it finishes.
 enum class AppResult {
-    QuitGame,   // Player closed the window or chose to exit
-    BackToLogin // Player finished the day and chose "Back to Home"
+    QuitGame,
+    BackToLogin,
+    ShowFinalResult // 新增：触发结算界面
 };
+
+enum class Grade {
+    A, B, C, D, F
+};
+
+struct FinalResult {
+    int totalPoints;
+    Grade grade;
+    int starCount; // 1-5
+};
+
+enum class FinalResultAction {
+    Exit,    // 退出游戏
+};
+
 
 // Run the main game loop (one "day" on campus)
 AppResult runApp(
