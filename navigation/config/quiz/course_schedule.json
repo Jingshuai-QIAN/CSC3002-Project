@@ -1,0 +1,64 @@
+{
+  "times": [
+    "8:30 - 9:50",
+    "10:30 - 11:50",
+    "13:30 - 14:50",
+    "15:30 - 17:50"
+  ],
+  "locations": [
+    "TA",
+    "TB",
+    "TC",
+    "TD",
+    "TxA",
+    "TxB",
+    "TxC",
+    "TxD",
+    "Zhi Xin",
+    "Cheng Dao",
+    "Zhi Ren",
+    "Le Tian"
+  ],
+  "courses": [
+    "Programming",
+    "Math",
+    "Physics",
+    "Chemistry",
+    "Biology",
+    "History",
+    "Geography"
+  ],
+  "schedule": {
+    "Monday": [
+      { "time": "8:30 - 9:50", "course": "Programming", "location": "TA" },
+      { "time": "10:30 - 11:50", "course": "History", "location": "TB" },
+      { "time": "13:30 - 14:50", "course": "Chemistry", "location": "TC" },
+      { "time": "15:30 - 17:50", "course": "Biology", "location": "TD" }
+    ],
+    "Tuesday": [
+      { "time": "8:30 - 9:50", "course": "Math", "location": "TB" },
+      { "time": "10:30 - 11:50", "course": "Programming", "location": "TC" },
+      { "time": "13:30 - 14:50", "course": "Biology", "location": "TD" },
+      { "time": "15:30 - 17:50", "course": "Geography", "location": "TA" }
+    ],
+    "Wednesday": [
+      { "time": "8:30 - 9:50", "course": "Physics", "location": "TC" },
+      { "time": "10:30 - 11:50", "course": "Math", "location": "TD" },
+      { "time": "13:30 - 14:50", "course": "History", "location": "TA" },
+      { "time": "15:30 - 17:50", "course": "Chemistry", "location": "TB" }
+    ],
+    "Thursday": [
+      { "time": "8:30 - 9:50", "course": "Chemistry", "location": "TD" },
+      { "time": "10:30 - 11:50", "course": "Physics", "location": "TA" },
+      { "time": "13:30 - 14:50", "course": "Programming", "location": "TB" },
+      { "time": "15:30 - 17:50", "course": "History", "location": "TC" }
+    ],
+    "Friday": [
+      { "time": "8:30 - 9:50", "course": "Biology", "location": "TA" },
+      { "time": "10:30 - 11:50", "course": "Chemistry", "location": "TB" },
+      { "time": "13:30 - 14:50", "course": "Math", "location": "TC" },
+      { "time": "15:30 - 17:50", "course": "Programming", "location": "TD" }
+    ]
+  }
+}
+
