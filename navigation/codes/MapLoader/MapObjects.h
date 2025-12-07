@@ -87,6 +87,7 @@ struct GameTriggerArea {
     std::string name;             // 区域名称（如"bookstore_game"）
     std::string gameType;         // 小游戏类型（用于区分不同游戏）
     std::string questionSet;      // 可选：题库 id（e.g. "classroom_basic"）
+    sf::FloatRect rect;           // 区域的矩形框，用于碰撞检测
 };
 
 // 添加Chef对象结构
@@ -166,4 +167,13 @@ struct ShopTrigger {
     std::string name;      // familymart_door_1 / 2
     std::string type;      // convenience
     sf::FloatRect rect;   // 交互区域（世界坐标）
+};
+
+// 重生点结构
+struct RespawnPoint {
+    std::string name;      // rebirth_point
+    sf::Vector2f position; // 重生位置
+    int maxCount;          // 最大重生次数（从 count 属性读取）
+    
+    RespawnPoint() : maxCount(3) {} // 默认3次
 };
