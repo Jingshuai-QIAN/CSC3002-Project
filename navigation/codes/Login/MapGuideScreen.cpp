@@ -219,6 +219,8 @@ bool runMapGuideScreen(Renderer& renderer)
             window.draw(text);
         }
 
+        // Do not draw HUD buttons on the tutorial/map-guide overlay window.
+
         window.display();
     }
 

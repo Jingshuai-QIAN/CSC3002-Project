@@ -472,6 +472,8 @@ bool runLoginScreen(Renderer& renderer)
             window.draw(textContinue);
         }
 
+        // HUD buttons are not drawn on the login screens.
+
         window.display();
     }
 
