@@ -153,16 +153,10 @@ static bool detectEntranceTrigger(const Character& character, const TMJMap* map,
     sf::Vector2f feet = character.getFeetPoint();
     for (const auto& a : map->getEntranceAreas()) {
         sf::FloatRect rect(sf::Vector2f(a.x, a.y), sf::Vector2f(a.width, a.height));
-        if (!rect.contains(feet)) continue;
-        sf::Vector2f center(a.x + a.width * 0.5f, a.y + a.height * 0.5f);
-        sf::Vector2f v = center - feet;
-        Character::Direction desired;
-        if (std::abs(v.x) > std::abs(v.y)) {
-            desired = v.x > 0 ? Character::Direction::Right : Character::Direction::Left;
-        } else {
-            desired = v.y > 0 ? Character::Direction::Down : Character::Direction::Up;
-        }
-        if (desired == character.getCurrentDirection()) {
+        
+        // 完全移除朝向要求：只要角色在入口区域内就触发
+        // 这样可以避免加速时因为朝向不对或移动过快而无法触发的问题
+        if (rect.contains(feet)) {
             outArea = a;
             return true;
         }
@@ -170,17 +164,20 @@ static bool detectEntranceTrigger(const Character& character, const TMJMap* map,
     return false;
 }
 
+// 修复 GameTriggerArea 的 rect 使用问题
 static bool detectGameTrigger(const Character& character, const TMJMap* map, GameTriggerArea& outArea) {
     if (!map) return false;
-    sf::Vector2f feet = character.getFeetPoint(); 
+
+    sf::Vector2f feet = character.getFeetPoint();
     for (const auto& gta : map->getGameTriggers()) {
-        // 检测角色是否在触发区域内
-        sf::FloatRect rect(sf::Vector2f(gta.x, gta.y), sf::Vector2f(gta.width, gta.height));
+        sf::FloatRect rect(sf::Vector2f(gta.x, gta.y), sf::Vector2f(gta.width, gta.height)); // 修正构造方式
         if (rect.contains(feet)) {
             outArea = gta;
+            Logger::info("Auto-triggering game for: " + gta.name);
             return true;
         }
     }
+
     return false;
 }
 
@@ -204,53 +201,25 @@ static bool detectProfessorInteraction(const Character& character, const TMJMap*
     return false;
 }
 
+// 检测商店触发区域（用于自动触发对话框）
 static bool detectShopTrigger(const Character& character, const TMJMap* map, ShopTrigger& outShop) {
     if (!map) {
         Logger::debug("detectShopTrigger: map is null");
         return false;
     }
-    
+
     sf::Vector2f feet = character.getFeetPoint();
-    Logger::debug("detectShopTrigger: character feet at (" + 
-                  std::to_string(feet.x) + "," + std::to_string(feet.y) + ")");
-    
     const auto& shopTriggers = map->getShopTriggers();
-    Logger::info("detectShopTrigger: " + std::to_string(shopTriggers.size()) + " shop triggers total");
-    
+
     for (const auto& shop : shopTriggers) {
-        Logger::debug("detectShopTrigger: checking Shop '" + shop.name + 
-                     "' rect (" + std::to_string(shop.rect.position.x) + "," + 
-                     std::to_string(shop.rect.position.y) + ") size (" + 
-                     std::to_string(shop.rect.size.x) + "," + 
-                     std::to_string(shop.rect.size.y) + ")");
-        
+        // 检测所有商店触发区域，包括 familymart
         if (shop.rect.contains(feet)) {
-            // 检查是否面向商店中心
-            sf::Vector2f center(
-                shop.rect.position.x + shop.rect.size.x / 2.0f,
-                shop.rect.position.y + shop.rect.size.y / 2.0f
-            );
-            sf::Vector2f dir = center - feet;
-            
-            // 计算期望的朝向
-            Character::Direction desired = (std::abs(dir.x) > std::abs(dir.y)) 
-                ? (dir.x > 0 ? Character::Direction::Right : Character::Direction::Left)
-                : (dir.y > 0 ? Character::Direction::Down : Character::Direction::Up);
-            
-            Logger::debug("detectShopTrigger: Shop contains feet, desired direction: " + 
-                         std::to_string(static_cast<int>(desired)) + 
-                         ", character direction: " + 
-                         std::to_string(static_cast<int>(character.getCurrentDirection())));
-            
-            if (desired == character.getCurrentDirection()) {
-                outShop = shop;
-                Logger::info("detectShopTrigger: success - matched Shop '" + shop.name + "'");
-                return true;
-            }
+            outShop = shop;
+            Logger::info("Detected shop trigger area: " + shop.name);
+            return true;
         }
     }
-    
-    Logger::debug("detectShopTrigger: no matching Shop found");
+
     return false;
 }
 
@@ -880,7 +849,7 @@ AppResult runApp(
         "Rest on Lawn", 
         "Walk onto the green lawn before the library. Press E to rest and recover energy.", 
         "Nature Lover", 
-        10, 0);
+        10, 0); 
     
     taskManager.addTask("buy_item", 
         "Buy Item at FamilyMart", 
@@ -988,6 +957,12 @@ AppResult runApp(
     // === NEW: Fainting State ===
     bool isFainted = false;
     float faintTimer = 0.0f;
+    bool isBlackScreen = false;  // 黑屏状态
+    float blackScreenTimer = 0.0f;  // 黑屏计时器
+    int faintCount = 0;  // 晕倒次数
+    bool showFaintReminder = false;  // 是否显示晕倒提醒
+    float faintReminderTimer = 0.0f;  // 提醒显示计时器（5秒后自动关闭）
+    bool isExpelled = false;  // 是否被退学
     // ==========================
 
     // 入口确认状态
@@ -1030,6 +1005,16 @@ AppResult runApp(
         taskManager.modifyEnergy(-PASSIVE_DEPLETION_RATE * deltaTime);
         // =====================================
 
+        // 处理提醒计时器（5秒后自动关闭）
+        if (showFaintReminder) {
+            faintReminderTimer += deltaTime;
+            if (faintReminderTimer >= 5.0f) {
+                showFaintReminder = false;
+                faintReminderTimer = 0.0f;
+                Logger::info("Faint reminder auto-closed after 5 seconds");
+            }
+        }
+
         // === NEW: End-of-day Check Logic (Teammate's update) ===
         // 1) 先记录: Points 已经达到"可以结束一天"的条件
         if (!endOfDayPopupShown && !pendingEndOfDayCheck && taskManager.getPoints() >= taskManager.getDailyGoal()) {
@@ -1042,6 +1027,7 @@ AppResult runApp(
             gameState.isEating ||           // 正在吃饭
             shoppingState.isShopping ||     // 正在便利店购物
             isFainted ||                    // 晕倒动画中
+            isExpelled ||                   // 被退学
             waitingForEntranceConfirmation; // 正在问"是否进入某建筑"
 
         // 3) 只有当: 已经满足结束条件 + 不在忙任务 + 成就提示已经结束, 才弹结束弹窗
@@ -1273,23 +1259,162 @@ AppResult runApp(
 
         // === NEW: Fainting Logic Check ===
         // Must not be currently eating/interacting/fainted
-        if (!isFainted && !gameState.isEating && !dialogSys.isActive()) {
+        if (!isFainted && !isBlackScreen && !gameState.isEating && !dialogSys.isActive() && !isExpelled) {
             if (taskManager.getEnergy() <= 0) {
                 isFainted = true;
                 faintTimer = 0.0f;
+                isBlackScreen = false;
+                blackScreenTimer = 0.0f;
+                faintCount++;  // 增加晕倒次数
                 // Force character direction Up (Visual for passing out)
                 character.setCurrentDirection(Character::Direction::Up);
-                Logger::info("Character passed out due to lack of energy!");
+                Logger::info("Character passed out due to lack of energy! Faint count: " + std::to_string(faintCount));
+                
+                // 检查是否超过最大次数
+                const auto& respawnPoint = tmjMap->getRespawnPoint();
+                if (faintCount > respawnPoint.maxCount) {
+                    isExpelled = true;
+                    Logger::error("Character has been expelled due to too many faints!");
+                }
             }
         }
         
-        // Handle Faint Timer
+        // Handle Faint Timer and Black Screen
         if (isFainted) {
             faintTimer += deltaTime;
-            if (faintTimer > 6.0f) { 
-                isFainted = false;
-                taskManager.modifyEnergy(5.0f); 
-                Logger::info("Character woke up.");
+            
+            // 显示消息4秒后，进入黑屏状态
+            if (faintTimer > 4.0f && !isBlackScreen) {
+                isBlackScreen = true;
+                blackScreenTimer = 0.0f;
+                Logger::info("Entering black screen...");
+            }
+            
+            // 黑屏2秒后，重生到 clinic 门口
+            if (isBlackScreen) {
+                blackScreenTimer += deltaTime;
+                
+                if (blackScreenTimer >= 2.0f) {
+                    // 检查是否被退学
+                    if (isExpelled) {
+                        // 显示退学消息，游戏结束
+                        Logger::error("Character expelled! Game over.");
+                        // 游戏结束逻辑将在渲染部分处理
+                    } else {
+                        // 检查当前地图是否是 LG_campus_map，如果不是则切换
+                        std::string currentMapPath = mapLoader.getCurrentMapPath();
+                        bool needSwitchMap = false;
+                        if (currentMapPath.find("LG_campus_map") == std::string::npos) {
+                            needSwitchMap = true;
+                            Logger::info("Not in LG_campus_map, switching to LG_campus_map for respawn");
+                            
+                            // 加载 LG_campus_map
+                            std::string campusMapPath = mapLoader.getMapDirectory() + "LG_campus_map.tmj";
+                            auto campusMap = mapLoader.loadTMJMap(campusMapPath);
+                            if (campusMap) {
+                                tmjMap = campusMap;
+                                Logger::info("Switched to LG_campus_map successfully");
+                            } else {
+                                Logger::error("Failed to load LG_campus_map, using current map");
+                            }
+                        }
+                        
+                        // 阻止入口确认对话框显示
+                        waitingForEntranceConfirmation = false;
+                        hasSuppressedEntrance = true;
+                        
+                        // 重生到重生点
+                        const auto& respawnPoint = tmjMap->getRespawnPoint();
+                        sf::Vector2f respawnPos = respawnPoint.position;
+                        
+                        Logger::info("Respawn point position: (" + std::to_string(respawnPos.x) + ", " + std::to_string(respawnPos.y) + ")");
+                        
+                        // 如果重生点位置无效（为0或未设置），使用默认spawn点
+                        if (respawnPos.x == 0.0f && respawnPos.y == 0.0f) {
+                            Logger::warn("Respawn point is at (0,0), using default spawn point");
+                            if (tmjMap->getSpawnX() && tmjMap->getSpawnY()) {
+                                respawnPos = sf::Vector2f(*tmjMap->getSpawnX(), *tmjMap->getSpawnY());
+                            } else {
+                                Logger::error("No valid respawn point or default spawn point available!");
+                            }
+                        }
+                        
+                        // 计算脚部到中心的偏移量（用于从脚部位置反推中心位置）
+                        sf::Vector2f currentFeet = character.getFeetPoint();
+                        sf::Vector2f currentCenter = character.getPosition();
+                        sf::Vector2f feetToCenterOffset = currentCenter - currentFeet;
+                        
+                        // 在重生点周围搜索可行走的位置
+                        float tileSize = static_cast<float>(std::max(tmjMap->getTileWidth(), tmjMap->getTileHeight()));
+                        float step = tileSize * 0.5f;
+                        
+                        std::vector<sf::Vector2f> offsets = {
+                            sf::Vector2f(0, -step * 2),      // 上
+                            sf::Vector2f(0, step * 2),        // 下
+                            sf::Vector2f(-step * 2, 0),      // 左
+                            sf::Vector2f(step * 2, 0),       // 右
+                            sf::Vector2f(-step, -step),     // 左上
+                            sf::Vector2f(step, -step),      // 右上
+                            sf::Vector2f(-step, step),       // 左下
+                            sf::Vector2f(step, step),       // 右下
+                            sf::Vector2f(0, -step),          // 上（更近）
+                            sf::Vector2f(0, step),           // 下（更近）
+                            sf::Vector2f(-step, 0),          // 左（更近）
+                            sf::Vector2f(step, 0),           // 右（更近）
+                        };
+                        
+                        bool foundWalkable = false;
+                        
+                        for (const auto& offset : offsets) {
+                            sf::Vector2f candidateFeet = respawnPos + offset;
+                            
+                            if (candidateFeet.x >= 0 && candidateFeet.y >= 0 && 
+                                candidateFeet.x < tmjMap->getWorldPixelWidth() && 
+                                candidateFeet.y < tmjMap->getWorldPixelHeight()) {
+                                
+                                if (!tmjMap->feetBlockedAt(candidateFeet)) {
+                                    respawnPos = candidateFeet + feetToCenterOffset;
+                                    foundWalkable = true;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (!foundWalkable) {
+                            // 如果找不到可行走位置，尝试使用默认 spawn 点
+                            if (tmjMap->getSpawnX() && tmjMap->getSpawnY()) {
+                                respawnPos = sf::Vector2f(*tmjMap->getSpawnX(), *tmjMap->getSpawnY());
+                                Logger::warn("Could not find walkable position at respawn point, using default spawn");
+                            }
+                        }
+                        
+                        // 设置角色位置
+                        character.setPosition(respawnPos);
+                        
+                        // 时间增加2小时
+                        timeManager.addHours(2);
+                        
+                        // 恢复精力到一定值
+                        taskManager.modifyEnergy(50.0f);
+                        
+                        // 重置状态
+                        isFainted = false;
+                        isBlackScreen = false;
+                        faintTimer = 0.0f;
+                        blackScreenTimer = 0.0f;
+                        
+                        // 显示提醒（5秒后自动关闭）
+                        showFaintReminder = true;
+                        faintReminderTimer = 0.0f;
+                        
+                        // 更新相机位置
+                        renderer.updateCamera(respawnPos, tmjMap->getWorldPixelWidth(), tmjMap->getWorldPixelHeight());
+                        
+                        Logger::info("Character respawned at respawn point (" + 
+                                   std::to_string(respawnPos.x) + ", " + std::to_string(respawnPos.y) + 
+                                   "). Faint count: " + std::to_string(faintCount));
+                    }
+                }
             }
         }
         // =================================
@@ -1318,6 +1443,28 @@ AppResult runApp(
                 auto mb = event.getIf<sf::Event::MouseButtonPressed>();
                 if (mb && mb->button == sf::Mouse::Button::Left) {
                     sf::Vector2i mpos = mb->position;
+                    
+                    // 检查是否点击了 Game Over 按钮
+                    if (isExpelled) {
+                        sf::Vector2u windowSize = renderer.getWindow().getSize();
+                        float uiWidth = static_cast<float>(windowSize.x);
+                        float uiHeight = static_cast<float>(windowSize.y);
+                        
+                        // Game Over 按钮位置：屏幕中心下方
+                        float btnX = uiWidth / 2.0f - 100.f;
+                        float btnY = uiHeight / 2.0f + 40.f;
+                        float btnW = 200.f;
+                        float btnH = 60.f;
+                        
+                        // 检查鼠标点击是否在按钮范围内（使用屏幕坐标）
+                        if (mpos.x >= static_cast<int>(btnX) && mpos.x <= static_cast<int>(btnX + btnW) &&
+                            mpos.y >= static_cast<int>(btnY) && mpos.y <= static_cast<int>(btnY + btnH)) {
+                            result = AppResult::QuitGame;
+                            renderer.quit();
+                            break;
+                        }
+                    }
+                    
                     // Check Schedule Button (to the left of Map)
                     if (renderer.scheduleButtonContainsPoint(mpos)) {
                         showScheduleModal(renderer, configManager);
@@ -1643,13 +1790,6 @@ AppResult runApp(
                                                         // To communicate this, set a local variable via outer scope (see after try)
                                                         // We'll set forcedCategory via a placeholder in sched selection scope
                                                         // For now signal via selecting classroom_basic and store forced in a temp variable
-                                                        // (actual forcedCategory handling happens after the try block)
-                                                        // Use selectedQid and rely on external code to set forcedCategory
-                                                        // Save forced to a local environment by pushing it into a small in-file marker (not needed)
-                                                        // We'll capture forcedCategory by setting a variable declared outside (below).
-                                                        // For simplicity, set selectedQid now and assign forcedCategory after the try loop.
-                                                        // Store forced category in a hidden variable via rewriting classIfs is not necessary.
-                                                        // We'll implement forcedCategory assignment after try/catch by re-opening schedule file.
                                                     } else {
                                                         Logger::info("No quiz file for course '" + courseName + "' and no category in classroom_basic; using fallback: " + fallbackQid);
                                                     }
@@ -1687,9 +1827,69 @@ AppResult runApp(
             gameTriggerLocked = false;
         }
 
+        // ========== 商店触发区域自动检测（类似 bookstore quiz game） ==========
+        static bool shopTriggerLocked = false;   // ✅ 防止一帧触发 60 次
+
+        ShopTrigger detectedShop;
+        if (!isFainted && detectShopTrigger(character, tmjMap.get(), detectedShop)) {
+            if (!shopTriggerLocked && !shoppingState.isShopping && !dialogSys.isActive()) {
+                shopTriggerLocked = true; // ✅ 立刻上锁
+
+                std::cout << "🛒 Shop Triggered: " << detectedShop.name << std::endl;
+
+                // 自动显示 FamilyMart 对话框
+                if (detectedShop.name == "familymart") {
+                    Logger::info("🛒 Auto-triggering FamilyMart dialog");
+                    
+                    DialogSystem* ds = &dialogSys;
+                    auto state = &shoppingState;
+                    
+                    state->isShopping = true;
+                    ds->setDialog(
+                        "Welcome to FamilyMart! Which section would you like to browse?",
+                        {"Food", "Drink", "Daily Necessities", "Cancel"},
+                        [ds, state](const std::string& selected) {
+                            Logger::info("🛒 Category Selected: " + selected);
+                            
+                            if (selected == "Cancel") {
+                                state->isShopping = false;
+                                return;
+                            }
+                            
+                            // 记录第一层分类
+                            state->selectedCategory = selected;
+                            
+                            // 设置下一步对话请求
+                            state->requestNextDialog = true;
+                            state->nextDialogKind = ShoppingState::NextDialogKind::ShowSecondLevel;
+                            state->nextDialogTitle.clear();
+                            state->nextDialogOptions.clear();
+                            
+                            if (selected == "Food") {
+                                state->nextDialogTitle = "Choose your food:";
+                                state->nextDialogOptions = {"Sandwich", "Bento", "Onigiri", "Back"};
+                            }
+                            else if (selected == "Drink") {
+                                state->nextDialogTitle = "Choose your drink:";
+                                state->nextDialogOptions = {"Water", "Coffee", "Tea", "Back"};
+                            }
+                            else if (selected == "Daily Necessities") {
+                                state->nextDialogTitle = "Choose your item:";
+                                state->nextDialogOptions = {"Tissue", "Battery", "Umbrella", "Back"};
+                            }
+                        }
+                    );
+                }
+            }
+        } 
+        else {
+            // ✅ 角色离开触发区后自动解锁（允许下次再触发）
+            shopTriggerLocked = false;
+        }
+
         // 角色更新（只更一次，避免重复） 
         // === NEW: Block movement if Fainted ===
-        if (!isFainted && !waitingForEntranceConfirmation && !dialogSys.isActive() && !gameState.isEating) {
+        if (!isFainted && !isExpelled && !waitingForEntranceConfirmation && !dialogSys.isActive() && !gameState.isEating) {
             sf::Vector2f moveInput = inputManager.getMoveInput();
             // === NEW: Sprint Feature (Z Key) ===
             float speedMultiplier = 1.0f;
@@ -1787,8 +1987,18 @@ AppResult runApp(
             }
         }
 
+        // ========== 重置入口抑制标志 ==========
+        if (hasSuppressedEntrance) {
+            // 检查角色是否离开了抑制的入口区域
+            sf::Vector2f feet = character.getFeetPoint();
+            if (!suppressedEntranceRect.contains(feet)) {
+                hasSuppressedEntrance = false;
+                Logger::info("Character left suppressed entrance area, re-enabling entrance detection");
+            }
+        }
         // ========== 原有入口检测逻辑（保留） ==========
-        if (!waitingForEntranceConfirmation && !hasSuppressedEntrance) {
+        // 如果正在显示晕倒提醒或被退学，不显示入口确认对话框
+        if (!waitingForEntranceConfirmation && !hasSuppressedEntrance && !showFaintReminder && !isExpelled) {
             EntranceArea detected;
             if (detectEntranceTrigger(character, tmjMap.get(), detected)) {
                 waitingForEntranceConfirmation = true;
@@ -1800,6 +2010,13 @@ AppResult runApp(
 
         // ========== 入口确认逻辑（原有） ==========
         if (waitingForEntranceConfirmation) {
+            // 如果被退学，按 Enter 退出游戏
+            if (isExpelled && inputManager.isKeyJustPressed(sf::Keyboard::Key::Enter)) {
+                result = AppResult::QuitGame;
+                renderer.quit();
+                break;
+            }
+            
             if (inputManager.isKeyJustPressed(sf::Keyboard::Key::Enter)) {
                 std::string fromKey = mapLoader.getCurrentMapPath();
                 if (!fromKey.empty()) {
@@ -1865,6 +2082,19 @@ AppResult runApp(
                     waitingForEntranceConfirmation = false;
                 }
             } else if (inputManager.isKeyJustPressed(sf::Keyboard::Key::Escape)) {
+                // 关闭提醒对话框
+                if (showFaintReminder) {
+                    showFaintReminder = false;
+                    faintReminderTimer = 0.0f;
+                    continue;
+                }
+                
+                // 如果被退学，按 Escape 退出游戏
+                if (isExpelled) {
+                    result = AppResult::QuitGame;
+                    renderer.quit();
+                    break;
+                }
                 cancelEntranceMove(character, *tmjMap);
                 waitingForEntranceConfirmation = false;
                 renderer.setModalActive(false);
@@ -2044,8 +2274,8 @@ AppResult runApp(
         }
         
         // --- E. FAINTED TEXT ---
-        if (isFainted) {
-            sf::Text faintText(modalFont, "You passed out due to exhaustion...", 30);
+        if (isFainted && !isBlackScreen) {
+            sf::Text faintText(modalFont, "Character passed out due to lack of energy!", 30);
             faintText.setFillColor(sf::Color::Red);
             faintText.setOutlineColor(sf::Color::Black);
             faintText.setOutlineThickness(2);
@@ -2056,6 +2286,69 @@ AppResult runApp(
             faintText.setPosition(sf::Vector2f(uiWidth / 2.0f, uiHeight / 2.0f));
             
             renderer.getWindow().draw(faintText);
+        }
+        
+        // --- F. BLACK SCREEN ---
+        if (isBlackScreen) {
+            // 绘制全屏黑色覆盖层
+            sf::RectangleShape blackOverlay(sf::Vector2f(uiWidth, uiHeight));
+            blackOverlay.setPosition(sf::Vector2f(0.f, 0.f));
+            blackOverlay.setFillColor(sf::Color::Black);
+            renderer.getWindow().draw(blackOverlay);
+        }
+        
+        // --- G. EXPULSION MESSAGE ---
+        if (isExpelled) {
+            // 绘制半透明背景
+            sf::RectangleShape expelBg(sf::Vector2f(uiWidth, uiHeight));
+            expelBg.setPosition(sf::Vector2f(0.f, 0.f));
+            expelBg.setFillColor(sf::Color(0, 0, 0, 200));
+            renderer.getWindow().draw(expelBg);
+            
+            // 显示退学消息
+            sf::Text expelText(modalFont, "Unfortunately, you have fainted too many times\nand have been expelled. Please go home!", 36);
+            expelText.setFillColor(sf::Color::Red);
+            expelText.setOutlineColor(sf::Color::Black);
+            expelText.setOutlineThickness(3);
+            
+            sf::FloatRect expelBounds = expelText.getLocalBounds();
+            expelText.setOrigin(sf::Vector2f(expelBounds.size.x / 2.0f, expelBounds.size.y / 2.0f));
+            expelText.setPosition(sf::Vector2f(uiWidth / 2.0f, uiHeight / 2.0f - 60.0f));
+            renderer.getWindow().draw(expelText);
+            
+            // 显示 Game Over 按钮
+            sf::RectangleShape gameOverBtn(sf::Vector2f(200.f, 60.f));
+            gameOverBtn.setPosition(sf::Vector2f(uiWidth / 2.0f - 100.f, uiHeight / 2.0f + 40.f));
+            
+            // 检查鼠标是否在按钮上
+            sf::Vector2i mousePos = sf::Mouse::getPosition(renderer.getWindow());
+            sf::Vector2f mouseWorldPos = renderer.getWindow().mapPixelToCoords(mousePos);
+            if (gameOverBtn.getGlobalBounds().contains(mouseWorldPos)) {
+                gameOverBtn.setFillColor(sf::Color(100, 100, 100));
+            } else {
+                gameOverBtn.setFillColor(sf::Color(50, 50, 50));
+            }
+            gameOverBtn.setOutlineThickness(2);
+            gameOverBtn.setOutlineColor(sf::Color::White);
+            renderer.getWindow().draw(gameOverBtn);
+            
+            // 按钮文字
+            sf::Text btnText(modalFont, "Game Over", 28);
+            btnText.setFillColor(sf::Color::White);
+            sf::FloatRect btnBounds = btnText.getLocalBounds();
+            btnText.setOrigin(sf::Vector2f(btnBounds.size.x / 2.0f, btnBounds.size.y / 2.0f));
+            btnText.setPosition(sf::Vector2f(uiWidth / 2.0f, uiHeight / 2.0f + 70.f));
+            renderer.getWindow().draw(btnText);
+        }
+        
+        // --- H. FAINT REMINDER ---
+        if (showFaintReminder && !isExpelled) {
+            const auto& respawnPoint = tmjMap->getRespawnPoint();
+            std::string reminderText = "You have fainted " + std::to_string(faintCount) + 
+                                     " times. Exceeding " + std::to_string(respawnPoint.maxCount) + 
+                                     " times will result in expulsion!";
+            
+            renderer.renderModalPrompt(reminderText, modalFont, 24, std::nullopt);
         }
         // =======================
 
@@ -2159,4 +2452,13 @@ AppResult runApp(
         renderer.present();
     }
     return AppResult::QuitGame;
+}
+
+// 修复日志记录中的字段访问问题
+void showShopDialog(const ShopTrigger& shop) {
+    Logger::info("Displaying shop dialog for: " + shop.name);
+    Logger::info("Shop rect: (" + std::to_string(shop.rect.position.x) + ", " + std::to_string(shop.rect.position.y) + ") " +
+                 std::to_string(shop.rect.size.x) + "x" + std::to_string(shop.rect.size.y));
+    // 示例实现：显示商店对话框的逻辑
+    std::cout << "Welcome to " << shop.name << "!" << std::endl;
 }
