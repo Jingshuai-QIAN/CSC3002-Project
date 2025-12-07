@@ -77,3 +77,23 @@ float TimeManager::getDaylightFactor() const {
 
     return minBrightness;
 }
+
+void TimeManager::addHours(int hours) {
+    hour += hours;
+    
+    // Handle day overflow
+    while (hour >= 24) {
+        hour -= 24;
+        weekday = (weekday + 1) % 7;
+        day++;
+        
+        // Days in months (Index 0 is unused, 1=Jan, etc.)
+        static const int daysInMonth[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+        
+        if (day > daysInMonth[month]) {
+            day = 1;
+            month++;
+            if (month > 12) month = 1;
+        }
+    }
+}
