@@ -21,6 +21,9 @@ public:
     int getMinute() const { return minute; }
     // Returns weekday 0=Mon .. 6=Sun
     int getWeekday() const { return weekday; }
+    
+    // Add hours to the current time
+    void addHours(int hours);
 
 
 private:
