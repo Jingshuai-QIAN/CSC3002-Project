@@ -107,6 +107,24 @@ struct AppConfig {
         int fontSize = 14;
         bool anchorRight = true;
     } mapButton;
+
+    /**
+     * Small on-screen control for the Schedule button (to the left of Map)
+     */
+    struct ScheduleButton {
+        bool enabled = false;
+        std::string label = "Schedule";
+        // place to the left of the map button by default
+        int x = -180;
+        int y = 10;
+        int width = 80;
+        int height = 30;
+        std::string bgColor = "#333333";
+        std::string hoverColor = "#444444";
+        std::string textColor = "#FFFFFF";
+        int fontSize = 14;
+        bool anchorRight = true;
+    } scheduleButton;
 };
 
 

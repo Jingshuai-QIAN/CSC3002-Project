@@ -301,6 +301,21 @@ void ConfigManager::jsonToAppConfig(const json& j, AppConfig& config) {
             if (mb.contains("fontSize")) config.mapButton.fontSize = mb["fontSize"];
             if (mb.contains("anchorRight")) config.mapButton.anchorRight = mb["anchorRight"];
         }
+        // Parse schedule button settings (if present)
+        if (ui.contains("scheduleButton") && ui["scheduleButton"].is_object()) {
+            const auto& sb = ui["scheduleButton"];
+            if (sb.contains("enabled")) config.scheduleButton.enabled = sb["enabled"];
+            if (sb.contains("label")) config.scheduleButton.label = sb["label"];
+            if (sb.contains("x")) config.scheduleButton.x = sb["x"];
+            if (sb.contains("y")) config.scheduleButton.y = sb["y"];
+            if (sb.contains("width")) config.scheduleButton.width = sb["width"];
+            if (sb.contains("height")) config.scheduleButton.height = sb["height"];
+            if (sb.contains("bgColor")) config.scheduleButton.bgColor = sb["bgColor"];
+            if (sb.contains("hoverColor")) config.scheduleButton.hoverColor = sb["hoverColor"];
+            if (sb.contains("textColor")) config.scheduleButton.textColor = sb["textColor"];
+            if (sb.contains("fontSize")) config.scheduleButton.fontSize = sb["fontSize"];
+            if (sb.contains("anchorRight")) config.scheduleButton.anchorRight = sb["anchorRight"];
+        }
     }
 }
 
@@ -371,6 +386,21 @@ void ConfigManager::appConfigToJson(const AppConfig& config, json& j) {
         {"textColor", config.mapButton.textColor},
         {"fontSize", config.mapButton.fontSize},
         {"anchorRight", config.mapButton.anchorRight}
+    };
+
+    // Add UI settings (schedule button)
+    j["ui"]["scheduleButton"] = {
+        {"enabled", config.scheduleButton.enabled},
+        {"label", config.scheduleButton.label},
+        {"x", config.scheduleButton.x},
+        {"y", config.scheduleButton.y},
+        {"width", config.scheduleButton.width},
+        {"height", config.scheduleButton.height},
+        {"bgColor", config.scheduleButton.bgColor},
+        {"hoverColor", config.scheduleButton.hoverColor},
+        {"textColor", config.scheduleButton.textColor},
+        {"fontSize", config.scheduleButton.fontSize},
+        {"anchorRight", config.scheduleButton.anchorRight}
     };
 }
 
