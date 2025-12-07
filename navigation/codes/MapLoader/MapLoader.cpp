@@ -296,6 +296,31 @@ void MapLoader::applySpawnFromSidecar(const std::string& tmjPath, TMJMap& map) {
             float py = spawnData.value("y", 0.0f);
             map.setSpawnPoint(px, py);
         }
+
+        // 确保 familymart 和 bookstore 的触发区域被正确加载
+        if (j.contains("familymart")) {
+            auto shopData = j["familymart"];
+            ShopTrigger shopTrigger;
+            shopTrigger.name = shopData["name"];
+            shopTrigger.type = shopData["type"];
+            shopTrigger.rect = sf::FloatRect(
+                sf::Vector2f(shopData["x"], shopData["y"]),
+                sf::Vector2f(shopData["width"], shopData["height"])
+            );
+            map.addShopTrigger(shopTrigger);
+        }
+
+        if (j.contains("bookstore")) {
+            auto gameData = j["bookstore"];
+            GameTriggerArea gameTrigger;
+            gameTrigger.name = gameData["name"];
+            gameTrigger.gameType = gameData["gameType"];
+            gameTrigger.rect = sf::FloatRect(
+                sf::Vector2f(gameData["x"], gameData["y"]),
+                sf::Vector2f(gameData["width"], gameData["height"])
+            );
+            map.addGameTrigger(gameTrigger);
+        }
     } catch (...) {
         Logger::warn("Failed to parse spawns.json for: " + tmjPath);
     }
