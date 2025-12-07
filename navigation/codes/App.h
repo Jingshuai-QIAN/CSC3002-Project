@@ -2,6 +2,7 @@
 
 #include <SFML/Graphics.hpp>
 #include <memory>
+#include "MapLoader/MapObjects.h" // 确保 ShopTrigger 类型可用
 
 class Renderer;
 class MapLoader;
@@ -43,7 +44,6 @@ enum class FinalResultAction {
     Exit,    // 退出游戏
 };
 
-
 // Run the main game loop (one "day" on campus)
 AppResult runApp(
     Renderer& renderer,
@@ -53,3 +53,6 @@ AppResult runApp(
     sf::View& view,
     ConfigManager& configManager
 );
+
+// 在 App.h 中添加 showShopDialog 的声明
+void showShopDialog(const ShopTrigger& shop);
