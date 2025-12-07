@@ -685,6 +685,55 @@ void TMJMap::parseObjectLayers(const json& layers) {
             }
         }
 
+        // ✅ 解析 RespawnZones (重生区域)
+        if (lnameLower == "respawnzones" || lnameLower.find("respawn") != std::string::npos) {
+            Logger::info("===== Parsing Respawn Zones =====");
+            for (const auto& obj : L["objects"]) {
+                if (!obj.is_object()) continue;
+                std::string objName = toLower(obj.value("name", ""));
+                std::string objType = toLower(obj.value("type", ""));
+                std::string objClass = toLower(obj.value("class", ""));
+                
+                // 检查是否是 rebirth_point
+                if (objName.find("rebirth_point") != std::string::npos ||
+                    objType.find("rebirth_point") != std::string::npos ||
+                    objClass.find("rebirth_point") != std::string::npos) {
+                    
+                    float ox = obj.value("x", 0.f);
+                    float oy = obj.value("y", 0.f);
+                    float ow = obj.value("width", 0.f);
+                    float oh = obj.value("height", 0.f);
+                    
+                    // 计算中心位置
+                    if (ow > 0.f || oh > 0.f) {
+                        ox += ow * 0.5f;
+                        oy += oh * 0.5f;
+                    } else {
+                        ox += tileWidth * 0.5f;
+                        oy += tileHeight * 0.5f;
+                    }
+                    
+                    respawnPoint.name = obj.value("name", "rebirth_point");
+                    respawnPoint.position = sf::Vector2f(ox, oy);
+                    respawnPoint.maxCount = 3; // 默认值
+                    
+                    // 解析 count 属性（最大重生次数）
+                    if (obj.contains("properties") && obj["properties"].is_array()) {
+                        for (const auto& p : obj["properties"]) {
+                            if (!p.is_object()) continue;
+                            std::string pname = p.value("name", "");
+                            if (pname == "count" && p.contains("value") && p["value"].is_number()) {
+                                respawnPoint.maxCount = p["value"].get<int>();
+                            }
+                        }
+                    }
+                    
+                    Logger::info("✅ Parsed RespawnPoint at (" + std::to_string(ox) + ", " + 
+                               std::to_string(oy) + ") with maxCount=" + std::to_string(respawnPoint.maxCount));
+                }
+            }
+        }
+
 
 
 
@@ -1156,6 +1205,8 @@ void TMJMap::cleanup() {
     lawnAreas.clear();
     m_professors.clear();  // 添加教授对象的清理
     m_shopTriggers.clear();   // ✅ 清理便利店触发区域
+    respawnPoint = RespawnPoint();  // 重置重生点
+    respawnPoint = RespawnPoint();  // 重置重生点
 
 }
 
