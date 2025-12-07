@@ -64,6 +64,7 @@ private:
     // 私有方法
     void loadQuestions();
     bool loadQuestionsFromFile(const std::string& path); // 从 JSON 文件加载题目与 UI 配置
+    bool loadQuestionsFromFile(const std::string& path, const std::string& forcedCategory); // overload with forced category
     void displayCurrentQuestion();
     void updateScoreDisplay();
     std::string wrapText(const std::string& text, size_t lineLength) const;
@@ -81,6 +82,8 @@ private:
 public:
     QuizGame();
     explicit QuizGame(const std::string& jsonPath);
+    // Load from jsonPath and force a specific category (if present in file)
+    QuizGame(const std::string& jsonPath, const std::string& forcedCategory);
     ~QuizGame() = default;
 
     // 运行游戏（阻塞，直到此窗口关闭）
