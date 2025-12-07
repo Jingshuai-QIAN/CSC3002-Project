@@ -17,6 +17,10 @@ public:
     int getHour() const { return hour; }
 
     int getDay() const { return day; }
+    // Returns minute (0-59)
+    int getMinute() const { return minute; }
+    // Returns weekday 0=Mon .. 6=Sun
+    int getWeekday() const { return weekday; }
 
 
 private:
