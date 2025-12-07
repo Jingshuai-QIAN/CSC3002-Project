@@ -267,6 +267,26 @@ public:
      * @brief Test whether a given mouse position (window coords) is inside the map button.
      */
     bool mapButtonContainsPoint(const sf::Vector2i& mousePos) const;
+
+    /**
+     * @brief Configure the on-screen schedule button using AppConfig::ScheduleButton settings.
+     */
+    void setScheduleButtonConfig(const AppConfig::ScheduleButton& cfg);
+
+    /**
+     * @brief Draw the schedule button (HUD) to the screen.
+     */
+    void drawScheduleButton();
+
+    /**
+     * Draw the schedule button into a provided render window (useful for custom windows)
+     */
+    void drawScheduleButtonOnWindow(sf::RenderWindow& targetWindow);
+
+    /**
+     * Test whether a given mouse position (window coords) is inside the schedule button.
+     */
+    bool scheduleButtonContainsPoint(const sf::Vector2i& mousePos) const;
     
     /**
      * @brief Get current mouse position relative to the renderer window.
@@ -334,6 +354,7 @@ private:
     std::unique_ptr<TextRenderer> textRenderer;
     std::unique_ptr<sf::Font> uiFont;                // font used for UI (map button)
     AppConfig::MapButton mapButtonConfig;            // active button configuration
+    AppConfig::ScheduleButton scheduleButtonConfig;  // schedule button configuration
     // Render style configuration (defaults)
     sf::Color entranceFillColor = sf::Color(0, 100, 255, 100);
     sf::Color entranceOutlineColor = sf::Color(30, 140, 255, 255);

@@ -368,6 +368,10 @@ void Renderer::setMapButtonConfig(const AppConfig::MapButton& cfg) {
     mapButtonConfig = cfg;
 }
 
+void Renderer::setScheduleButtonConfig(const AppConfig::ScheduleButton& cfg) {
+    scheduleButtonConfig = cfg;
+}
+
 bool Renderer::mapButtonContainsPoint(const sf::Vector2i& mousePos) const {
     if (!mapButtonConfig.enabled) return false;
 
@@ -466,6 +470,163 @@ void Renderer::drawMapButton() {
 
     // restore previous view
     window.setView(prevView);
+}
+
+bool Renderer::scheduleButtonContainsPoint(const sf::Vector2i& mousePos) const {
+    if (!scheduleButtonConfig.enabled) return false;
+
+    sf::Vector2u ws = getWindowSize();
+    int px = scheduleButtonConfig.x;
+
+    if (scheduleButtonConfig.anchorRight && px < 0) {
+        px = static_cast<int>(ws.x) + px - scheduleButtonConfig.width;
+    }
+
+    int py = scheduleButtonConfig.y;
+    int left = px;
+    int top = py;
+    int right = left + scheduleButtonConfig.width;
+    int bottom = top + scheduleButtonConfig.height;
+
+    return (
+        mousePos.x >= left && 
+        mousePos.x <= right && 
+        mousePos.y >= top && 
+        mousePos.y <= bottom
+    );
+}
+
+void Renderer::drawScheduleButton() {
+    if (!scheduleButtonConfig.enabled || !window.isOpen()) return;
+
+    sf::Vector2u ws = getWindowSize();
+    int px = scheduleButtonConfig.x;
+
+    if (scheduleButtonConfig.anchorRight && px < 0) {
+        px = static_cast<int>(ws.x) + px - scheduleButtonConfig.width;
+    }
+
+    int py = scheduleButtonConfig.y;
+
+    // Draw in window (screen) coordinates: switch to default view temporarily.
+    sf::View prevView = window.getView();
+    window.setView(window.getDefaultView());
+
+    sf::RectangleShape rect(sf::Vector2f(
+        static_cast<float>(scheduleButtonConfig.width),
+        static_cast<float>(scheduleButtonConfig.height)
+    ));
+
+    rect.setPosition(sf::Vector2f(
+        static_cast<float>(px), 
+        static_cast<float>(py)
+    ));
+
+    // hover detection
+    sf::Vector2i mpos = sf::Mouse::getPosition(window);
+    bool hover = scheduleButtonContainsPoint(mpos);
+
+    rect.setFillColor(
+        hover ? 
+        colorFromHex(scheduleButtonConfig.hoverColor) : 
+        colorFromHex(scheduleButtonConfig.bgColor)
+    );
+    rect.setOutlineThickness(0);
+
+    window.draw(rect);
+
+    // Draw label
+    if (uiFont && scheduleButtonConfig.fontSize > 0) {
+        sf::Text txt(
+            *uiFont, 
+            scheduleButtonConfig.label, 
+            scheduleButtonConfig.fontSize
+        );
+        txt.setFillColor(colorFromHex(scheduleButtonConfig.textColor));
+
+        // center text inside button
+        sf::FloatRect local = txt.getLocalBounds();
+
+        sf::Vector2f localPos = local.position;
+        float localLeft = localPos.x;
+        float localTop = localPos.y;
+
+        sf::Vector2f localSize = local.size;
+        float localWidth = localSize.x;
+        float localHeight = localSize.y;
+
+        txt.setOrigin(sf::Vector2f(
+            localLeft + localWidth*0.5f, 
+            localTop + localHeight*0.5f
+        ));
+        
+        txt.setPosition(sf::Vector2f(
+            static_cast<float>(px) + scheduleButtonConfig.width*0.5f,
+            static_cast<float>(py) + scheduleButtonConfig.height*0.5f
+        ));
+
+        window.draw(txt);
+    }
+
+    // restore previous view
+    window.setView(prevView);
+}
+
+void Renderer::drawScheduleButtonOnWindow(sf::RenderWindow& targetWindow) {
+    if (!scheduleButtonConfig.enabled || !targetWindow.isOpen()) return;
+
+    sf::Vector2u ws = targetWindow.getSize();
+    int px = scheduleButtonConfig.x;
+
+    if (scheduleButtonConfig.anchorRight && px < 0) {
+        px = static_cast<int>(ws.x) + px - scheduleButtonConfig.width;
+    }
+
+    int py = scheduleButtonConfig.y;
+
+    // Draw in window (screen) coordinates: switch to targetWindow default view temporarily.
+    sf::View prevView = targetWindow.getView();
+    targetWindow.setView(targetWindow.getDefaultView());
+
+    sf::RectangleShape rect(sf::Vector2f(
+        static_cast<float>(scheduleButtonConfig.width),
+        static_cast<float>(scheduleButtonConfig.height)
+    ));
+
+    rect.setPosition(sf::Vector2f(static_cast<float>(px), static_cast<float>(py)));
+
+    // hover detection for target window
+    sf::Vector2i mpos = sf::Mouse::getPosition(targetWindow);
+    bool hover = false;
+    int left = px;
+    int top = py;
+    int right = left + scheduleButtonConfig.width;
+    int bottom = top + scheduleButtonConfig.height;
+    hover = (mpos.x >= left && mpos.x <= right && mpos.y >= top && mpos.y <= bottom);
+
+    rect.setFillColor(
+        hover ? colorFromHex(scheduleButtonConfig.hoverColor) : colorFromHex(scheduleButtonConfig.bgColor)
+    );
+    rect.setOutlineThickness(0);
+
+    targetWindow.draw(rect);
+
+    // Draw label
+    if (uiFont && scheduleButtonConfig.fontSize > 0) {
+        sf::Text txt(*uiFont, scheduleButtonConfig.label, scheduleButtonConfig.fontSize);
+        txt.setFillColor(colorFromHex(scheduleButtonConfig.textColor));
+
+        sf::FloatRect local = txt.getLocalBounds();
+        sf::Vector2f localPos = local.position;
+        float localLeft = localPos.x; float localTop = localPos.y;
+        sf::Vector2f localSize = local.size; float localWidth = localSize.x; float localHeight = localSize.y;
+        txt.setOrigin(sf::Vector2f(localLeft + localWidth*0.5f, localTop + localHeight*0.5f));
+        txt.setPosition(sf::Vector2f(static_cast<float>(px) + scheduleButtonConfig.width*0.5f, static_cast<float>(py) + scheduleButtonConfig.height*0.5f));
+        targetWindow.draw(txt);
+    }
+
+    // restore previous view
+    targetWindow.setView(prevView);
 }
 
 sf::Vector2i Renderer::getMousePosition() const {
