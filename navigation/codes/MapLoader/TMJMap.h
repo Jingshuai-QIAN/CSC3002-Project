@@ -87,6 +87,7 @@ public:
     const std::vector<FoodAnchor>& getFoodAnchors() const { return m_foodAnchors; }
     const std::vector<LawnArea>& getLawnAreas() const { return lawnAreas; }
     const std::vector<ShopTrigger>& getShopTriggers() const { return m_shopTriggers; }
+    const RespawnPoint& getRespawnPoint() const { return respawnPoint; }
     
     void setSpawnPoint(float x, float y) { spawnX = x; spawnY = y; }
     
@@ -98,6 +99,15 @@ public:
         for (const auto& tile : tiles) {
             target.draw(tile);
         }
+    }
+
+    // 添加 addShopTrigger 和 addGameTrigger 方法的声明
+    void addShopTrigger(const ShopTrigger& shopTrigger) {
+        m_shopTriggers.push_back(shopTrigger);
+    }
+
+    void addGameTrigger(const GameTriggerArea& gameTrigger) {
+        gameTriggers.push_back(gameTrigger); // 修正为正确的成员变量名称
     }
 
 
@@ -166,4 +176,5 @@ private:
 
     std::vector<LawnArea> lawnAreas;
     std::vector<ShopTrigger> m_shopTriggers;
+    RespawnPoint respawnPoint;  // 重生点
 };
