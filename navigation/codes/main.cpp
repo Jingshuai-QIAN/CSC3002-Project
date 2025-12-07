@@ -191,6 +191,12 @@ int main() {
         character.cleanup();
         mapLoader.cleanup();
 
+        // 如果返回 QuitGame，直接退出程序
+        if (appResult == AppResult::QuitGame) {
+            shouldRun = false;
+            break;
+        }
+
         // 无论结果如何都退出（因为7天已结束）
         shouldRun = false;
     }
