@@ -78,6 +78,7 @@ bool runMapGuideScreen(Renderer& renderer)
 
     const unsigned int textSize = 24;
 
+        
     // ----------------------------------------------------
     // 4. UI hint data (normalized coords + text)
     // ----------------------------------------------------
@@ -88,54 +89,90 @@ bool runMapGuideScreen(Renderer& renderer)
 
     std::vector<UiHint> hints;
 
-    // Hint 1: Map button (top-right)
+    // Hint 1: Player character（小人）
     hints.push_back(UiHint{
-        sf::FloatRect{ sf::Vector2f{0.84f, 0.01f}, sf::Vector2f{0.08f, 0.07f} },
-        "Map Button\n\nClick here to open the full campus map.\n"
-        "You can zoom and see the whole layout.\n\n"
+        // 大致框住图中右上方的小人
+        sf::FloatRect{ sf::Vector2f{0.48f, 0.16f}, sf::Vector2f{0.04f, 0.04f} },
+        "Player\n\nThis is your character. Use WASD or the arrow keys\n"
+        "to move around the campus. You can walk on roads and\n"
+        "open ground,interact NPCs and enter buildings.\n\n"
         "[Press Enter to view the next hint...]\n"
     });
 
-    // Hint 2: Time + energy / experience bars (top-left)
+    // Hint 2: Time + Energy 条（左上角黄底面板）
     hints.push_back(UiHint{
-        sf::FloatRect{ sf::Vector2f{0.01f, 0.03f}, sf::Vector2f{0.18f, 0.10f} },
-        "Time & Bars\n\nTop-left shows the current time of day.\n"
-        "The upper bar is your energy. You can restore it by\n"
-        "doing certain activities (eating, resting, etc.).\n"
-        "The lower bar is your experience. When it is full,\n"
-        "you have successfully completed the game.\n\n"
+        sf::FloatRect{ sf::Vector2f{0.01f, 0.03f}, sf::Vector2f{0.22f, 0.08f} },
+        "Time & Energy Bar\n\nThe top-left panel shows the current in-game time\n"
+        "and your energy bar. Energy decreases as you walk\n"
+        "around and complete tasks. You can restore energy\n"
+        "by eating, resting, or doing relaxing activities.\n\n"
         "[Press Enter to view the next hint...]\n"
     });
 
-    // Hint 3: Task list (left side)
+    // Hint 3: Points + Tasks（左侧任务列表）
     hints.push_back(UiHint{
-        sf::FloatRect{ sf::Vector2f{0.02f, 0.14f}, sf::Vector2f{0.15f, 0.20f} },
-        "Tasks\n\nThis panel shows your current tasks.\n"
-        "Finish all listed tasks to progress through the day.\n\n"
+        sf::FloatRect{ sf::Vector2f{0.01f, 0.12f}, sf::Vector2f{0.22f, 0.26f} },
+        "Points & Tasks\n\n\"Points\" shows your current score for the game.\n"
+        "The list below are your tasks, such as eating at\n"
+        "the canteen or talking to a professor. Completing\n"
+        "tasks increases your points and helps you finish\n"
+        "the game week successfully.\n\n"
         "[Press Enter to view the next hint...]\n"
     });
 
-    // Hint 4: Building entrances (blue squares)
+    // Hint 4: Schedule 按钮
     hints.push_back(UiHint{
-        // Rough region that covers one of the blue entrance squares
-        sf::FloatRect{ sf::Vector2f{0.44f, 0.11f}, sf::Vector2f{0.08f, 0.10f} },
-        "Building Entrances\n\nThe blue squares mark the entrances of buildings.\n"
-        "Walk your character into a blue square and press E\n"
-        "to enter that building.\n\n"
+        sf::FloatRect{ sf::Vector2f{0.71f, 0.01f}, sf::Vector2f{0.12f, 0.08f} },
+        "Schedule Button\n\nClick \"Schedule\" to open your timetable.\n"
+        "Click again to close the timetable.\n"
+        "It shows where you need to go and at what time.\n"
+        "You can use it to plan which task to do next.\n\n"
         "[Press Enter to view the next hint...]\n"
     });
 
-    // Hint 5: Plants / trees (not walkable)
+    // Hint 5: Map 按钮（右上角）
     hints.push_back(UiHint{
-        // Highlight a patch of plants on the right side
-        sf::FloatRect{ sf::Vector2f{0.82f, 0.12f}, sf::Vector2f{0.15f, 0.13f} },
-        "Plants & Trees\n\nThese green areas are decoration and cannot\n"
-        "be walked on. You need to move along paths and\n"
-        "open ground instead of cutting through plants.\n\n"
+        sf::FloatRect{ sf::Vector2f{0.85f, 0.01f}, sf::Vector2f{0.09f, 0.08f} },
+        "Map Button\n\nClick \"Map\" to open the full campus map.\n"
+        "Press Esc to close the map.\n"
+        "You can zoom in/out and see how different areas\n"
+        "are connected, so it is easier to find your way.\n\n"
+        "[Press Enter to view the next hint...]\n"
+    });
+
+    // Hint 6: Building Entrances（蓝色方框）
+    hints.push_back(UiHint{
+        // 取一块包含蓝色入口方框的区域
+        sf::FloatRect{ sf::Vector2f{0.44f, 0.11f}, sf::Vector2f{0.08f, 0.12f} },
+        "Building Entrances\n\nBlue squares mark the entrances of buildings.\n"
+        "Walk your character into a blue square and press Enter\n"
+        "to enter that building and see events inside.\n"
+        "Press Esc to stop entering the building.\n\n"
+        "[Press Enter to view the next hint...]\n"
+    });
+
+    // Hint 7: Buildings, roads & open ground
+    hints.push_back(UiHint{
+        sf::FloatRect{ sf::Vector2f{0.41f, 0.32f}, sf::Vector2f{0.24f, 0.25f} },
+        "Campus Buildings & Roads\n\nGrey areas with building names like \"Shaw College\"\n"
+        "are the main campus buildings. Dark grey is the road,\n"
+        "and the light beige tiles are walkable ground.\n"
+        "You can explore these areas to look for task locations.\n\n"
+        "[Press Enter to view the next hint...]\n"
+    });
+
+    // Hint 8: Plants / Trees（右侧绿色、橙色的一片）
+    hints.push_back(UiHint{
+        sf::FloatRect{ sf::Vector2f{0.80f, 0.13f}, sf::Vector2f{0.18f, 0.12f} },
+        "Plants & Trees\n\nThe colourful dots represent plants and trees.\n"
+        "They are decoration and cannot be walked on. You\n"
+        "need to move along the roads and open ground instead\n"
+        "of cutting through the plant areas.\n\n"
         "[This is the last hint, press Enter to start the game...]\n"
     });
 
     std::size_t current = 0;
+
 
 
     // ----------------------------------------------------
