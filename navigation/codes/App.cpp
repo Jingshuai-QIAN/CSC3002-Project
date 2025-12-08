@@ -1072,17 +1072,16 @@ AppResult runApp(
 
     // Load initial tasks
     // Params: id, description, detailed instruction, achievement name, points, energy
-    
-    // Sum = 100 XP Total
+
     taskManager.addTask("eat_food", 
         "Eat Food at Canteen", 
-        "Go to the Student Centre and press E at the counter to order food, then sit at a table and press E to eat.", 
+        "Go to the Student Centre and press E at the counter to order food, then sit at a table and press E to eat. This restores energy.", 
         "Foodie", 
         10, 0); 
     
     taskManager.addTask("attend_class", 
         "Attend Class (Quiz)", 
-        "Find a classroom. Enter the trigger zone to start the class quiz.", 
+        "Find a classroom. Enter the trigger zone to start the class quiz. This awards points but deducts your energy.", 
         "Scholar", 
         20, 0);
     
@@ -1094,25 +1093,22 @@ AppResult runApp(
     
     taskManager.addTask("buy_item", 
         "Buy Item at FamilyMart", 
-        "Locate the FamilyMart shop. Press E at the entrance to buy items.", 
+        "Locate the FamilyMart shop. Press E at the entrance to buy items. This gives points.", 
         "Big Spender", 
         10, 0); 
     
     taskManager.addTask("talk_professor", 
         "Talk to a Professor", 
-        "Find a professor on the map. Press E to start a conversation.", 
+        "Find a professor on the map. Press E to start a conversation. Awards points.", 
         "Networker", 
         15, 0); 
 
     taskManager.addTask("bookstore_quiz", 
         "Solve Bookstore Puzzle", 
-        "Go to the Bookstore. Enter the trigger area to solve the CUHK(SZ) questions.", 
+        "Go to the Bookstore. Enter the trigger area to solve the CUHK(SZ) questions. This gives lots of points.", 
         "Bookworm", 
         25, 0);
 
-    // === REMOVED "sprint_practice" TASK ===
-    // =============================================
-    
     if (!renderer.initializeChefTexture()) {
         Logger::error("Failed to initialize chef texture");
         return AppResult::QuitGame;
@@ -2315,7 +2311,7 @@ AppResult runApp(
         }
 
         // 新增：检查是否达到7天
-        if (currentDay > 1 && !isFinalResultShown) {
+        if (currentDay > 7 && !isFinalResultShown) {
             isFinalResultShown = true;
             SettlementData data = calculateSettlementData(taskManager.getPoints(), faintCount);
             bool shouldExit = showFinalResultScreen(renderer, data.grade, data.finalStarCount, data.resultText);
