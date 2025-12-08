@@ -24,6 +24,7 @@
 #include "Manager/TaskManager.h"
 #include <nlohmann/json.hpp>
 #include <fstream>
+#include "QuizGame/LessonTrigger.h"
 
 // --- Global variables for Achievement System ---
 static std::string g_achievementText = "";
@@ -38,6 +39,35 @@ static void handleTaskCompletion(TaskManager& taskManager, const std::string& ta
         Logger::info("🏆 Achievement Unlocked: " + achievement);
     }
 }
+
+// Show hint for where to go
+namespace {
+    sf::Font g_modalFont;
+    bool     g_modalFontReady = false;
+
+    std::string g_hintText;
+    float       g_hintTimer = 0.f;   // 秒数，>0 就显示
+}
+
+// 确保字体加载一次即可
+static bool ensureModalFont() {
+    if (g_modalFontReady) return true;
+    // 按你的字体路径改；常见是 "fonts/arial.ttf" 或项目里的某个字体
+    if (g_modalFont.openFromFile("fonts/arial.ttf")) {
+        g_modalFontReady = true;
+    } else {
+        std::cerr << "[ModalHint] Failed to load fonts/arial.ttf\n";
+    }
+    return g_modalFontReady;
+}
+
+// 外部调用：入队一个提示，显示若干秒
+static void queueHint(const std::string& text, float seconds = 2.8f) {
+    g_hintText  = text;
+    g_hintTimer = seconds;
+    ensureModalFont();
+}
+
 
 // Result of the "end of day" popup
 enum class EndOfDayChoice {
@@ -173,7 +203,6 @@ static bool detectGameTrigger(const Character& character, const TMJMap* map, Gam
         sf::FloatRect rect(sf::Vector2f(gta.x, gta.y), sf::Vector2f(gta.width, gta.height)); // 修正构造方式
         if (rect.contains(feet)) {
             outArea = gta;
-            Logger::info("Auto-triggering game for: " + gta.name);
             return true;
         }
     }
@@ -595,6 +624,174 @@ static bool isCharacterInLawn(const Character& character, const TMJMap* map) {
     return false;
 }
 
+// 当前地图的 Entrance 区域缓存
+struct EntranceZone {
+    sf::FloatRect rect;      // 入口的 Axis-Aligned 矩形
+    std::string   building;  // 该入口的 building property
+};
+
+// 将 TimeManager::getWeekday() 的数值映射为字符串
+static std::string weekdayStringFrom(TimeManager& tm) {
+    static const char* wk[] = {"Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"};
+    int w = tm.getWeekday();
+    if (w < 0 || w > 6) return "Monday";
+    return wk[w];
+}
+
+// --- util: basename without extension ---
+static std::string basenameNoExt(const std::string& path) {
+    size_t p = path.find_last_of("/\\");
+    std::string name = (p == std::string::npos) ? path : path.substr(p + 1);
+    size_t dot = name.find_last_of('.');
+    if (dot != std::string::npos) name = name.substr(0, dot);
+    return name;
+}
+
+// ------------------------------------------------------------
+// 读当前地图的 entrance 层（只认小写 "entrance"！）
+// - 仅矩形；多边形自动取其包围盒
+// - outZones 读到的每个对象必须包含 string 属性 "building"
+// ------------------------------------------------------------
+static bool reloadEntranceZonesForMap(const std::string& tmjPath,
+                                      const std::string& /*layerName_ignored*/,
+                                      std::vector<EntranceZone>& outZones)
+{
+    using nlohmann::json;
+
+    outZones.clear();
+
+    std::ifstream ifs(tmjPath);
+    if (!ifs.is_open()) {
+        std::cout << "[Entrance] ERROR: cannot open tmj: " << tmjPath << "\n";
+        return false;
+    }
+
+    json j;
+    try { ifs >> j; }
+    catch (const std::exception& e) {
+        std::cout << "[Entrance] ERROR: json parse fail: " << e.what() << "\n";
+        return false;
+    }
+
+    if (!j.contains("layers") || !j["layers"].is_array()) {
+        std::cout << "[Entrance] ERROR: no 'layers' array in: " << tmjPath << "\n";
+        return false;
+    }
+
+    bool foundLayer = false;
+
+    for (const auto& L : j["layers"]) {
+        if (!L.is_object()) continue;
+        if (L.value("type", std::string{}) != "objectgroup") continue;
+
+        // 只认小写 "entrance"
+        const std::string lname = L.value("name", std::string{});
+        if (lname != "entrance") continue;
+        foundLayer = true;
+
+        if (!L.contains("objects") || !L["objects"].is_array()) {
+            std::cout << "[Entrance] WARNING: layer 'entrance' has no objects\n";
+            continue;
+        }
+
+        for (const auto& obj : L["objects"]) {
+            float x = obj.value("x", 0.0f);
+            float y = obj.value("y", 0.0f);
+            float w = obj.value("width", 0.0f);
+            float h = obj.value("height", 0.0f);
+
+            // 多边形 -> 包围盒
+            if ((w == 0.f || h == 0.f) && obj.contains("polygon") && obj["polygon"].is_array()) {
+                float minx = x, miny = y, maxx = x, maxy = y;
+                for (const auto& p : obj["polygon"]) {
+                    const float px = x + p.value("x", 0.0f);
+                    const float py = y + p.value("y", 0.0f);
+                    minx = std::min(minx, px); maxx = std::max(maxx, px);
+                    miny = std::min(miny, py); maxy = std::max(maxy, py);
+                }
+                x = minx; y = miny;
+                w = std::max(1.f, maxx - minx);
+                h = std::max(1.f, maxy - miny);
+            }
+
+            // 读取 building 属性
+            std::string building;
+            if (obj.contains("properties") && obj["properties"].is_array()) {
+                for (const auto& prop : obj["properties"]) {
+                    if (prop.value("name", std::string{}) == "building") {
+                        // Tiled 导出一般在 "value" 字段
+                        if (prop.contains("value") && prop["value"].is_string())
+                            building = prop["value"].get<std::string>();
+                        else if (prop.contains("string") && prop["string"].is_string())
+                            building = prop["string"].get<std::string>();
+                        break;
+                    }
+                }
+            }
+            if (building.empty()) {
+                // 没写 building 就跳过
+                continue;
+            }
+
+            EntranceZone ez;
+            ez.rect = sf::FloatRect(sf::Vector2f{x, y}, sf::Vector2f{w, h}); // SFML3: position/size
+            ez.building = building;
+            outZones.push_back(std::move(ez));
+        }
+        // 只用一个名为 entrance 的层，找到后就不再看其他层
+        break;
+    }
+
+    if (!foundLayer) {
+        std::cout << "[Entrance] WARNING: no 'entrance' layer in: " << tmjPath << "\n";
+    }
+
+    std::cout << "[Entrance] loaded " << outZones.size()
+              << " zones from " << tmjPath
+              << " (layer='entrance')\n";
+    return !outZones.empty();
+}
+
+// ------------------------------------------------------------
+// 每帧：根据“脚底点”更新最近一次通过入口的楼名
+// - 脚底点/feet：建议用 character.getFeetPoint()
+// - 会在地图切换时自动重载入口缓存
+// ------------------------------------------------------------
+static void updateEntranceHitByPlayer(const sf::Vector2f& playerFeet,
+                                      const std::string& tmjPath,
+                                      const std::string& layerName,
+                                      std::string& lastEntranceBuilding,
+                                      int& lastEntranceMinutes,
+                                      std::vector<EntranceZone>& entranceZones,
+                                      std::string& cachedEntranceMapPath,
+                                      int minutesNow)
+{
+    if (cachedEntranceMapPath != tmjPath) {
+        reloadEntranceZonesForMap(tmjPath, layerName, entranceZones);
+        cachedEntranceMapPath = tmjPath;
+    }
+
+    bool hit = false;
+    for (const auto& z : entranceZones) {
+        if (z.rect.contains(playerFeet)) {
+            hit = true;
+            if (lastEntranceBuilding != z.building) {
+                lastEntranceBuilding = z.building;
+                lastEntranceMinutes  = minutesNow;
+                std::cout << "[Entrance] building set to: " << lastEntranceBuilding
+                          << " @ " << minutesNow << "min\n";
+            }
+            break;
+        }
+    }
+
+    // 如果没踩在任何入口区，就不改 lastEntranceBuilding，但你可以选择清空：
+    // if (!hit) { lastEntranceBuilding.clear(); }
+}
+
+
+
+
 // 新增：计算最终评级
 FinalResult calculateFinalResult(int totalPoints) {
     FinalResult result;
@@ -829,6 +1026,20 @@ AppResult runApp(
     bool endOfDayPopupShown = false;          // Ensure we only show the popup once
     bool pendingEndOfDayCheck = false;        // NEW: 已达到"可以结束一天"，但还在等当前任务结束
 
+    // === Lesson trigger system ===
+    LessonTrigger lessonTrigger;
+
+    std::string lastEntranceBuilding;   // 最近一次通过的入口的楼名（来自 entrance 的 property）
+    int         lastEntranceMinutes = -1; // 记录时间戳，方便需要时做过期处理（可选）
+
+    std::vector<EntranceZone> entranceZones;
+    std::string cachedEntranceMapPath;    // 已缓存入口的地图 tmj 路径
+
+    // 读取你的课表 JSON（你说放在 navigation/config/quiz 目录）
+    if (!lessonTrigger.loadSchedule("config/quiz/course_schedule.json")) {
+        Logger::error("[LessonTrigger] failed to load course_schedule.json");
+    }
+
     // Load initial tasks
     // Params: id, description, detailed instruction, achievement name, points, energy
     
@@ -999,6 +1210,12 @@ AppResult runApp(
         // Achievement Timer
         if (g_achievementTimer > 0.0f) {
             g_achievementTimer -= deltaTime;
+        }
+
+        // 每帧递减 Hint 计时器
+        if (g_hintTimer > 0.f) {
+            g_hintTimer -= deltaTime;
+            if (g_hintTimer < 0.f) g_hintTimer = 0.f;
         }
 
         const float PASSIVE_DEPLETION_RATE = 10.0f / 30.0f;
@@ -1696,139 +1913,92 @@ AppResult runApp(
         }
 
         // 在此处添加游戏触发检测代码
-        static bool gameTriggerLocked = false;   // ✅ 防止一帧触发 60 次
+        static bool  gameTriggerLocked = false;
+        static float gameTriggerCooldown = 0.0f;
+        static sf::FloatRect activeTriggerRect;   // the rect we’re currently inside
 
-        // === NEW: Block Game Triggers if Fainted ===
+        // --- 每帧先把冷却时间往下减（就在检测前！） ---
+        if (gameTriggerCooldown > 0.f) gameTriggerCooldown -= deltaTime;
+
+        // --- Game trigger detection with cooldown & leave-to-unlock ---
         GameTriggerArea detectedTrigger;
+        bool insideAnyTrigger = false;
+
         if (!isFainted && detectGameTrigger(character, tmjMap.get(), detectedTrigger)) {
-            if (!gameTriggerLocked) {
-                gameTriggerLocked = true; // ✅ 立刻上锁
+            insideAnyTrigger = true;
 
-                std::cout << "🎮 Game Triggered: " << detectedTrigger.name
-                        << " | type = " << detectedTrigger.gameType << std::endl;
+            sf::FloatRect thisRect(
+                sf::Vector2f(detectedTrigger.x, detectedTrigger.y),
+                sf::Vector2f(detectedTrigger.width, detectedTrigger.height)
+            );
 
-                // ✅ 你 Tiled 里写的是 bookstore_puzzle
+            if (!gameTriggerLocked && gameTriggerCooldown <= 0.f) {
+                gameTriggerLocked   = true;
+                activeTriggerRect   = thisRect;
+                gameTriggerCooldown = 0.6f;
+
+                Logger::info("🎮 Game Triggered: " + detectedTrigger.name + " | type = " + detectedTrigger.gameType);
+
                 if (detectedTrigger.gameType == "bookstore_puzzle") {
-                    std::cout << "✅ Launching QuizGame..." << std::endl;
-
                     QuizGame quizGame;
-                    quizGame.run();   // ✅ 正式进入小游戏（阻塞式）
-
-                    std::cout << "✅ QuizGame finished, returning to map." << std::endl;
-                    // === NEW: Trigger Task Completion ===
+                    quizGame.run();
                     handleTaskCompletion(taskManager, "bookstore_quiz");
-                    // ===================================
-                }
-                // 教室问答触发（可配置题库）
-                else if (detectedTrigger.gameType == "classroom_quiz") {
-                    using json = nlohmann::json;
-                    std::string fallbackQid = detectedTrigger.questionSet.empty() ? "classroom_basic" : detectedTrigger.questionSet;
-                    std::string selectedQid = fallbackQid;
 
-                    std::string forcedCategory = "";
-                    try {
-                        Logger::info("Schedule-based quiz selection: current time = " + timeManager.getFormattedTime());
-                        std::ifstream schedFile("config/quiz/course_schedule.json");
-                        if (schedFile.is_open()) {
-                            json schedJson;
-                            schedFile >> schedJson;
+                } else if (detectedTrigger.gameType == "classroom_quiz") {
+                    // —— 关键：统一用 Monday/Tuesday/...；你已有 weekdayStringFrom 正确返回
+                    const std::string weekday = weekdayStringFrom(timeManager);
+                    const int minutesNow = timeManager.getHour() * 60 + timeManager.getMinute();
 
-                            static const char* wkNames[] = {"Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"};
-                            int w = timeManager.getWeekday();
-                            std::string wkKey = (w >= 0 && w <= 6) ? wkNames[w] : "Monday";
+                    // 建议把 quiz JSON 路径写成可用的相对路径（见下方说明）
+                    std::string quizJsonPath = "config/quiz/classroom_basic.json";
 
-                            if (schedJson.contains("schedule") && schedJson["schedule"].contains(wkKey)) {
-                                const auto& dayArr = schedJson["schedule"][wkKey];
-                                int curMin = timeManager.getHour() * 60 + timeManager.getMinute();
-                                Logger::info("Weekday key: " + wkKey + ", curMin: " + std::to_string(curMin) + ", entries: " + std::to_string((int)dayArr.size()));
+                    // 记录一下现场，方便定位
+                    Logger::info("[Classroom] weekday=" + weekday +
+                                " minutes=" + std::to_string(minutesNow) +
+                                " building(lastEntrance)=" + lastEntranceBuilding);
 
-                                for (const auto& item : dayArr) {
-                                    if (!item.contains("time") || !item.contains("course")) continue;
-                                    std::string timestr = item["time"].get<std::string>();
-                                    size_t dash = timestr.find('-');
-                                    if (dash == std::string::npos) continue;
-                                    std::string left = timestr.substr(0, dash);
-                                    std::string right = timestr.substr(dash + 1);
-                                    auto trim = [](std::string s) {
-                                        size_t a = s.find_first_not_of(" \t\n\r");
-                                        size_t b = s.find_last_not_of(" \t\n\r");
-                                        if (a == std::string::npos) return std::string();
-                                        return s.substr(a, b - a + 1);
-                                    };
-                                    left = trim(left); right = trim(right);
-                                    auto parseHM = [](const std::string& s)->int {
-                                        int h = 0, m = 0;
-                                        if (sscanf(s.c_str(), "%d:%d", &h, &m) >= 1) return h * 60 + m;
-                                        return 0;
-                                    };
-                                    int startMin = parseHM(left);
-                                    int endMin = parseHM(right);
-                                    if (startMin <= curMin && curMin <= endMin) {
-                                        std::string courseName = item["course"].get<std::string>();
-                                        std::string q = courseName;
-                                        for (auto &c : q) { if (c == ' ') c = '_'; else c = static_cast<char>(std::tolower(c)); }
-                                        std::string candidatePath = std::string("config/quiz/") + q + ".json";
-                                        std::ifstream chk(candidatePath);
-                                        if (chk.is_open()) {
-                                            selectedQid = q;
-                                            Logger::info("Selected quiz based on schedule (file): " + courseName + " -> " + selectedQid);
-                                        } else {
-                                            // If no dedicated file, check inside classroom_basic.json categories for a matching category key
-                                            std::ifstream classIfs("config/quiz/classroom_basic.json");
-                                            if (classIfs.is_open()) {
-                                                nlohmann::json classJ;
-                                                classIfs >> classJ;
-                                                if (classJ.contains("categories") && classJ["categories"].is_object()) {
-                                                    std::string forced = q; // category key candidate
-                                                    if (classJ["categories"].contains(forced)) {
-                                                        selectedQid = "classroom_basic";
-                                                        forcedCategory = forced;
-                                                        Logger::info("Selected quiz based on schedule (category in classroom_basic): " + courseName + " -> category=" + forced);
-                                                        // store forced category via a temporary JSON key trick by passing forcedCategory later
-                                                        // we'll set forcedCategory below outside the try-block
-                                                        // mark forcedCategory by writing variable (handled later)
-                                                        // To communicate this, set a local variable via outer scope (see after try)
-                                                        // We'll set forcedCategory via a placeholder in sched selection scope
-                                                        // For now signal via selecting classroom_basic and store forced in a temp variable
-                                                    } else {
-                                                        Logger::info("No quiz file for course '" + courseName + "' and no category in classroom_basic; using fallback: " + fallbackQid);
-                                                    }
-                                                } else {
-                                                    Logger::info("classroom_basic.json has no categories; using fallback: " + fallbackQid);
-                                                }
-                                            } else {
-                                                Logger::info("No quiz file for course '" + courseName + "' at path: " + candidatePath + "; using fallback: " + fallbackQid);
-                                            }
-                                        }
-                                        break;
-                                    }
-                                }
-                            } else {
-                                Logger::info("No schedule entry for current weekday: " + wkKey);
-                            }
+                    // ★★★ 最重要：拿出提示文本，并渲染 ★★★
+                    std::string hint;
+                    auto r = lessonTrigger.tryTrigger(
+                        weekday,
+                        lastEntranceBuilding,   // 由 entrance 检测出的“楼名”
+                        minutesNow,
+                        quizJsonPath,
+                        taskManager,
+                        &hint                   // 让 LessonTrigger 写出具体原因
+                    );
+
+                    // 把结果打印出来便于调试
+                    Logger::info(std::string("[Classroom] tryTrigger result=") +
+                                (r == LessonTrigger::Result::TriggeredQuiz ? "TriggeredQuiz" :
+                                r == LessonTrigger::Result::WrongBuildingHintShown ? "WrongBuildingHintShown" :
+                                r == LessonTrigger::Result::AlreadyFired ? "AlreadyFired" : "NoTrigger") +
+                                (hint.empty() ? "" : (" | hint=" + hint)));
+
+                    // 只要不是成功开测验，都把 hint 弹出来
+                    if (r != LessonTrigger::Result::TriggeredQuiz) {
+                        if (!hint.empty()) {
+                            queueHint(hint, 3.0f);  // 显示 3 秒
                         } else {
-                            Logger::info("course_schedule.json not found; using fallback quiz id");
+                            queueHint("No class quiz available now.", 2.5f);
                         }
-                    } catch (const std::exception& e) {
-                        Logger::error(std::string("Error reading schedule json: ") + e.what());
                     }
-
-                    std::string qpath = std::string("config/quiz/") + selectedQid + ".json";
-                    Logger::info("Launching Classroom Quiz: " + qpath + " (selectedQid=" + selectedQid + ", forcedCategory=" + forcedCategory + ")");
-                    std::cout << "✅ Launching Classroom Quiz (" << qpath << ")..." << std::endl;
-
-                    QuizGame quiz(qpath, forcedCategory);
-                    quiz.run();
                 }
             }
-        } 
-        else {
-            // ✅ 角色离开触发区后自动解锁（允许下次再玩）
-            gameTriggerLocked = false;
         }
+
+        // 离开触发区才解锁，避免每帧重新触发
+        if (gameTriggerLocked) {
+            sf::Vector2f feet = character.getFeetPoint();
+            if (!activeTriggerRect.contains(feet)) {
+                gameTriggerLocked = false;
+            }
+        }
+
 
         // ========== 商店触发区域自动检测（类似 bookstore quiz game） ==========
         static bool shopTriggerLocked = false;   // ✅ 防止一帧触发 60 次
+
 
         ShopTrigger detectedShop;
         if (!isFainted && detectShopTrigger(character, tmjMap.get(), detectedShop)) {
@@ -1961,6 +2131,20 @@ AppResult runApp(
             lastFramePos = character.getPosition();
             // ======================================
         }
+
+        // ******** [ADD-ENTRANCE-SCAN] 入口层扫描：请粘贴在这里（角色更新后、休息判定前） ********
+        sf::Vector2f feet = character.getFeetPoint();
+        std::string  tmj  = mapLoader.getCurrentMapPath();
+        int minutesNow = timeManager.getHour()*60 + timeManager.getMinute();
+
+        updateEntranceHitByPlayer(
+            feet, tmj, "entrance",
+            lastEntranceBuilding, lastEntranceMinutes,
+            entranceZones, cachedEntranceMapPath,
+            minutesNow
+        );
+        // ******** [ADD-ENTRANCE-SCAN] 结束 ********
+
 
         if (character.getIsResting()) {
             taskManager.modifyEnergy(2.0f * deltaTime);
@@ -2368,6 +2552,50 @@ AppResult runApp(
             achText.setPosition(sf::Vector2f(uiWidth/2.0f, uiHeight/2.0f));
             renderer.getWindow().draw(achText);
         }
+
+        // --- HINT TOAST (屏幕底部居中) ---
+        // 位置：已 setView(defaultView) 的 UI 渲染阶段，恢复 gameView 之前
+        if (g_hintTimer > 0.f && !g_hintText.empty()) {
+            // 取屏幕尺寸（你上面已算过 uiWidth / uiHeight，如果同作用域可直接用）
+            sf::Vector2u _sz = renderer.getWindow().getSize();
+            float uiWidth  = static_cast<float>(_sz.x);
+            float uiHeight = static_cast<float>(_sz.y);
+
+            const float PADDING_X = 24.f;
+            const float PADDING_Y = 14.f;
+
+            // 用你现成的 modalFont，不再单独加载字体
+            sf::Text hintText(modalFont, g_hintText, 22);
+            hintText.setFillColor(sf::Color::White);
+            hintText.setOutlineColor(sf::Color::Black);
+            hintText.setOutlineThickness(2.f);
+
+            // 文本包围盒（注意 SFML3 的 position/size 字段）
+            sf::FloatRect tb = hintText.getLocalBounds();
+            float boxW = tb.size.x + PADDING_X * 2.f;
+            float boxH = tb.size.y + PADDING_Y * 2.f;
+
+            // 屏幕底部居中，距底 60px
+            float boxX = (uiWidth  - boxW) * 0.5f;
+            float boxY = (uiHeight - boxH) - 60.f;
+
+            // 半透明背景条
+            sf::RectangleShape bg(sf::Vector2f(boxW, boxH));
+            bg.setPosition(sf::Vector2f(boxX, boxY));
+            bg.setFillColor(sf::Color(0, 0, 0, 170));
+            bg.setOutlineThickness(2.f);
+            bg.setOutlineColor(sf::Color(255, 255, 255, 60));
+
+            // 文字位置：减去 localBounds.position，避免基线偏移
+            hintText.setPosition(sf::Vector2f(
+                boxX + PADDING_X - tb.position.x,
+                boxY + PADDING_Y - tb.position.y
+            ));
+
+            renderer.getWindow().draw(bg);
+            renderer.getWindow().draw(hintText);
+        }
+
         
         // 3. Restore the Game Camera (So the next frame renders the map correctly)
         renderer.getWindow().setView(gameView);
