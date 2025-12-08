@@ -181,8 +181,9 @@ bool runLoginScreen(Renderer& renderer)
     introText.setString(
         "Background Introduction\n\n"
         "- You are a new student at CUHKSZ.\n"
+        "- You are going to spend 7 days here.\n"
         "- Talk to NPCs and complete tasks.\n"
-        "- Explore the campus at your wish.\n\n\n"
+        "- Explore the campus at your wish.\n\n"
         "[Press Enter to continue...]"
     );
     introText.setCharacterSize(buttonSize);
@@ -245,6 +246,9 @@ bool runLoginScreen(Renderer& renderer)
 
     // E key
     sf::Sprite iconE = makeIconSprite(10, 10);
+
+    // Z key
+    sf::Sprite iconZ = makeIconSprite(15, 2);
 
     // Left mouse button
     sf::Sprite iconMouseLeft = makeIconSprite(3, 1);
@@ -333,8 +337,22 @@ bool runLoginScreen(Renderer& renderer)
         textInteract.setPosition(sf::Vector2f{textX, rowE_Y});
     }
 
+    // Row 5: sprint (Z)
+    const float rowZ_Y = controlsStartY + rowGap * 5.5f;
+    iconZ.setPosition(sf::Vector2f{iconsCenterX, rowZ_Y});
+
+    sf::Text textSprint(font);
+    textSprint.setString("Sprint: Hold Z to speed up");
+    textSprint.setCharacterSize(controlsTextSize);
+    textSprint.setFillColor(sf::Color::White);
+    {
+        sf::FloatRect b = textSprint.getLocalBounds();
+        textSprint.setOrigin(sf::Vector2f{0.f, b.size.y / 2.f});
+        textSprint.setPosition(sf::Vector2f{textX, rowZ_Y});
+    }
+
     // Row 5: click (left mouse button)
-    const float rowClick_Y = controlsStartY + rowGap * 5.5f;
+    const float rowClick_Y = controlsStartY + rowGap * 6.5f;
     iconMouseLeft.setPosition(sf::Vector2f{iconsCenterX, rowClick_Y});
 
     sf::Text textClick(font);
@@ -459,6 +477,10 @@ bool runLoginScreen(Renderer& renderer)
             // Close mini-map
             window.draw(iconEsc);
             window.draw(textEsc);
+
+            // Sprint (Z)
+            window.draw(iconZ);
+            window.draw(textSprint);
 
             // Interact
             window.draw(iconE);
