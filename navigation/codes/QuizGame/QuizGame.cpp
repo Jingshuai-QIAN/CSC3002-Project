@@ -168,23 +168,17 @@ bool QuizGame::loadQuestionsFromFile(const std::string& path) {
         }
 
         // optional effects (exp / energy)
+        // 奖励（优先 points，回退 exp）
         if (j.contains("effects") && j["effects"].is_object()) {
-            auto effs = j["effects"];
-            if (effs.contains("perfect") && effs["perfect"].is_object()) {
-                auto p = effs["perfect"];
-                perfectEffect.exp = p.value("exp", perfectEffect.exp);
-                perfectEffect.energy = p.value("energy", perfectEffect.energy);
-            }
-            if (effs.contains("good") && effs["good"].is_object()) {
-                auto g = effs["good"];
-                goodEffect.exp = g.value("exp", goodEffect.exp);
-                goodEffect.energy = g.value("energy", goodEffect.energy);
-            }
-            if (effs.contains("poor") && effs["poor"].is_object()) {
-                auto p = effs["poor"];
-                poorEffect.exp = p.value("exp", poorEffect.exp);
-                poorEffect.energy = p.value("energy", poorEffect.energy);
-            }
+            const auto& effs = j["effects"];
+            auto read_one = [](const nlohmann::json& o, Effects& dst) {
+                if (!o.is_object()) return;
+                dst.points = o.value("points", o.value("exp", dst.points)); // 兼容旧 "exp"
+                dst.energy = o.value("energy", dst.energy);
+            };
+            if (effs.contains("perfect")) read_one(effs["perfect"], perfectEffect);
+            if (effs.contains("good"))    read_one(effs["good"],    goodEffect);
+            if (effs.contains("poor"))    read_one(effs["poor"],    poorEffect);
         }
 
         totalQuestions = questions.size();
@@ -284,23 +278,17 @@ bool QuizGame::loadQuestionsFromFile(const std::string& path, const std::string&
         }
 
         // optional effects (exp / energy)
+        // 奖励（优先 points，回退 exp）
         if (j.contains("effects") && j["effects"].is_object()) {
-            auto effs = j["effects"];
-            if (effs.contains("perfect") && effs["perfect"].is_object()) {
-                auto p = effs["perfect"];
-                perfectEffect.exp = p.value("exp", perfectEffect.exp);
-                perfectEffect.energy = p.value("energy", perfectEffect.energy);
-            }
-            if (effs.contains("good") && effs["good"].is_object()) {
-                auto g = effs["good"];
-                goodEffect.exp = g.value("exp", goodEffect.exp);
-                goodEffect.energy = g.value("energy", goodEffect.energy);
-            }
-            if (effs.contains("poor") && effs["poor"].is_object()) {
-                auto p = effs["poor"];
-                poorEffect.exp = p.value("exp", poorEffect.exp);
-                poorEffect.energy = p.value("energy", poorEffect.energy);
-            }
+            const auto& effs = j["effects"];
+            auto read_one = [](const nlohmann::json& o, Effects& dst) {
+                if (!o.is_object()) return;
+                dst.points = o.value("points", o.value("exp", dst.points)); // 兼容旧 "exp"
+                dst.energy = o.value("energy", dst.energy);
+            };
+            if (effs.contains("perfect")) read_one(effs["perfect"], perfectEffect);
+            if (effs.contains("good"))    read_one(effs["good"],    goodEffect);
+            if (effs.contains("poor"))    read_one(effs["poor"],    poorEffect);
         }
 
         totalQuestions = questions.size();
@@ -358,10 +346,10 @@ QuizGame::QuizGame()
     , showContinueButton(false)
 {
     // default effects (can be overridden by JSON)
-    perfectEffect.exp = 20; perfectEffect.energy = 10;
-    goodEffect.exp = 10;    goodEffect.energy = 5;
-    poorEffect.exp = 0;     poorEffect.energy = -5;
-    lastEffect.exp = 0;     lastEffect.energy = 0;
+    perfectEffect.points = 20; perfectEffect.energy = -10;
+    goodEffect.points = 10;    goodEffect.energy = -5;
+    poorEffect.points = 0;     poorEffect.energy = -5;
+    lastEffect.points = 0;     lastEffect.energy = 0;
 
     // 默认窗口尺寸由 uiWindowW/uiWindowH 提供（可由 JSON 覆盖）
     window.create(sf::VideoMode({uiWindowW, uiWindowH}), "Campus Quiz Game");
@@ -440,10 +428,10 @@ QuizGame::QuizGame(const std::string& jsonPath)
     , showContinueButton(false)
 {
     // default effects (can be overridden by JSON)
-    perfectEffect.exp = 20; perfectEffect.energy = 10;
-    goodEffect.exp = 10;    goodEffect.energy = 5;
-    poorEffect.exp = 0;     poorEffect.energy = -5;
-    lastEffect.exp = 0;     lastEffect.energy = 0;
+    perfectEffect.points = 20; perfectEffect.energy = -10;
+    goodEffect.points = 10;    goodEffect.energy = -5;
+    poorEffect.points = 0;     poorEffect.energy = -5;
+    lastEffect.points = 0;     lastEffect.energy = 0;
 
     // 先尝试从文件加载 UI/题目；如果失败则回退到硬编码
     bool loaded = loadQuestionsFromFile(jsonPath);
@@ -526,10 +514,10 @@ QuizGame::QuizGame(const std::string& jsonPath, const std::string& forcedCategor
     , gameCompleted(false)
     , showContinueButton(false)
 {
-    perfectEffect.exp = 20; perfectEffect.energy = 10;
-    goodEffect.exp = 10;    goodEffect.energy = 5;
-    poorEffect.exp = 0;     poorEffect.energy = -5;
-    lastEffect.exp = 0;     lastEffect.energy = 0;
+    perfectEffect.points = 20; perfectEffect.energy = -10;
+    goodEffect.points = 10;    goodEffect.energy = -5;
+    poorEffect.points = 0;     poorEffect.energy = -5;
+    lastEffect.points = 0;     lastEffect.energy = 0;
 
     bool loaded = loadQuestionsFromFile(jsonPath, forcedCategory);
     window.create(sf::VideoMode({uiWindowW, uiWindowH}), "Campus Quiz Game");
