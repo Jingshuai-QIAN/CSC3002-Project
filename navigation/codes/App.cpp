@@ -1077,7 +1077,7 @@ AppResult runApp(
         "Eat Food at Canteen", 
         "Go to the Student Centre and press E at the counter to order food, then sit at a table and press E to eat. This restores energy.", 
         "Foodie", 
-        10, 0); 
+        0, 0); 
     
     taskManager.addTask("attend_class", 
         "Attend Class (Quiz)", 
@@ -1089,7 +1089,7 @@ AppResult runApp(
         "Rest on Lawn", 
         "Walk onto the green lawn before the library. Press E to rest and recover energy.", 
         "Nature Lover", 
-        10, 0); 
+        0, 0); 
     
     taskManager.addTask("buy_item", 
         "Buy Item at FamilyMart", 
