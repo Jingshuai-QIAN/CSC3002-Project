@@ -30,6 +30,8 @@
 static std::string g_achievementText = "";
 static float g_achievementTimer = 0.0f;
 
+bool showFinalResultScreen(Renderer& renderer, char grade, int starCount, const std::string& resultText);
+
 // Helper to trigger task completion and show popup
 static void handleTaskCompletion(TaskManager& taskManager, const std::string& taskId) {
     std::string achievement = taskManager.completeTask(taskId);
@@ -822,8 +824,8 @@ bool pendingEndOfDayCheck = false;   // 结束检查标记
 bool endOfDayPopupShown = false;     // 结束弹窗标记
 
 
-// 新增：显示结算界面
-bool showFinalResultScreen(Renderer& renderer, const FinalResult& result) {
+// 直接接收主循环计算好的参数：等级字符、星星数、完整描述文本
+bool showFinalResultScreen(Renderer& renderer, char grade, int starCount, const std::string& resultText) {
     sf::RenderWindow& window = renderer.getWindow();
     sf::Font font;
     if (!font.openFromFile("fonts/arial.ttf")) {
@@ -831,56 +833,50 @@ bool showFinalResultScreen(Renderer& renderer, const FinalResult& result) {
         return true;
     }
 
-    //  独立加载结束面板背景（复用素材但独立控制） 
+    // 背景加载、缩放、居中（原有逻辑不变）
     sf::Texture bgTexture;
-    if (!bgTexture.loadFromFile("textures/dialog_bg.png")) { // 复用素材文件
+    if (!bgTexture.loadFromFile("textures/dialog_bg.png")) {
         Logger::error("Failed to load dialog_bg.png");
         return true;
     }
     sf::Sprite bgSprite(bgTexture);
-
-    //  独立计算结束面板的缩放和居中（核心解耦逻辑）
-    // 目标尺寸：窗口的 70% 宽高（可独立调整，不影响DialogSystem）
     const float PANEL_SCALE_RATIO = 0.7f; 
     sf::Vector2u windowSize = window.getSize();
     sf::Vector2u bgTexSize = bgTexture.getSize();
-
-    // 计算缩放比例（等比缩放，适配窗口70%尺寸）
     float scaleX = (windowSize.x * PANEL_SCALE_RATIO) / bgTexSize.x;
     float scaleY = (windowSize.y * PANEL_SCALE_RATIO) / bgTexSize.y;
-    float finalScale = std::min(scaleX, scaleY); // 等比缩放，避免拉伸
-
-    // 设置背景缩放（独立于DialogSystem的缩放）
+    float finalScale = std::min(scaleX, scaleY);
     bgSprite.setScale(sf::Vector2f(finalScale, finalScale));
-
-    // 计算居中位置（独立计算，不依赖DialogSystem的居中逻辑）
     sf::FloatRect bgBounds = bgSprite.getGlobalBounds();
     float bgX = (windowSize.x - bgBounds.size.x) / 2.0f;  
     float bgY = (windowSize.y - bgBounds.size.y) / 2.0f; 
     bgSprite.setPosition(sf::Vector2f(bgX, bgY));
 
-    // 等级文本（独立排版）
+    // 等级文本（直接用主循环传的grade，删除switch逻辑）
     sf::Text gradeText(font, "", 36);
-    std::string gradeStr;
-    switch (result.grade) {
-        case Grade::A: gradeStr = "A"; break;
-        case Grade::B: gradeStr = "B"; break;
-        case Grade::C: gradeStr = "C"; break;
-        case Grade::D: gradeStr = "D"; break;
-        case Grade::F: gradeStr = "F"; break;
-    }
-    gradeText.setString("You got an " + gradeStr + " in the game!");
+    std::string article = (grade == 'A') ? "an" : "a";
+    gradeText.setString("You got " + article + " " + std::string(1, grade) + " in the game!");
     gradeText.setFillColor(sf::Color::White);
     gradeText.setCharacterSize(36);
-    // 文本居中（相对于面板）
     sf::FloatRect gradeBounds = gradeText.getLocalBounds();
     gradeText.setOrigin(sf::Vector2f(gradeBounds.size.x / 2, gradeBounds.size.y / 2));
     gradeText.setPosition(sf::Vector2f(
-        windowSize.x / 2.0f,          // 窗口水平居中
-        bgY + bgBounds.size.y * 0.3f  // 面板垂直30%位置（修复：height → size.y）
+        windowSize.x / 2.0f,          
+        bgY + bgBounds.size.y * 0.25f // 上移留空间给健康文本
     ));
 
-    //  星星显示
+    // 健康状态文本（直接用主循环传的resultText，删除拼接逻辑）
+    sf::Text healthText(font, resultText, 28);
+    healthText.setFillColor(sf::Color(255, 215, 0)); // 金色突出
+    healthText.setCharacterSize(28);
+    sf::FloatRect healthBounds = healthText.getLocalBounds();
+    healthText.setOrigin(sf::Vector2f(healthBounds.size.x / 2, healthBounds.size.y / 2));
+    healthText.setPosition(sf::Vector2f(
+        windowSize.x / 2.0f,
+        bgY + bgBounds.size.y * 0.35f
+    ));
+
+    // 星星显示（原有逻辑不变，直接用传的starCount）
     const float starSize = 50.f;
     sf::Texture starYTexture, starGTexture;
     if (!starYTexture.loadFromFile("textures/star_y.png") || !starGTexture.loadFromFile("textures/star_g.png")) {
@@ -888,11 +884,10 @@ bool showFinalResultScreen(Renderer& renderer, const FinalResult& result) {
         return true;
     }
     std::vector<sf::Sprite> stars;
-    // 星星区域居中
     float starStartX = (windowSize.x - (starSize * 5 + 20.f * 4)) / 2;
     float starY = bgY + bgBounds.size.y * 0.5f;
     for (int i = 0; i < 5; ++i) {
-        sf::Sprite star(i < result.starCount ? starYTexture : starGTexture);
+        sf::Sprite star(i < starCount ? starYTexture : starGTexture);
         star.setScale(sf::Vector2f(
             starSize / starYTexture.getSize().x, 
             starSize / starYTexture.getSize().y
@@ -904,23 +899,17 @@ bool showFinalResultScreen(Renderer& renderer, const FinalResult& result) {
         stars.push_back(star);
     }
 
-    // 双按钮布局（退出+重来）
-    const float btnWidth = 180.f;  // 按钮宽度（缩小一点适配双按钮）
-    const float btnHeight = 60.f;  // 按钮高度
-
-    // 按钮2：退出（深棕色）
+    // 按钮布局、交互（原有逻辑不变）
+    const float btnWidth = 180.f;
+    const float btnHeight = 60.f;
     sf::RectangleShape exitBtn(sf::Vector2f(btnWidth, btnHeight));
-    exitBtn.setFillColor(sf::Color(139, 69, 19)); // 深棕色
+    exitBtn.setFillColor(sf::Color(139, 69, 19));
     exitBtn.setOutlineColor(sf::Color(80, 40, 10));
     exitBtn.setOutlineThickness(2.f);
-
-    // 双按钮居中布局（整体居中，左右分布）
-    float btnX = (windowSize.x - btnWidth) / 2;  // 水平居中
-    float btnY = bgY + bgBounds.size.y * 0.7f;    // 垂直位置（面板70%处）
+    float btnX = (windowSize.x - btnWidth) / 2;
+    float btnY = bgY + bgBounds.size.y * 0.7f;
     exitBtn.setPosition(sf::Vector2f(btnX, btnY));
 
-
-    // 按钮文本：退出
     sf::Text exitText(font, "Exit", 24);
     exitText.setFillColor(sf::Color::White);
     sf::FloatRect exitTextBounds = exitText.getLocalBounds();
@@ -930,31 +919,25 @@ bool showFinalResultScreen(Renderer& renderer, const FinalResult& result) {
         exitBtn.getPosition().y + btnHeight / 2
     ));
 
-    // 事件循环（双按钮交互）
+    // 事件循环（原有逻辑不变）
     sf::View originalView = window.getView();
     window.setView(window.getDefaultView());
-
     bool shouldExit = false;
     bool isRunning = true;
 
     while (window.isOpen() && isRunning) {
         std::optional<sf::Event> event;
         while ((event = window.pollEvent()).has_value()) {
-            // 窗口关闭
             if (event->is<sf::Event::Closed>()) {
                 window.close();
                 isRunning = false;
                 shouldExit = true;
             }
-
-            // 鼠标点击事件（仅检测 Exit 按钮）
             if (const auto* mouseEvent = event->getIf<sf::Event::MouseButtonPressed>()) {
                 if (mouseEvent->button == sf::Mouse::Button::Left) {
                     sf::Vector2f mousePos = window.mapPixelToCoords(
                         sf::Vector2i(mouseEvent->position.x, mouseEvent->position.y)
                     );
-
-                    // 仅处理退出按钮点击
                     if (exitBtn.getGlobalBounds().contains(mousePos)) {
                         shouldExit = true;
                         isRunning = false;
@@ -963,7 +946,7 @@ bool showFinalResultScreen(Renderer& renderer, const FinalResult& result) {
             }
         }
 
-        //  鼠标悬停效果
+        // 鼠标悬停效果
         sf::Vector2i mousePixelPos = sf::Mouse::getPosition(window);
         sf::Vector2f mouseWorldPos = window.mapPixelToCoords(mousePixelPos);
         if (exitBtn.getGlobalBounds().contains(mouseWorldPos)) {
@@ -972,18 +955,17 @@ bool showFinalResultScreen(Renderer& renderer, const FinalResult& result) {
             exitBtn.setFillColor(sf::Color(139, 69, 19));
         }
 
-
-        // 独立渲染
+        // 渲染（原有逻辑不变，新增healthText绘制）
         window.clear(sf::Color(40, 40, 40));
         window.draw(bgSprite);
         window.draw(gradeText);
+        window.draw(healthText); // 绘制主循环传的健康文本
         for (const auto& star : stars) window.draw(star);
         window.draw(exitBtn);
         window.draw(exitText);
         window.display();
     }
 
-    // 恢复视图（防止影响后续游戏渲染）
     window.setView(originalView);
     return shouldExit;
 }
@@ -1004,6 +986,54 @@ struct TaskHitbox {
     std::string detailText;
 };
 
+struct SettlementData {
+    char grade;
+    int finalStarCount;
+    std::string resultText;
+};
+
+SettlementData calculateSettlementData(long long points, int faintCount) {
+    SettlementData data;
+    int baseStarCount = 1;
+
+    // 1. 计算评级和基础星星
+    if (points >= 450) {
+        data.grade = 'A';
+        baseStarCount = 5;
+    } else if (points >= 350) {
+        data.grade = 'B';
+        baseStarCount = 4;
+    } else if (points >= 250) {
+        data.grade = 'C';
+        baseStarCount = 3;
+    } else if (points >= 150) {
+        data.grade = 'D';
+        baseStarCount = 2;
+    } else {
+        data.grade = 'F';
+        baseStarCount = 1;
+    }
+
+    // 2. 计算健康状态
+    std::string healthCondition;
+    if (faintCount <= 1) {
+        healthCondition = "good";
+    } else if (faintCount == 2) {
+        healthCondition = "medium";
+    } else {
+        healthCondition = "bad";
+    }
+
+    // 3. 计算最终星星数
+    data.finalStarCount = std::max(baseStarCount - faintCount, 0);
+
+    // 4. 构建结算文本
+    std::string article = (data.grade == 'A') ? "an" : "a";
+    data.resultText = "You are " + article + " " + std::string(1, data.grade) + 
+                      " student with " + healthCondition + " health condition!";
+
+    return data;
+}
 
 
 AppResult runApp(
@@ -1273,18 +1303,17 @@ AppResult runApp(
             // If choice == KeepExploring: 什么都不做，玩家继续在地图上走
         }
         // ========================================================
+        // 结算触发
         if (timeManager.getFormattedTime() == "23:59" && !isFinalResultShown) {
-            // 触发结算
-            FinalResult result;
-            result.starCount = (taskManager.getPoints() >= taskManager.getDailyGoal()) ? 5 : taskManager.getPoints() / 100;
-            result.grade = (result.starCount >= 5) ? Grade::A : Grade::F;
-
-            // 调用结束面板（仅返回是否退出）
-            bool shouldExit = showFinalResultScreen(renderer, result);
-            if (shouldExit) {
-                return AppResult::QuitGame; // 点击退出则退出游戏
-            }
             isFinalResultShown = true;
+            SettlementData data = calculateSettlementData(taskManager.getPoints(), faintCount);
+            bool shouldExit = showFinalResultScreen(renderer, data.grade, data.finalStarCount, data.resultText);
+            if (shouldExit) {
+                result = AppResult::QuitGame;
+            } else {
+                result = AppResult::BackToLogin;
+            }
+            break;
         }
         // ========== 处理教授回应的逻辑（从App.cpp补充） ==========
         if (profResponseState.pending && !dialogSys.isActive()) {
@@ -2286,13 +2315,13 @@ AppResult runApp(
         }
 
         // 新增：检查是否达到7天
-        if (currentDay > 7 && !isFinalResultShown) {
-            FinalResult result = calculateFinalResult(taskManager.getPoints());
-            bool shouldExit = showFinalResultScreen(renderer, result);
-            if (shouldExit) {
-                return AppResult::QuitGame; // 仅处理退出
-            }
+        if (currentDay > 1 && !isFinalResultShown) {
             isFinalResultShown = true;
+            SettlementData data = calculateSettlementData(taskManager.getPoints(), faintCount);
+            bool shouldExit = showFinalResultScreen(renderer, data.grade, data.finalStarCount, data.resultText);
+            if (shouldExit) {
+                return AppResult::QuitGame;
+            }
         }
         // 新增：检测天数变化（假设TimeManager有获取当前天数的方法）
         if (timeManager.getDay() > currentDay) {
