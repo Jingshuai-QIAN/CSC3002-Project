@@ -71,113 +71,7 @@ static void queueHint(const std::string& text, float seconds = 2.8f) {
 }
 
 
-// Result of the "end of day" popup
-enum class EndOfDayChoice {
-    BackToHome,     // Go back to Home/Login
-    KeepExploring,  // Stay in the current scene and keep exploring
-    ExitGame        // Close the game window
-};
 
-// Popup that uses the same UI sheet as the Login screen.
-static EndOfDayChoice showEndOfDayPopup(Renderer& renderer, const sf::Font& font)
-{
-    sf::RenderWindow& window = renderer.getWindow();
-    window.setView(window.getDefaultView());
-
-    const auto winSize = window.getSize();
-    const float winW = static_cast<float>(winSize.x);
-    const float winH = static_cast<float>(winSize.y);
-
-    sf::Texture uiTexture;
-    if (!uiTexture.loadFromFile("assets/uipack_rpg_sheet.png")) {
-        std::cerr << "[EndOfDay] Failed to load assets/uipack_rpg_sheet.png\n";
-        return EndOfDayChoice::KeepExploring;
-    }
-
-    const sf::IntRect BG_PANEL_RECT{ sf::Vector2i{0, 376}, sf::Vector2i{100, 100} };
-    sf::Sprite bgPanel(uiTexture, BG_PANEL_RECT);
-    bgPanel.setScale(sf::Vector2f{ winW / static_cast<float>(BG_PANEL_RECT.size.x), winH / static_cast<float>(BG_PANEL_RECT.size.y) });
-    bgPanel.setPosition(sf::Vector2f{ 0.f, 0.f });
-
-    const sf::Color deepBrown(150, 100, 60);
-    const sf::IntRect BUTTON_KHAKI_RECT{ sf::Vector2i{2, 240}, sf::Vector2i{188, 40} };
-
-    sf::Sprite btnYes(uiTexture, BUTTON_KHAKI_RECT);
-    sf::Sprite btnNo (uiTexture, BUTTON_KHAKI_RECT);
-
-    const float baseButtonW = static_cast<float>(BUTTON_KHAKI_RECT.size.x);
-    const float baseButtonH = static_cast<float>(BUTTON_KHAKI_RECT.size.y);
-    const float targetButtonWidth = winW * 0.25f;
-    const float buttonScaleX      = targetButtonWidth / baseButtonW;
-    const float buttonScaleY      = buttonScaleX * 1.3f;
-
-    btnYes.setScale(sf::Vector2f{buttonScaleX, buttonScaleY});
-    btnNo .setScale(sf::Vector2f{buttonScaleX, buttonScaleY});
-
-    const float centerX = winW * 0.5f;
-    const float btnY    = winH * 0.60f;
-    const float gapX    = winW * 0.18f;
-
-    btnYes.setOrigin(sf::Vector2f{baseButtonW / 2.f, baseButtonH / 2.f});
-    btnNo .setOrigin(sf::Vector2f{baseButtonW / 2.f, baseButtonH / 2.f});
-    btnYes.setPosition(sf::Vector2f{centerX - gapX, btnY});
-    btnNo .setPosition(sf::Vector2f{centerX + gapX, btnY});
-
-    sf::Text title(font, "Congratulations! You've completed a full day at CUHKSZ!", static_cast<unsigned int>(winH * 0.05f));
-    title.setFillColor(sf::Color::White);
-    sf::FloatRect b = title.getLocalBounds();
-    title.setOrigin(sf::Vector2f{ b.position.x + b.size.x / 2.f, b.position.y + b.size.y / 2.f });
-    title.setPosition(sf::Vector2f{centerX, winH * 0.30f});
-
-    sf::Text msg(font, "Do you want to return to the real world?", static_cast<unsigned int>(winH * 0.035f));
-    msg.setFillColor(sf::Color::White);
-    b = msg.getLocalBounds();
-    msg.setOrigin(sf::Vector2f{ b.position.x + b.size.x / 2.f, b.position.y + b.size.y / 2.f });
-    msg.setPosition(sf::Vector2f{centerX, winH * 0.40f});
-
-    sf::Text yesText(font, "Go back to Home", static_cast<unsigned int>(winH * 0.035f));
-    sf::Text noText(font, "Keep exploring", static_cast<unsigned int>(winH * 0.035f));
-    yesText.setFillColor(sf::Color::White);
-    noText.setFillColor(sf::Color::White);
-
-    auto centerTextOnButton = [](sf::Text& text, const sf::Sprite& btn) {
-        sf::FloatRect tb = text.getLocalBounds();
-        sf::FloatRect bb = btn.getGlobalBounds();
-        text.setOrigin(sf::Vector2f{ tb.position.x + tb.size.x / 2.f, tb.position.y + tb.size.y / 2.f });
-        text.setPosition(sf::Vector2f{ bb.position.x + bb.size.x / 2.f, bb.position.y + bb.size.y / 2.f });
-    };
-    centerTextOnButton(yesText, btnYes);
-    centerTextOnButton(noText,  btnNo);
-
-    while (window.isOpen()) {
-        std::optional<sf::Event> evOpt;
-        while ((evOpt = window.pollEvent()).has_value()) {
-            const sf::Event& ev = *evOpt;
-            if (ev.is<sf::Event::Closed>()) return EndOfDayChoice::ExitGame;
-            if (const auto* mb = ev.getIf<sf::Event::MouseButtonPressed>()) {
-                if (mb->button == sf::Mouse::Button::Left) {
-                    sf::Vector2f mousePos(static_cast<float>(mb->position.x), static_cast<float>(mb->position.y));
-                    if (btnYes.getGlobalBounds().contains(mousePos)) return EndOfDayChoice::BackToHome;
-                    if (btnNo.getGlobalBounds().contains(mousePos)) return EndOfDayChoice::KeepExploring;
-                }
-            }
-            if (const auto* key = ev.getIf<sf::Event::KeyPressed>()) {
-                if (key->code == sf::Keyboard::Key::Enter) return EndOfDayChoice::BackToHome;
-                if (key->code == sf::Keyboard::Key::Escape) return EndOfDayChoice::KeepExploring;
-            }
-        }
-        window.clear(deepBrown);
-        window.draw(bgPanel);
-        window.draw(title);
-        window.draw(msg);
-        window.draw(btnYes);
-        window.draw(btnNo);
-        window.draw(yesText);
-        window.draw(noText);
-        window.display();
-    }
-    return EndOfDayChoice::ExitGame;
-}
 
 // Helper: detect whether character is inside an entrance and facing it.
 static bool detectEntranceTrigger(const Character& character, const TMJMap* map, EntranceArea& outArea) {
@@ -820,8 +714,6 @@ FinalResult calculateFinalResult(int totalPoints) {
 }
 
 bool isFinalResultShown = false;     // 结算面板显示标记
-bool pendingEndOfDayCheck = false;   // 结束检查标记
-bool endOfDayPopupShown = false;     // 结束弹窗标记
 
 
 // 直接接收主循环计算好的参数：等级字符、星星数、完整描述文本
@@ -1053,8 +945,6 @@ AppResult runApp(
     TaskManager taskManager;
 
     AppResult result = AppResult::QuitGame;   // Default: quit game
-    bool endOfDayPopupShown = false;          // Ensure we only show the popup once
-    bool pendingEndOfDayCheck = false;        // NEW: 已达到"可以结束一天"，但还在等当前任务结束
 
     // === Lesson trigger system ===
     LessonTrigger lessonTrigger;
@@ -1072,17 +962,16 @@ AppResult runApp(
 
     // Load initial tasks
     // Params: id, description, detailed instruction, achievement name, points, energy
-    
-    // Sum = 100 XP Total
+
     taskManager.addTask("eat_food", 
         "Eat Food at Canteen", 
-        "Go to the Student Centre and press E at the counter to order food, then sit at a table and press E to eat.", 
+        "Go to the Student Centre and press E at the counter to order food, then sit at a table and press E to eat. This restores energy.", 
         "Foodie", 
-        10, 0); 
+        0, 0); 
     
     taskManager.addTask("attend_class", 
         "Attend Class (Quiz)", 
-        "Find a classroom. Enter the trigger zone to start the class quiz.", 
+        "Find a classroom. Enter the trigger zone to start the class quiz. This awards points but deducts your energy.", 
         "Scholar", 
         20, 0);
     
@@ -1090,29 +979,26 @@ AppResult runApp(
         "Rest on Lawn", 
         "Walk onto the green lawn before the library. Press E to rest and recover energy.", 
         "Nature Lover", 
-        10, 0); 
+        0, 0); 
     
     taskManager.addTask("buy_item", 
         "Buy Item at FamilyMart", 
-        "Locate the FamilyMart shop. Press E at the entrance to buy items.", 
+        "Locate the FamilyMart shop. Press E at the entrance to buy items. This gives points.", 
         "Big Spender", 
         10, 0); 
     
     taskManager.addTask("talk_professor", 
         "Talk to a Professor", 
-        "Find a professor on the map. Press E to start a conversation.", 
+        "Find a professor on the map. Press E to start a conversation. Awards points.", 
         "Networker", 
         15, 0); 
 
     taskManager.addTask("bookstore_quiz", 
         "Solve Bookstore Puzzle", 
-        "Go to the Bookstore. Enter the trigger area to solve the CUHK(SZ) questions.", 
+        "Go to the Bookstore. Enter the trigger area to solve the CUHK(SZ) questions. This gives lots of points.", 
         "Bookworm", 
         25, 0);
 
-    // === REMOVED "sprint_practice" TASK ===
-    // =============================================
-    
     if (!renderer.initializeChefTexture()) {
         Logger::error("Failed to initialize chef texture");
         return AppResult::QuitGame;
@@ -1262,59 +1148,7 @@ AppResult runApp(
             }
         }
 
-        // === NEW: End-of-day Check Logic (Teammate's update) ===
-        // 1) 先记录: Points 已经达到"可以结束一天"的条件
-        if (!endOfDayPopupShown && !pendingEndOfDayCheck && taskManager.getPoints() >= taskManager.getDailyGoal()) {
-            pendingEndOfDayCheck = true;
-        }
-
-        // 2) 当前是否在忙碌"任务动作"
-        bool isBusyWithTask = 
-            dialogSys.isActive() ||         // 还在对话框
-            gameState.isEating ||           // 正在吃饭
-            shoppingState.isShopping ||     // 正在便利店购物
-            isFainted ||                    // 晕倒动画中
-            isExpelled ||                   // 被退学
-            waitingForEntranceConfirmation; // 正在问"是否进入某建筑"
-
-        // 3) 只有当: 已经满足结束条件 + 不在忙任务 + 成就提示已经结束, 才弹结束弹窗
-        if (pendingEndOfDayCheck && 
-            !endOfDayPopupShown && 
-            !isBusyWithTask && 
-            g_achievementTimer <= 0.0f) // ⭐ 确保 Achievement Popup 已经展示完
-        {
-            endOfDayPopupShown = true;
-            pendingEndOfDayCheck = false;
-
-            EndOfDayChoice choice = showEndOfDayPopup(renderer, modalFont);
-
-            if (choice == EndOfDayChoice::BackToHome) {
-                // Player chose to go back to Home/Login
-                // 回到 Home/Login
-                result = AppResult::BackToLogin;
-                break; // Leave the main game loop
-            } else if (choice == EndOfDayChoice::ExitGame) {
-                // Player closed the popup window / chose exit
-                // 直接退出游戏
-                AppResult appResult = AppResult::QuitGame;
-                renderer.quit();
-                break;
-            }
-            // If choice == KeepExploring: 什么都不做，玩家继续在地图上走
-        }
-        // ========================================================
-        // 结算触发
-        if (timeManager.getFormattedTime() == "23:59" && !isFinalResultShown) {
-            isFinalResultShown = true;
-            SettlementData data = calculateSettlementData(taskManager.getPoints(), faintCount);
-            bool shouldExit = showFinalResultScreen(renderer, data.grade, data.finalStarCount, data.resultText);
-            if (shouldExit) {
-                result = AppResult::QuitGame;
-            } else {
-                result = AppResult::BackToLogin;
-            }
-            break;
-        }
+    
         // ========== 处理教授回应的逻辑（从App.cpp补充） ==========
         if (profResponseState.pending && !dialogSys.isActive()) {
             Logger::info("🔄 Processing professor response - pending: true, option: " + 
@@ -2315,7 +2149,7 @@ AppResult runApp(
         }
 
         // 新增：检查是否达到7天
-        if (currentDay > 1 && !isFinalResultShown) {
+        if (currentDay > 7 && !isFinalResultShown) {
             isFinalResultShown = true;
             SettlementData data = calculateSettlementData(taskManager.getPoints(), faintCount);
             bool shouldExit = showFinalResultScreen(renderer, data.grade, data.finalStarCount, data.resultText);
