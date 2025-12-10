@@ -218,11 +218,11 @@ void Renderer::cleanup() {
     }
     loadedTextures.clear();
 
-    m_chefTexture = sf::Texture(); // 释放纹理
-    m_chefSprite.reset(); // 释放精灵
+    m_chefTexture = sf::Texture(); 
+    m_chefSprite.reset(); 
     
-    m_professorTexture = sf::Texture(); // 释放教授纹理
-    m_professorSprite.reset(); // 释放教授精灵
+    m_professorTexture = sf::Texture(); 
+    m_professorSprite.reset(); 
     
     // Close the window if it's open
     if (window.isOpen()) {
@@ -910,8 +910,8 @@ void Renderer::renderShopTriggerAreas(const std::vector<ShopTrigger>& areas) {
     if (!window.isOpen()) return;
 
     for (const auto& area : areas) {
-        sf::RectangleShape rect(area.rect.size);             // size.x / size.y
-        rect.setPosition(area.rect.position);               // position.x / position.y
+        sf::RectangleShape rect(area.rect.size);            
+        rect.setPosition(area.rect.position);            
         rect.setFillColor(shopTriggerFillColor);
         rect.setOutlineThickness(shopTriggerOutlineThickness);
         rect.setOutlineColor(shopTriggerOutlineColor);
@@ -923,55 +923,68 @@ void Renderer::renderShopTriggerAreas(const std::vector<ShopTrigger>& areas) {
 
 
 /**
- * @brief 初始化教授纹理
+ * @brief Initialize professor texture.
  * 
- * 加载教授角色的纹理文件，并创建对应的精灵对象。
+ * Load texture file for professor character and create corresponding sprite object.
  * 
- * @return true 如果纹理成功加载，false 如果加载失败
+ * @return true if texture loaded successfully, false if loading failed.
  */
 bool Renderer::initializeProfessorTexture() {
-    if (!m_professorTexture.loadFromFile("tiles/M_10.png")) { // 使用不同的角色纹理
+    if (!m_professorTexture.loadFromFile("tiles/M_10.png")) { 
         Logger::error("Failed to load professor texture: tiles/M_10.png");
         return false;
     }
     
-    // SFML 3.0+ 使用 Vector2i 构造 IntRect
+
     sf::IntRect professorFrame(
-        sf::Vector2i(0, 0),    // 左上角坐标
-        sf::Vector2i(16, 17)   // 帧尺寸
+        sf::Vector2i(0, 0),    
+        sf::Vector2i(16, 17)   
     );
     m_professorSprite = std::make_unique<sf::Sprite>(m_professorTexture, professorFrame);
     return true;
 }
 
 /**
- * @brief 渲染教授对象
+ * @brief Render professor objects.
  * 
- * 在屏幕上绘制所有可交互的教授角色。
+ * Draw all interactive professor characters on screen.
  * 
- * @param professors 教授对象的向量
+ * @param professors Vector of professor objects.
  */
 void Renderer::renderProfessors(const std::vector<Professor>& professors) {
     if (!m_professorSprite || !m_professorTexture.getSize().x) return;
     
     for (const auto& prof : professors) {
-        if (!prof.available) continue; // 跳过不可交互的教授
-        
-        // 计算精灵位置（居中显示）
+        if (!prof.available) continue; 
+  
         sf::Vector2f spritePos(
-            prof.rect.position.x + prof.rect.size.x / 2 - 8,   // 水平居中
-            prof.rect.position.y + prof.rect.size.y / 2 - 8.5f // 垂直居中
+            prof.rect.position.x + prof.rect.size.x / 2 - 8,   
+            prof.rect.position.y + prof.rect.size.y / 2 - 8.5f 
         );
         m_professorSprite->setPosition(spritePos);
         window.draw(*m_professorSprite);
     }
 }
 
+/**
+ * @brief Render modal prompt without anchor position.
+ * 
+ * @param prompt Text to display in modal.
+ * @param font Font for the prompt text.
+ * @param fontSize Font size for the prompt text.
+ */
 void Renderer::renderModalPrompt(const std::string& prompt, const sf::Font& font, unsigned int fontSize) {
     renderModalPrompt(prompt, font, fontSize, std::nullopt);
 }
 
-
+/**
+ * @brief Render modal prompt with optional anchor position.
+ * 
+ * @param prompt Text to display in modal.
+ * @param font Font for the prompt text.
+ * @param fontSize Font size for the prompt text.
+ * @param anchorScreenPos Optional anchor screen position for text placement.
+ */
 void Renderer::renderModalPrompt(
     const std::string& prompt, 
     const sf::Font& font, 
@@ -1034,19 +1047,23 @@ void Renderer::renderModalPrompt(
     window.setView(prevView);
 }
 
-// 实现休息状态文本渲染
+/**
+ * @brief Render resting state text.
+ * 
+ * Display "Resting......" text above character position.
+ * 
+ * @param characterPos Character position to anchor text.
+ * @param font Font for the resting text.
+ */
 void Renderer::renderRestingText(const sf::Vector2f& characterPos, const sf::Font& font) {
     if (!window.isOpen()) return;
 
-    // 核心修复：SFML 3.0.2 必须传入 font 作为第一个参数
     sf::Text text(font, "Resting......", 16);
     text.setFillColor(sf::Color::Green);
-    
-    // 计算文本位置（角色头顶上方）
+
     sf::Vector2f textPos = characterPos;
-    textPos.y -= 30; // 向上偏移30像素
+    textPos.y -= 30; 
     
-    // 居中对齐
     sf::FloatRect textBounds = text.getLocalBounds();
     text.setOrigin(sf::Vector2f(
         textBounds.position.x + textBounds.size.x / 2,
