@@ -52,14 +52,14 @@ public:
     // Getters
     long long getPoints() const { return currentPoints; } 
     
-    // === UPDATED: Daily Goal is now 500 ===
+    // Daily Goal is 500 
     long long getDailyGoal() const { return 500; } 
     
     // Return int for UI display, but keep internal float
     int getEnergy() const { return static_cast<int>(currentEnergy); }
     int getMaxEnergy() const { return 100; }
 
-    // === FIXED: Now accepts small float values without rounding to 0 ===
+    // Accept small float values without rounding to 0 
     void modifyEnergy(float amount) {
         currentEnergy += amount;
         if (currentEnergy < 0.0f) currentEnergy = 0.0f;
@@ -72,3 +72,4 @@ private:
     long long currentPoints; 
     float currentEnergy; // Changed from int to float to support passive decay
 };
+
