@@ -50,8 +50,16 @@ void clampViewToBounds(sf::View& view, int mapWidth, int mapHeight) {
     view.setCenter(center);
 }
 
-
-// Run the main application loop (extracted from main for modularity)
+/**
+ * @brief Run the main application loop (extracted from main for modularity).
+ * 
+ * @param renderer Renderer instance.
+ * @param mapLoader MapLoader instance.
+ * @param tmjMap Shared pointer to TMJMap.
+ * @param character Character instance.
+ * @param view Camera view.
+ * @param configManager Configuration manager.
+ */
 static void runMainLoop(
     Renderer& renderer,
     MapLoader& mapLoader,
@@ -64,7 +72,11 @@ static void runMainLoop(
     runMainLoop(renderer, mapLoader, tmjMap, character, view, configManager);
 }
 
-
+/**
+ * @brief Main application entry point.
+ * 
+ * @return int Application exit code (0 for success, non-zero for errors).
+ */
 int main() {
     // Initialize configuration
     auto& configManager = ConfigManager::getInstance();
@@ -86,10 +98,9 @@ int main() {
         Logger::error("Failed to initialize renderer");
         return -1;
     }
-    // NOTE: schedule button should NOT be enabled during the login screens.
     // It will be configured later (before entering the main game loop).
 
-    // 3. Main loop: 只运行一次，直到7天结束
+    // Main loop: run only once until 7 days end
     bool shouldRun = true;
     while (shouldRun) {
         if (!runLoginScreen(renderer)) {
@@ -184,24 +195,24 @@ int main() {
                     std::to_string(view.getCenter().x) + ", " + 
                     std::to_string(view.getCenter().y) + ")");
         
-        // 3.5 Run main game loop
+        // Run main game loop
         AppResult appResult = runApp(renderer, mapLoader, tmjMap, character, view, configManager);
 
         // Clean up per-run resources
         character.cleanup();
         mapLoader.cleanup();
 
-        // 如果返回 QuitGame，直接退出程序
+        // If returns QuitGame, exit program directly
         if (appResult == AppResult::QuitGame) {
             shouldRun = false;
             break;
         }
 
-        // 无论结果如何都退出（因为7天已结束）
+        // Exit regardless of result 
         shouldRun = false;
     }
 
-    // 4. Final renderer cleanup
+    // Final renderer cleanup
     renderer.cleanup();
     return 0;
 }
