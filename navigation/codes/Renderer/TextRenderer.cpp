@@ -21,7 +21,12 @@ TextRenderer::~TextRenderer() {
     cleanup();
 }
 
-
+/**
+ * @brief Initialize text renderer with specified font.
+ * 
+ * @param fontPath Path to font file to load.
+ * @return true if font loaded successfully, false otherwise.
+ */
 bool TextRenderer::initialize(const std::string& fontPath) {
     cleanup();
     
@@ -51,12 +56,19 @@ bool TextRenderer::initialize(const std::string& fontPath) {
     return false;
 }
 
-
+/**
+ * @brief Clean up resources used by text renderer.
+ */
 void TextRenderer::cleanup() {
     fontLoaded = false;
 }
 
-
+/**
+ * @brief Render multiple text objects.
+ * 
+ * @param textObjects Vector of text objects to render.
+ * @param window Render window to draw text to.
+ */
 void TextRenderer::renderTextObjects(
     const std::vector<TextObject>& textObjects, 
     sf::RenderWindow& window
@@ -68,7 +80,12 @@ void TextRenderer::renderTextObjects(
     }
 }
 
-
+/**
+ * @brief Render single text object.
+ * 
+ * @param textObj Text object to render.
+ * @param window Render window to draw text to.
+ */
 void TextRenderer::renderText(
     const TextObject& textObj, 
     sf::RenderWindow& window
@@ -89,7 +106,12 @@ void TextRenderer::renderText(
     window.draw(text);
 }
 
-
+/**
+ * @brief Create sf::Text from TextObject descriptor.
+ * 
+ * @param textObj Text object descriptor.
+ * @return sf::Text Configured text object.
+ */
 sf::Text TextRenderer::createText(const TextObject& textObj) {
     sf::Text text(*font, textObj.text, textObj.fontSize);
     text.setFillColor(textObj.color);
@@ -107,7 +129,12 @@ sf::Text TextRenderer::createText(const TextObject& textObj) {
     return text;
 }
 
-
+/**
+ * @brief Apply horizontal and vertical alignment to text.
+ * 
+ * @param text Text object to apply alignment to.
+ * @param textObj Text object descriptor containing alignment settings.
+ */
 void TextRenderer::applyTextAlignment(
     sf::Text& text, 
     const TextObject& textObj
@@ -140,4 +167,5 @@ void TextRenderer::applyTextAlignment(
     
     text.setOrigin(origin);
     text.setPosition(sf::Vector2f{posX, posY});
+
 }
