@@ -95,8 +95,6 @@ public:
      */
     void present();
     
-    // ===== Texture management functions =====
-    
     /**
      * @brief Loads a texture from the specified file path.
      * 
@@ -111,8 +109,6 @@ public:
      * @param texture Pointer to the texture to destroy.
      */
     void destroyTexture(void* texture);
-    
-    // ===== Rendering functions =====
     
     /**
      * @brief Draws a texture at the specified position.
@@ -166,16 +162,26 @@ public:
      */
     sf::View getDefaultView() const;
 
-    // 新增：获取窗口引用（供外部访问）
+    /**
+     * @brief Get window reference for external access.
+     * 
+     * @return sf::RenderWindow& Reference to the render window.
+     */
     sf::RenderWindow& getWindow() { return window; }
 
-    // 新增：正确的 SFML 3.0 pollEvent 接口（无参数，返回 optional<Event>）
+    /**
+     * @brief Poll events using SFML 3.0 interface (no parameters, returns optional<Event>).
+     * 
+     * @return std::optional<sf::Event> Optional event if available.
+     */
     std::optional<sf::Event> pollEvent() { 
         return window.pollEvent(); 
     }
 
     
-    // 新增：退出程序（关闭窗口）
+    /**
+     * @brief Quit the application (close window).
+     */
     void quit() { window.close(); }
     
     /**
@@ -228,6 +234,12 @@ public:
      *        Each GameTriggerArea can be highlighted differently by gameType.
      */
     void renderGameTriggerAreas(const std::vector<GameTriggerArea>& areas);
+
+    /**
+     * @brief Renders shop trigger areas.
+     * 
+     * @param areas Vector of shop trigger areas to render.
+     */
     void renderShopTriggerAreas(const std::vector<ShopTrigger>& areas);
     
     /**
@@ -245,6 +257,13 @@ public:
         const std::optional<sf::Vector2f>& anchorScreenPos = std::nullopt
     );
 
+    /**
+     * @brief Render modal prompt without anchor position.
+     * 
+     * @param prompt The text to display.
+     * @param font Font to use for rendering the prompt.
+     * @param fontSize Font size in pixels.
+     */
     void renderModalPrompt(const std::string& prompt, const sf::Font& font, unsigned int fontSize);
 
     /**
@@ -294,68 +313,85 @@ public:
      */
     sf::Vector2i getMousePosition() const;
 
-    // 新增：初始化教授纹理
+    /**
+     * @brief Initialize professor texture.
+     * 
+     * @return true if texture loaded successfully, false if loading failed.
+     */
     bool initializeProfessorTexture();
 
-    // 新增：渲染所有教授对象
+    /**
+     * @brief Render all professor objects.
+     * 
+     * @param professors Vector of professor objects.
+     */
     void renderProfessors(const std::vector<Professor>& professors);
 
-    // 新增：初始化厨师纹理
+    /**
+     * @brief Initialize chef texture.
+     * 
+     * @return true if texture loaded successfully, false if loading failed.
+     */
     bool initializeChefTexture() {
         if (!m_chefTexture.loadFromFile("tiles/F_05.png")) {
             Logger::error("Failed to load chef texture: tiles/F_05.png");
             return false;
         }
-        // SFML 3.0+ 要求 IntRect 用 Vector2i 传递 position 和 size
         sf::IntRect chefFrame(
-            sf::Vector2i(0, 0),    // 左上角坐标（第一个小人的位置）
-            sf::Vector2i(16, 17)   // 帧尺寸（单个小人的大小）
+            sf::Vector2i(0, 0),    
+            sf::Vector2i(16, 17)   
         );
-        m_chefSprite = std::make_unique<sf::Sprite>(m_chefTexture, chefFrame);  // 直接用纹理+帧构造 Sprite
+        m_chefSprite = std::make_unique<sf::Sprite>(m_chefTexture, chefFrame);  
         return true;
     }
 
-    // 新增：渲染所有厨师对象
+     /**
+     * @brief Render all chef objects.
+     * 
+     * @param chefs Vector of chef objects.
+     */
     void renderChefs(const std::vector<Chef>& chefs) {
-        // 避免空指针访问（若纹理未初始化则跳过渲染）
+
         if (!m_chefSprite || !m_chefTexture.getSize().x) return;
         for (const auto& chef : chefs) {
-            // SFML 3.0+ FloatRect 用 position（x/y）和 size（x/y）替代 left/top/width/height
+       
             sf::Vector2f spritePos(
-                chef.rect.position.x + chef.rect.size.x / 2 - 8,   // 水平居中（16/2=8）
-                chef.rect.position.y + chef.rect.size.y / 2 - 8.5f // 垂直居中（17/2≈8.5）
+                chef.rect.position.x + chef.rect.size.x / 2 - 8,   
+                chef.rect.position.y + chef.rect.size.y / 2 - 8.5f 
             );
             m_chefSprite->setPosition(spritePos);
-            window.draw(*m_chefSprite);  // 修复：m_window → window（你的窗口成员名是 window）
+            window.draw(*m_chefSprite);  
         }
     }
 
-    // 新增：渲染休息状态文本（角色头顶显示）
+    /**
+     * @brief Render resting state text (displayed above character).
+     * 
+     * @param characterPos Character position to anchor text.
+     * @param font Font for the resting text.
+     */
     void renderRestingText(const sf::Vector2f& characterPos, const sf::Font& font); 
 
 private:
-    // Flag indicating whether the renderer is currently running
+
     bool running = true;
-    // When true, ignore Escape key to close window (modal dialog active)
     bool modalActive = false;
-    // Stores the current application configuration
     AppConfig currentAppConfig;
-    // Stores the current rendering configuration
     RenderConfig currentRenderConfig;
     
-    // SFML graphics objects
+   
     sf::RenderWindow window;
     sf::View view;
-    sf::Texture m_chefTexture;  // 厨师纹理
-    std::unique_ptr<sf::Sprite> m_chefSprite;    // 厨师精灵（复用同一个精灵渲染所有厨师）
-    sf::Texture m_professorTexture;  // 教授纹理
-    std::unique_ptr<sf::Sprite> m_professorSprite;  // 教授精灵
+    sf::Texture m_chefTexture;  
+    std::unique_ptr<sf::Sprite> m_chefSprite;   
+    sf::Texture m_professorTexture; 
+    std::unique_ptr<sf::Sprite> m_professorSprite;  
     std::vector<std::unique_ptr<sf::Texture>> loadedTextures;
     std::unique_ptr<TextRenderer> textRenderer;
-    std::unique_ptr<sf::Font> uiFont;                // font used for UI (map button)
-    AppConfig::MapButton mapButtonConfig;            // active button configuration
-    AppConfig::ScheduleButton scheduleButtonConfig;  // schedule button configuration
-    // Render style configuration (defaults)
+    std::unique_ptr<sf::Font> uiFont;                
+    AppConfig::MapButton mapButtonConfig;           
+    AppConfig::ScheduleButton scheduleButtonConfig;  
+
     sf::Color entranceFillColor = sf::Color(0, 100, 255, 100);
     sf::Color entranceOutlineColor = sf::Color(30, 140, 255, 255);
     float entranceOutlineThickness = 2.0f;
@@ -364,7 +400,7 @@ private:
     sf::Color gameTriggerOutlineColor = sf::Color(200, 170, 0, 255);
     float gameTriggerOutlineThickness = 2.0f;
 
-    sf::Color shopTriggerFillColor = sf::Color(255, 165, 0, 100); // 半透明橙色
+    sf::Color shopTriggerFillColor = sf::Color(255, 165, 0, 100); 
     sf::Color shopTriggerOutlineColor = sf::Color(255, 140, 0, 255);
     float shopTriggerOutlineThickness = 2.f;
 };
