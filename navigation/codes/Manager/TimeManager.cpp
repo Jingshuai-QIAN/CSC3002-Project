@@ -22,12 +22,10 @@ void TimeManager::update(float dt) {
             if (hour >= 24) {
                 hour = 0;
                 
-                // === New Date Logic ===
                 weekday = (weekday + 1) % 7;
                 day++;
                 
                 // Days in months (Index 0 is unused, 1=Jan, etc.)
-                // 9=Sep(30), 10=Oct(31), 11=Nov(30), 12=Dec(31)
                 static const int daysInMonth[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
                 
                 if (day > daysInMonth[month]) {
