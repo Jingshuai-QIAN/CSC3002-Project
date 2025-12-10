@@ -22,13 +22,13 @@ public:
         tasks.push_back({id, desc, detail, achName, points, energy, false});
     }
 
-    // Returns achievement name ONLY if it hasn't been unlocked yet.
+    // Returns achievement name ONLY if it hasn't been unlocked yet
     std::string completeTask(const std::string& id) {
         for (auto& task : tasks) {
             if (task.id == id) {
-                // Apply Rewards
+                // Apply Rewards as float
                 currentPoints += task.pointsReward;
-                currentEnergy += static_cast<float>(task.energyReward); // Add as float
+                currentEnergy += static_cast<float>(task.energyReward); 
                 
                 // Cap Energy
                 if(currentEnergy > 100.0f) currentEnergy = 100.0f;
@@ -72,4 +72,5 @@ private:
     long long currentPoints; 
     float currentEnergy; // Changed from int to float to support passive decay
 };
+
 
