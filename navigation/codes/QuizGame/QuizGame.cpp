@@ -1,5 +1,4 @@
 // QuizGame.cpp
-
 #include "QuizGame.h"
 #include <iostream>
 #include <sstream>
@@ -8,12 +7,12 @@
 #include <random>
 #include "Utils/Logger.h"
 
-// ---------------- OptionButton 实现 ----------------
+// OptionButton Implementation
 QuizGame::OptionButton::OptionButton(const sf::Font& font,
                                      const std::string& str,
                                      const sf::Vector2f& position,
                                      const sf::Vector2f& size)
-    : text(font)   // ✅ 关键：必须在初始化列表中构造
+    : text(font)   
 {
     shape.setSize(size);
     shape.setFillColor(sf::Color(70, 130, 255));
@@ -38,7 +37,7 @@ void QuizGame::OptionButton::setFont(const sf::Font& f) {
     text.setFont(f);
 }
 
-// ---------------- QuizGame 私有方法 ----------------
+// QuizGame private methods
 std::string QuizGame::wrapText(const std::string& text, size_t lineLength) const {
     std::stringstream ss(text);
     std::string word;
@@ -93,7 +92,7 @@ bool QuizGame::loadQuestionsFromFile(const std::string& path) {
         nlohmann::json j;
         ifs >> j;
 
-        // UI config (optional)
+        // UI config 
         if (j.contains("ui") && j["ui"].is_object()) {
             auto ui = j["ui"];
             uiWindowW = ui.value("windowWidth", uiWindowW);
@@ -168,7 +167,7 @@ bool QuizGame::loadQuestionsFromFile(const std::string& path) {
         }
 
         // optional effects (exp / energy)
-        // 奖励（优先 points，回退 exp）
+        // Rewards (priority to points, fallback to exp)
         if (j.contains("effects") && j["effects"].is_object()) {
             const auto& effs = j["effects"];
             auto read_one = [](const nlohmann::json& o, Effects& dst) {
@@ -278,7 +277,7 @@ bool QuizGame::loadQuestionsFromFile(const std::string& path, const std::string&
         }
 
         // optional effects (exp / energy)
-        // 奖励（优先 points，回退 exp）
+        // Rewards (priority to points, fallback to exp)
         if (j.contains("effects") && j["effects"].is_object()) {
             const auto& effs = j["effects"];
             auto read_one = [](const nlohmann::json& o, Effects& dst) {
@@ -329,7 +328,7 @@ void QuizGame::updateScoreDisplay() {
     scoreText.setString(ss.str());
 }
 
-// ---------------- 构造函数 ----------------
+// Constructors
 QuizGame::QuizGame()
     : font()
     , titleText(font)
@@ -351,10 +350,10 @@ QuizGame::QuizGame()
     poorEffect.points = 0;     poorEffect.energy = -5;
     lastEffect.points = 0;     lastEffect.energy = 0;
 
-    // 默认窗口尺寸由 uiWindowW/uiWindowH 提供（可由 JSON 覆盖）
+    // Default window size provided by uiWindowW/uiWindowH (can be overridden by JSON)
     window.create(sf::VideoMode({uiWindowW, uiWindowH}), "Campus Quiz Game");
 
-    // 尝试加载字体（SFML 3: openFromFile）
+    // Try to load font (SFML 3: openFromFile)
     bool fontLoaded = false;
     const std::vector<std::string> fontPaths = {"./fonts/arial.ttf", "fonts/arial.ttf", "arial.ttf"};
     for (const auto& p : fontPaths) {
@@ -368,31 +367,31 @@ QuizGame::QuizGame()
         std::cerr << "Warning: failed to load font. Text output may be invisible or fallback.\n";
     }
 
-    // 标题
+    // Title
     titleText.setString("Campus Knowledge Quiz");
     titleText.setCharacterSize(32);
     titleText.setFillColor(sf::Color(255, 215, 0));
     titleText.setStyle(sf::Text::Bold);
     titleText.setPosition(sf::Vector2f(20.f, 15.f));
 
-    // 问题文本
+    // Question Text
     questionText.setCharacterSize(24);
     questionText.setFillColor(sf::Color(240, 240, 240));
     questionText.setStyle(sf::Text::Bold);
     questionText.setPosition(sf::Vector2f(60.f, 120.f));
 
-    // 结果文本
+    // Result Text
     resultText.setCharacterSize(28);
     resultText.setFillColor(sf::Color::Green);
     resultText.setPosition(sf::Vector2f(60.f, 480.f));
 
-    // 分数文本
+    // Score Text
     scoreText.setCharacterSize(20);
     scoreText.setFillColor(sf::Color(200, 200, 100));
     scoreText.setStyle(sf::Text::Bold);
     scoreText.setPosition(sf::Vector2f(520.f, 25.f));
 
-    // continue 按钮
+    // Continue Button
     continueButton.setSize(sf::Vector2f(250.f, 48.f));
     continueButton.setFillColor(sf::Color(100, 200, 100));
     continueButton.setOutlineColor(sf::Color(80, 180, 80));
@@ -406,7 +405,7 @@ QuizGame::QuizGame()
     continueText.setPosition(sf::Vector2f(continueButton.getPosition().x + 20.f,
                                           continueButton.getPosition().y + 8.f));
 
-    // 加载题目并显示第一题（默认硬编码）
+    // Load questions and display first question
     loadQuestions();
     displayCurrentQuestion();
     updateScoreDisplay();
@@ -433,12 +432,9 @@ QuizGame::QuizGame(const std::string& jsonPath)
     poorEffect.points = 0;     poorEffect.energy = -5;
     lastEffect.points = 0;     lastEffect.energy = 0;
 
-    // 先尝试从文件加载 UI/题目；如果失败则回退到硬编码
     bool loaded = loadQuestionsFromFile(jsonPath);
-    // 根据可能来自 JSON 的 uiWindowW/uiWindowH 创建窗口
     window.create(sf::VideoMode({uiWindowW, uiWindowH}), "Campus Quiz Game");
 
-    // 尝试加载字体
     bool fontLoaded = false;
     const std::vector<std::string> fontPaths = {"./fonts/arial.ttf", "fonts/arial.ttf", "arial.ttf"};
     for (const auto& p : fontPaths) {
@@ -452,31 +448,31 @@ QuizGame::QuizGame(const std::string& jsonPath)
         std::cerr << "Warning: failed to load font. Text output may be invisible or fallback.\n";
     }
 
-    // 标题
+    // Title
     titleText.setString("Campus Knowledge Quiz");
     titleText.setCharacterSize(32);
     titleText.setFillColor(sf::Color(255, 215, 0));
     titleText.setStyle(sf::Text::Bold);
     titleText.setPosition(sf::Vector2f(20.f, 15.f));
 
-    // 问题文本
+    // Question Text
     questionText.setCharacterSize(24);
     questionText.setFillColor(sf::Color(240, 240, 240));
     questionText.setStyle(sf::Text::Bold);
     questionText.setPosition(sf::Vector2f(60.f, 120.f));
 
-    // 结果文本
+    // Result Text
     resultText.setCharacterSize(28);
     resultText.setFillColor(sf::Color::Green);
     resultText.setPosition(sf::Vector2f(60.f, 480.f));
 
-    // 分数文本
+    // Score Text
     scoreText.setCharacterSize(20);
     scoreText.setFillColor(sf::Color(200, 200, 100));
     scoreText.setStyle(sf::Text::Bold);
     scoreText.setPosition(sf::Vector2f(520.f, 25.f));
 
-    // continue 按钮
+    // continue button
     continueButton.setSize(sf::Vector2f(250.f, 48.f));
     continueButton.setFillColor(sf::Color(100, 200, 100));
     continueButton.setOutlineColor(sf::Color(80, 180, 80));
@@ -491,7 +487,7 @@ QuizGame::QuizGame(const std::string& jsonPath)
                                           continueButton.getPosition().y + 8.f));
 
     if (!loaded) {
-        // 回退到内置题库
+        // Fallback to built-in question bank
         loadQuestions();
     }
     displayCurrentQuestion();
@@ -575,25 +571,23 @@ QuizGame::QuizGame(const std::string& jsonPath, const std::string& forcedCategor
     updateScoreDisplay();
 }
 
-// ---------------- run() ----------------
+// run() 
 void QuizGame::run() {
     while (window.isOpen()) {
-        // 使用 SFML 3 的 pollEvent() 返回 optional<Event>
         for (auto ev = window.pollEvent(); ev.has_value(); ev = window.pollEvent()) {
             const auto& e = ev.value();
-
-            // 关闭事件
+            // Close event
             if (e.is<sf::Event::Closed>()) {
                 window.close();
             }
 
-            // 鼠标按下事件
+            // Mouse button pressed event
             if (auto* mouseEvent = e.getIf<sf::Event::MouseButtonPressed>()) {
                 if (mouseEvent->button == sf::Mouse::Button::Left) {
                     sf::Vector2f mousePos(static_cast<float>(mouseEvent->position.x),
                                           static_cast<float>(mouseEvent->position.y));
 
-                    // 未答题 -> 选择答案
+                    // Not answered yet -> select answer
                     if (!answered && !gameCompleted) {
                         for (size_t i = 0; i < options.size(); ++i) {
                             if (options[i].isClicked(mousePos)) {
@@ -614,7 +608,7 @@ void QuizGame::run() {
                             }
                         }
                     }
-                    // 已答且显示继续按钮 -> 点击继续
+                    // Answered and show continue button -> click continue
                     else if (answered && !gameCompleted && showContinueButton) {
                         if (continueButton.getGlobalBounds().contains(mousePos)) {
                             showContinueButton = false;
@@ -623,7 +617,7 @@ void QuizGame::run() {
                                 displayCurrentQuestion();
                                 updateScoreDisplay();
                             } else {
-                                // 游戏结束
+                                // Game ended
                                 gameCompleted = true;
                                 questionText.setString("Quiz Completed!");
                                 questionText.setFillColor(sf::Color(255, 215, 0));
@@ -659,7 +653,7 @@ void QuizGame::run() {
                             }
                         }
                     }
-                    // 游戏结束后点击 -> 关闭这个窗口（不会影响 main 的其他窗口）
+                    // After game completed click -> close this window
                     else if (gameCompleted) {
                         window.close();
                     }
@@ -667,7 +661,7 @@ void QuizGame::run() {
             } // end mouse event
         } // end polling events
 
-        // 绘制
+        // Drawing
         window.clear(sf::Color(30, 30, 60));
 
         sf::RectangleShape titleBg(sf::Vector2f(800.f, 60.f));
