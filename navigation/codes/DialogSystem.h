@@ -6,6 +6,10 @@
 
 class DialogSystem {
 public:
+    /**
+     * @struct Button
+     * @brief Dialog button structure containing visual elements and callback.
+     */
     struct Button {
         std::string text;
         std::function<void()> callback;
@@ -14,102 +18,163 @@ public:
         sf::FloatRect bounds;
         bool isHovered = false;
 
-        // SFML 3.0 必须显式构造 Sprite/Text（无默认构造）
+        /**
+         * @brief Construct a button with font and size.
+         * 
+         * SFML 3.0 requires explicit construction of Sprite/Text (no default constructors).
+         * 
+         * @param font Font for button text.
+         * @param fontSize Font size for button text.
+         */
         Button(const sf::Font& font, unsigned int fontSize)
             : textObj(font, "", fontSize)
         {}
 
-        // 禁用拷贝（unique_ptr 不可拷贝）
+        // Disable copy (unique_ptr is not copyable)
         Button(const Button&) = delete;
         Button& operator=(const Button&) = delete;
 
-        // 启用移动
+        // Enable move operations
         Button(Button&&) = default;
         Button& operator=(Button&&) = default;
     };
 
-    // 保留旧的回调类型（用于食堂）
+    // Legacy callback type (for cafeteria)
     using SimpleCallback = std::function<void(const std::string& optionText)>;
     
-    // 新的回调类型（用于教授）
+    // New callback type (for professor)
     using OptionCallback = std::function<void(int optionIndex, const std::string& optionText)>;
 
-    // DialogSystem 构造函数：
+    /**
+     * @brief DialogSystem constructor.
+     * 
+     * @param font Default font for dialog text.
+     * @param fontSize Default font size for dialog text.
+     */
     DialogSystem(const sf::Font& font, unsigned int fontSize)
         : m_font(font), m_fontSize(fontSize),
           m_dialogTitle(font, "", fontSize),
           m_textObject(font, "", fontSize),
-          m_bgSprite(nullptr),    // 初始化为空
+          m_bgSprite(nullptr),    
           m_btnSprite(nullptr),
           m_dialogBgSprite(nullptr)
     {}
 
 
-    // 初始化：加载对话框/按钮素材 + 字体
+    /**
+     * @brief Initialize dialog system with textures and fonts.
+     * 
+     * @param bgPath Path to dialog background texture.
+     * @param btnPath Path to button texture.
+     * @param font Font for dialog text.
+     * @param fontSize Font size for dialog text.
+     */
     void initialize(const std::string& bgPath, 
                     const std::string& btnPath, 
                     const sf::Font& font, 
                     unsigned int fontSize);
 
-    // 设置对话框内容（阿姨提问+菜品选项+选中回调）
+    /**
+     * @brief Set dialog content (cafeteria aunt question + dish options + selection callback).
+     * 
+     * @param title Dialog title text.
+     * @param dishOptions List of dish option strings.
+     * @param selectCallback Callback function receiving selected dish text.
+     */
     void setDialog(const std::string& title, 
                    const std::vector<std::string>& dishOptions,
                    const std::function<void(const std::string&)>& selectCallback);
 
-                     // 添加新的方法（用于教授）
+    /**
+     * @brief Set dialog with index-based callback (for professor dialogs).
+     * 
+     * @param title Dialog title text.
+     * @param options List of option strings.
+     * @param selectCallback Callback function receiving option index and text.
+     */
     void setDialogWithIndex(const std::string& title, 
                            const std::vector<std::string>& options,
                            const OptionCallback& selectCallback);
 
-    // 处理鼠标/键盘事件（hover/点击/ESC关闭）
+    /**
+     * @brief Handle mouse/keyboard events (hover/click/ESC close).
+     * 
+     * @param event SFML event to process.
+     * @param window Render window reference.
+     */
     void handleEvent(const sf::Event& event, const sf::RenderWindow& window);
 
-    // 渲染对话框和按钮
+    /**
+     * @brief Render dialog and buttons.
+     * 
+     * @param window Render window to draw to.
+     */
     void render(sf::RenderWindow& window);
 
-    // 状态控制
+    // State control methods
+    /**
+     * @brief Check if dialog is active.
+     * 
+     * @return true if dialog is active, false otherwise.
+     */
     bool isActive() const { return m_isActive; }
+
+    /**
+     * @brief Close dialog and clear resources.
+     */
     void close();
 
+    /**
+     * @brief Check if dialog system is initialized.
+     * 
+     * @return true if dialog system is initialized, false otherwise.
+     */
     bool isInitialized() const { 
         return m_dialogBgSprite != nullptr && m_bgTexture.getSize().x > 0; 
     }
 
+    /**
+     * @brief Check if there's a pending callback to execute.
+     * 
+     * @return true if pending callback exists, false otherwise.
+     */
     bool hasPendingCallback() const;
 
+    /**
+     * @brief Consume and return pending callback.
+     * 
+     * @return std::function<void()> Pending callback function.
+     */
     std::function<void()> consumePendingCallback();
 
 private:
-    // 辅助方法（删除重复定义，统一命名）
-    sf::Vector2f getCenteredPosition(const sf::RenderWindow& window); // 原缩放居中
-    sf::Vector2f getDialogCenterPosition(const sf::RenderWindow& window); // 原基础居中
-    sf::Vector2f getDialogBgSize() const; // 获取背景尺寸
-    void layoutButtons(); // 按钮布局
+    sf::Vector2f getCenteredPosition(const sf::RenderWindow& window); 
+    sf::Vector2f getDialogCenterPosition(const sf::RenderWindow& window); 
+    sf::Vector2f getDialogBgSize() const; 
+    void layoutButtons(); 
 
-    // 状态成员
+
     bool m_isActive = false;
     sf::Font m_font;
     unsigned int m_fontSize;
-    SimpleCallback m_simpleCallback;  // 旧的回调
-    OptionCallback m_optionCallback;  // 新的回调
-    bool m_useIndexCallback = false;  // 标记使用哪种回调
+    SimpleCallback m_simpleCallback;  
+    OptionCallback m_optionCallback; 
+    bool m_useIndexCallback = false;  
     std::function<void(const std::string&)> m_selectCallback;
 
-    // 图形资源：只保留纹理，Sprite 在 initialize 中创建（带纹理）
     sf::Texture m_bgTexture;
     std::unique_ptr<sf::Sprite> m_bgSprite;
     sf::Vector2f m_dialogSize;
     std::unique_ptr<sf::Sprite> m_dialogBgSprite;
 
     sf::Texture m_btnTexture;
-    std::unique_ptr<sf::Sprite> m_btnSprite;       // 改用 unique_ptr
+    std::unique_ptr<sf::Sprite> m_btnSprite;    
     sf::Vector2f m_btnSize;
     sf::Texture m_btnTex;
 
-    // 文本对象
-    sf::Text m_dialogTitle;        // 对话框标题
-    sf::Text m_textObject;         // 备用文本（你的原变量）
-    std::vector<sf::Text> m_optionTexts; // 选项文本（你的原变量）
+    sf::Text m_dialogTitle;       
+    sf::Text m_textObject;       
+    std::vector<sf::Text> m_optionTexts; 
 
     std::vector<Button> m_buttons;
     std::function<void()> m_pendingCallback;
