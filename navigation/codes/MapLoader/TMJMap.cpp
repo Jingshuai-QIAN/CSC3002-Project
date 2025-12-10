@@ -31,14 +31,19 @@ using json = nlohmann::json;
  *   - Textures are stored inside TilesetInfo.texture and must remain alive while sprites reference them.
  */
 
-
+/**
+ * @brief Split a comma-separated dishes string into individual dish names.
+ * 
+ * @param str Input string containing comma-separated dish names.
+ * @return std::vector<std::string> Vector of cleaned dish names.
+ */
 std::vector<std::string> splitDishesString(const std::string& str) {
     std::vector<std::string> dishes;
     std::string currentDish;
     
     for (char c : str) {
         if (c == ',') {
-            // 清理空格并保存当前菜品
+            // Trim spaces and save current dish
             size_t start = currentDish.find_first_not_of(" ");
             size_t end = currentDish.find_last_not_of(" ");
             if (start != std::string::npos && end != std::string::npos) {
@@ -50,7 +55,7 @@ std::vector<std::string> splitDishesString(const std::string& str) {
         }
     }
     
-    // 处理最后一个菜品
+    // Process last dish
     size_t start = currentDish.find_first_not_of(" ");
     size_t end = currentDish.find_last_not_of(" ");
     if (start != std::string::npos && end != std::string::npos) {
@@ -482,7 +487,7 @@ void TMJMap::parseObjectLayers(const json& layers) {
 
         }
 
-        // 5) Parse Chef objects (修复作用域错误)
+        // 5) Parse Chef objects 
         for (const auto& obj : L["objects"]) {
             if (!obj.is_object()) continue;
 
@@ -511,7 +516,7 @@ void TMJMap::parseObjectLayers(const json& layers) {
                          std::to_string(chef.rect.position.y) + ")");
         }
 
-        // 6) Parse Professor objects - 添加教授对象解析
+        // 6) Parse Professor objects 
         for (const auto& obj : L["objects"]) {
             if (!obj.is_object()) continue;
 
@@ -534,7 +539,7 @@ void TMJMap::parseObjectLayers(const json& layers) {
                 sf::Vector2f(obj.value("width", 16.f), obj.value("height", 17.f))
             );
             
-            // 解析自定义属性
+            // Parse custom properties
             if (obj.contains("properties") && obj["properties"].is_array()) {
                 for (const auto& p : obj["properties"]) {
                     if (!p.is_object()) continue;
@@ -554,8 +559,7 @@ void TMJMap::parseObjectLayers(const json& layers) {
                         std::to_string(prof.rect.position.x) + ", " + 
                         std::to_string(prof.rect.position.y) + ")");
             
-            // ========== 新增：将教授区域添加到碰撞区域 ==========
-            // 创建教授区域的碰撞矩形
+            // Add professor area to collision regions
             sf::FloatRect professorCollisionRect(
                 sf::Vector2f(obj.value("x", 0.f), obj.value("y", 0.f)),
                 sf::Vector2f(obj.value("width", 16.f), obj.value("height", 17.f))
@@ -567,12 +571,11 @@ void TMJMap::parseObjectLayers(const json& layers) {
                         std::to_string(professorCollisionRect.position.y) + ") size " +
                         std::to_string(professorCollisionRect.size.x) + "x" + 
                         std::to_string(professorCollisionRect.size.y));
-            // ========== 新增代码结束 ==========
         }
 
-        // 7) 解析GameTriggerArea (新增)
+        // 7) Parse GameTriggerArea
         layerName = L.value("name", "");
-        if (layerName == "game_triggers") { // 确保Tiled中图层名为"game_triggers"
+        if (layerName == "game_triggers") { 
             for (const auto& obj : L["objects"]) {
                 GameTriggerArea trigger;
                 trigger.x = obj["x"];
@@ -581,7 +584,6 @@ void TMJMap::parseObjectLayers(const json& layers) {
                 trigger.height = obj["height"];
                 trigger.name = obj["name"];
                 
-                // 解析自定义属性 gameType 与 questionSet（安全读取）
                 if (obj.contains("properties") && obj["properties"].is_array()) {
                     for (const auto& prop : obj["properties"]) {
                         if (!prop.is_object()) continue;
@@ -643,9 +645,8 @@ void TMJMap::parseObjectLayers(const json& layers) {
             }
         }
 
-        // ✅ 解析 ShopTrigger (便利店交互区域)
+        // 9) Parse ShopTrigger
         if (lnameLower == "convenience_triggers") {  
-            // 这里的图层名必须和你在 Tiled 里的一模一样
             Logger::info("===== Parsing Shop Triggers =====");
 
             for (const auto& obj : L["objects"]) {
@@ -653,9 +654,8 @@ void TMJMap::parseObjectLayers(const json& layers) {
 
                 ShopTrigger shop;
                 shop.name = obj.value("name", "shop");
-                shop.type = obj.value("type", "convenience"); // Tiled里的type字段
+                shop.type = obj.value("type", "convenience"); 
 
-                // SFML 3.x：rect.position 和 rect.size
                 float x = obj.value("x", 0.f);
                 float y = obj.value("y", 0.f);
                 float w = obj.value("width", 0.f);
@@ -663,7 +663,6 @@ void TMJMap::parseObjectLayers(const json& layers) {
                 shop.rect.position = sf::Vector2f(x, y);
                 shop.rect.size = sf::Vector2f(w, h);
 
-                // 可选：解析自定义 properties
                 if (obj.contains("properties") && obj["properties"].is_array()) {
                     for (const auto& p : obj["properties"]) {
                         if (!p.is_object()) continue;
@@ -676,7 +675,7 @@ void TMJMap::parseObjectLayers(const json& layers) {
 
                 m_shopTriggers.push_back(shop);
 
-                Logger::info("✅ Parsed ShopTrigger: " + shop.name +
+                Logger::info("Parsed ShopTrigger: " + shop.name +
                             " | Rect: (" +
                             std::to_string(shop.rect.position.x) + "," +
                             std::to_string(shop.rect.position.y) + ") " +
@@ -685,7 +684,7 @@ void TMJMap::parseObjectLayers(const json& layers) {
             }
         }
 
-        // ✅ 解析 RespawnZones (重生区域)
+        // 10) Parse RespawnZones
         if (lnameLower == "respawnzones" || lnameLower.find("respawn") != std::string::npos) {
             Logger::info("===== Parsing Respawn Zones =====");
             for (const auto& obj : L["objects"]) {
@@ -694,7 +693,7 @@ void TMJMap::parseObjectLayers(const json& layers) {
                 std::string objType = toLower(obj.value("type", ""));
                 std::string objClass = toLower(obj.value("class", ""));
                 
-                // 检查是否是 rebirth_point
+                // Check if this is a rebirth_point
                 if (objName.find("rebirth_point") != std::string::npos ||
                     objType.find("rebirth_point") != std::string::npos ||
                     objClass.find("rebirth_point") != std::string::npos) {
@@ -704,7 +703,6 @@ void TMJMap::parseObjectLayers(const json& layers) {
                     float ow = obj.value("width", 0.f);
                     float oh = obj.value("height", 0.f);
                     
-                    // 计算中心位置
                     if (ow > 0.f || oh > 0.f) {
                         ox += ow * 0.5f;
                         oy += oh * 0.5f;
@@ -715,9 +713,9 @@ void TMJMap::parseObjectLayers(const json& layers) {
                     
                     respawnPoint.name = obj.value("name", "rebirth_point");
                     respawnPoint.position = sf::Vector2f(ox, oy);
-                    respawnPoint.maxCount = 3; // 默认值
+                    respawnPoint.maxCount = 3; 
                     
-                    // 解析 count 属性（最大重生次数）
+                    // Parse count property (maximum respawn count)
                     if (obj.contains("properties") && obj["properties"].is_array()) {
                         for (const auto& p : obj["properties"]) {
                             if (!p.is_object()) continue;
@@ -728,7 +726,7 @@ void TMJMap::parseObjectLayers(const json& layers) {
                         }
                     }
                     
-                    Logger::info("✅ Parsed RespawnPoint at (" + std::to_string(ox) + ", " + 
+                    Logger::info("Parsed RespawnPoint at (" + std::to_string(ox) + ", " + 
                                std::to_string(oy) + ") with maxCount=" + std::to_string(respawnPoint.maxCount));
                 }
             }
@@ -737,7 +735,7 @@ void TMJMap::parseObjectLayers(const json& layers) {
 
 
 
-        // 10) 桌椅对象解析
+        // 11) Parse table and chair objects
         if (lnameLower == "tables") {
 
             Logger::info("=====  Tables Layer =====");
@@ -762,7 +760,8 @@ void TMJMap::parseObjectLayers(const json& layers) {
                 Logger::debug("objType: " + objType);
                 Logger::debug("========================");
                 Logger::debug("objClass: " + objClass + " | objName: " + objName);
-                // 解析食物锚点
+                
+                // Parse food anchor points
                 if (objType == "Food") {
                     Logger::info("[Food] start: " + objName);
                     FoodAnchor foodAnchor;
@@ -777,34 +776,33 @@ void TMJMap::parseObjectLayers(const json& layers) {
                     Logger::info("[Food] " + objName + " original position: (" + 
                         std::to_string(foodAnchor.position.x) + "," + std::to_string(foodAnchor.position.y) + ")");
 
-                    // 修复2：先解析tableName属性，再打印关联餐桌（原代码顺序反了）
+                    // Parse tableName property first, then print associated table 
                     if (obj.contains("properties") && obj["properties"].is_array()) {
                         Logger::debug("[Food] " + objName + " detacted properties:");
                         for (const auto& p : obj["properties"]) {
                             if (!p.is_object()) continue;
                             std::string pname = p.value("name", "");
-                            Logger::info("[Food] retreive property: " + pname); // 极细粒度日志
+                            Logger::info("[Food] retreive property: " + pname); 
 
                             if (pname == "tableName" && p.contains("value") && p["value"].is_string()) {
                                 foodAnchor.tableName = p["value"].get<std::string>();
                                 Logger::info("[Food] " + objName + " parsed successfully: tableName: " + foodAnchor.tableName);
-                                break; // 找到tableName后直接退出循环，提升效率
+                                break; 
                             }
                         }
                     } else {
                         Logger::warn("[Food] " + objName + " has no properties");
                     }
 
-                    // 修复3：解析完tableName后再打印关联关系
                     Logger::info("[Food] " + objName + " connected table: " + (foodAnchor.tableName.empty() ? "Empty" : foodAnchor.tableName));
                     
                     m_foodAnchors.push_back(foodAnchor);
                     parsedFoodAnchors++;
                     Logger::info("[Food] parsed successfully: " + foodAnchor.id + " | parsed food amount: " + std::to_string(parsedFoodAnchors));
-                    continue; // 关键：解析完Food锚点后跳过餐桌解析逻辑
+                    continue;
                 }
                 
-                // 解析桌子
+                // Parse tables
                 if (obj["type"] == "Table") {
                     TableObject table;
                     table.name = objName;
@@ -818,10 +816,8 @@ void TMJMap::parseObjectLayers(const json& layers) {
                             if (!p.is_object()) continue;
                             std::string pname = p.value("name", "");
                             if (pname == "seatX" && p.contains("value") && p["value"].is_number()) {
-                                // 修复 JSON 解析：用 number_float() 替代 get<float>()
                                 table.seatPosition.x = p["value"].get<float>();
                             } else if (pname == "seatY" && p.contains("value") && p["value"].is_number()) {
-                                // 修复 JSON 解析：用 number_float() 替代 get<float>()
                                 table.seatPosition.y = p["value"].get<float>();
                             }
                         }
@@ -835,12 +831,12 @@ void TMJMap::parseObjectLayers(const json& layers) {
             }
         } 
 
-        // 11) 解析草坪区域
-        if (lnameLower == "lawn") { // 匹配"Lawn"图层（不区分大小写）
+        // 12) Parse lawn areas
+        if (lnameLower == "lawn") { 
             for (const auto& obj : L["objects"]) {
                 if (!obj.is_object()) continue;
                 std::string objName = obj.value("name", "");
-                if (toLower(objName) != "lawn") continue; // 匹配名称为"lawn"的对象
+                if (toLower(objName) != "lawn") continue; 
 
                 float x = obj.value("x", 0.f);
                 float y = obj.value("y", 0.f);
@@ -984,12 +980,8 @@ bool TMJMap::makeExtrudedTexture(
     }
 
     const sf::Vector2u isz = src.getSize();
-    
-    // Fix: usableW/usableH represent usable pixel extents and should not include spacing
     const int usableW = static_cast<int>(isz.x) - margin * 2;
     const int usableH = static_cast<int>(isz.y) - margin * 2;
-
-    // Fix: compute rows taking spacing into account
     const int cols = columns;
     const int rows = (usableH + spacing) / (srcTileH + spacing);
     
@@ -1033,11 +1025,9 @@ bool TMJMap::makeExtrudedTexture(
     
     for (int r = 0; r < rows; ++r) {
         for (int c = 0; c < cols; ++c) {
-            // Fix: calculate source coordinates considering spacing
             const int sx = margin + c * (srcTileW + spacing);
             const int sy = margin + r * (srcTileH + spacing);
-            
-            // Check whether source coordinates are inside the image bounds
+    
             if (sx + srcTileW > static_cast<int>(isz.x) || sy + srcTileH > static_cast<int>(isz.y)) {
                 Logger::warn("Tile coordinates out of bounds: (" + 
                             std::to_string(sx) + "," + std::to_string(sy) + ")");
@@ -1060,7 +1050,7 @@ bool TMJMap::makeExtrudedTexture(
                 }
             }
 
-            // Extrude edges (unchanged)
+            // Extrude edges 
             for (int yy = 0; yy < srcTileH; ++yy) {
                 const sf::Color L = getPix(sx, sy + yy);
                 const sf::Color R = getPix(sx + srcTileW - 1, sy + yy);
@@ -1105,7 +1095,7 @@ bool TMJMap::makeExtrudedTexture(
                 }
             }
 
-            // Extrude corners (unchanged)
+            // Extrude corners 
             const sf::Color TL = getPix(sx, sy);
             const sf::Color TR = getPix(sx + srcTileW - 1, sy);
             const sf::Color BL = getPix(sx, sy + srcTileH - 1);
@@ -1189,7 +1179,9 @@ TilesetInfo* TMJMap::findTilesetForGid(int gid) {
     return result;
 }
 
-
+/**
+ * @brief Clean up all resources associated with the loaded map.
+ */
 void TMJMap::cleanup() {
     tilesets.clear();
     tiles.clear();
@@ -1203,15 +1195,18 @@ void TMJMap::cleanup() {
     m_tables.clear();
     m_foodAnchors.clear();
     lawnAreas.clear();
-    m_professors.clear();  // 添加教授对象的清理
-    m_shopTriggers.clear();   // ✅ 清理便利店触发区域
-    respawnPoint = RespawnPoint();  // 重置重生点
-    respawnPoint = RespawnPoint();  // 重置重生点
-
+    m_professors.clear();  
+    m_shopTriggers.clear(); 
+    respawnPoint = RespawnPoint();  
 }
 
 
-// Check whether a feet point lies within any NotWalkable region (rectangles or polygons).
+/**
+ * @brief Check whether a feet point lies within any NotWalkable region (rectangles or polygons).
+ * 
+ * @param feet The point to check (player's feet position).
+ * @return true if the point is inside any non-walkable area, false otherwise.
+ */
 bool TMJMap::feetBlockedAt(const sf::Vector2f& feet) const {
     // Check rectangles first for quick rejection.
     for (const auto& r : notWalkRects) {
