@@ -206,7 +206,13 @@ void MapLoader::cleanup() {
     properties.clear();
 }
 
-
+/**
+ * @brief Loads a TMJ map from the specified file path.
+ *
+ * @param filepath The path to the TMJ map file to load.
+ * @param extrude The amount of extrusion to apply to tileset images.
+ * @return std::shared_ptr<TMJMap> Shared pointer to the loaded TMJ map.
+ */
 std::shared_ptr<TMJMap> MapLoader::loadTMJMap(
     const std::string& filepath, 
     int extrude
@@ -245,7 +251,12 @@ std::shared_ptr<TMJMap> MapLoader::loadTMJMap(
 }
 
 
-// MapLoader.cpp - additional helper method
+/**
+ * @brief Applies spawn point configuration from a sidecar JSON file.
+ * 
+ * @param tmjPath Path to the TMJ map file.
+ * @param map Reference to the TMJMap to apply spawn settings to.
+ */
 void MapLoader::applySpawnFromSidecar(const std::string& tmjPath, TMJMap& map) {
     namespace fs = std::filesystem;
 
@@ -323,6 +334,14 @@ void MapLoader::applySpawnFromSidecar(const std::string& tmjPath, TMJMap& map) {
 }
 
 // Spawn override helpers
+
+/**
+ * @brief Sets a spawn override position for a specific map.
+ *
+ * @param mapKey Identifier for the map.
+ * @param x X coordinate of spawn position.
+ * @param y Y coordinate of spawn position.
+ */
 void MapLoader::setSpawnOverride(const std::string& mapKey, float x, float y) {
     spawnOverrides[mapKey] = sf::Vector2f{x, y};
 }
@@ -366,12 +385,19 @@ sf::Vector2f MapLoader::resolveSpawnForMap(const std::string& mapKey, const TMJM
     return sf::Vector2f(map.getWorldPixelWidth() * 0.5f, map.getWorldPixelHeight() * 0.5f);
 }
 
-
+/**
+ * @brief Clears the spawn override for a specific map.
+ *
+ * @param mapKey Map identifier to clear override for.
+ */
 void MapLoader::clearSpawnOverride(const std::string& mapKey) {
     spawnOverrides.erase(mapKey);
 }
 
+
+/**
+ * @brief Clears all spawn overrides.
+ */
 void MapLoader::clearAllSpawnOverrides() {
     spawnOverrides.clear();
 }
-
