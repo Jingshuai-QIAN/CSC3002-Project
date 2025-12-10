@@ -1,5 +1,4 @@
 // QuizGame.h
-
 #ifndef QUIZ_GAME_H
 #define QUIZ_GAME_H
 
@@ -16,29 +15,49 @@ public:
         int energy = 0;
     };
 private:
-    // 题目结构
+    // Question structure
     struct Question {
         std::string text;
         std::vector<std::string> options;
         size_t correctIndex;
     };
 
-    // 选项按钮（嵌套类型）
+    // Option button (nested type)
     struct OptionButton {
         sf::RectangleShape shape;
         sf::Text text;
 
+        /**
+         * @brief Construct an option button.
+         * 
+         * @param font Font for the button text.
+         * @param str Text displayed on the button.
+         * @param position Button position.
+         * @param size Button size.
+         */
         OptionButton(const sf::Font& font, const std::string& str,
                      const sf::Vector2f& position, const sf::Vector2f& size);
 
+        /**
+         * @brief Check if mouse click is within button bounds.
+         * 
+         * @param mousePos Mouse position.
+         * @return true if button was clicked, false otherwise.
+         */
         bool isClicked(const sf::Vector2f& mousePos) const;
-        void setFont(const sf::Font& f); // 备用：若需要后续设置字体
+
+        /**
+         * @brief Set font for button text (fallback if needed later).
+         * 
+         * @param f Font to set.
+         */
+        void setFont(const sf::Font& f); 
     };
 
-    // 窗口（对象持有）
+    // Window 
     sf::RenderWindow window;
 
-    // 字体和文本成员（注意顺序：font 在前，text 在后）
+    // Font and text members
     sf::Font font;
     sf::Text titleText;
     sf::Text questionText;
@@ -46,14 +65,14 @@ private:
     sf::Text scoreText;
     sf::Text continueText;
 
-    // 控件
+    // Controls
     sf::RectangleShape continueButton;
 
-    // 数据
+    // Data
     std::vector<OptionButton> options;
     std::vector<Question> questions;
 
-    // 状态
+    // State
     size_t currentQuestionIndex;
     size_t totalQuestions;
     size_t correctAnswers;
@@ -61,10 +80,10 @@ private:
     bool gameCompleted;
     bool showContinueButton;
 
-    // 私有方法
+    // Private methods
     void loadQuestions();
-    bool loadQuestionsFromFile(const std::string& path); // 从 JSON 文件加载题目与 UI 配置
-    bool loadQuestionsFromFile(const std::string& path, const std::string& forcedCategory); // overload with forced category
+    bool loadQuestionsFromFile(const std::string& path); 
+    bool loadQuestionsFromFile(const std::string& path, const std::string& forcedCategory); 
     void displayCurrentQuestion();
     void updateScoreDisplay();
     std::string wrapText(const std::string& text, size_t lineLength) const;
@@ -77,18 +96,41 @@ private:
     Effects perfectEffect;
     Effects goodEffect;
     Effects poorEffect;
-    Effects lastEffect; // populated when quiz completes
+    Effects lastEffect; 
 
 public:
+    /**
+     * @brief Default constructor with built-in questions.
+     */
     QuizGame();
+
+    /**
+     * @brief Constructor that loads questions from JSON file.
+     * 
+     * @param jsonPath Path to JSON file containing questions and UI config.
+     */
     explicit QuizGame(const std::string& jsonPath);
-    // Load from jsonPath and force a specific category (if present in file)
+
+    /**
+     * @brief Constructor that loads from JSON and forces specific category selection.
+     * 
+     * @param jsonPath Path to JSON file containing categorized questions.
+     * @param forcedCategory Category name to force selection from.
+     */
     QuizGame(const std::string& jsonPath, const std::string& forcedCategory);
+
     ~QuizGame() = default;
 
-    // 运行游戏（阻塞，直到此窗口关闭）
+    /**
+     * @brief Run the quiz game (blocking, until window closes).
+     */
     void run();
-    // After run() returns, caller can query resulting effects
+
+    /**
+     * @brief Get resulting effects after quiz completion.
+     * 
+     * @return Effects Points and energy changes from quiz.
+     */
     Effects getResultEffects() const { return lastEffect; }
 };
 
