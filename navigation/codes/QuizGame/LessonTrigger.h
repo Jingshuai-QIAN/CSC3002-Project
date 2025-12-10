@@ -18,7 +18,7 @@
 #include "Manager/TaskManager.h"
 #include "QuizGame.h"
 
-// 小工具：把测验奖励应用到 TaskManager（写成 inline，放头文件不会多重定义）
+// Apply quiz rewards to TaskManager
 namespace {
 inline void applyQuizRewards(TaskManager& tm, const QuizGame::Effects& eff) {
     if (eff.points != 0) {
@@ -35,15 +35,22 @@ inline void applyQuizRewards(TaskManager& tm, const QuizGame::Effects& eff) {
 class LessonTrigger {
 public:
     struct Slot {
-        std::string course;    // 课程名
-        std::string location;  // 楼名（需与 Entrance layer/你的日程 JSON 一致）
-        std::string timeStr;   // "09:00-10:15"
-        int startMin = 0;      // 分钟
-        int endMin   = 0;
+        std::string course;    ///< Course name
+        std::string location;  ///< Building name 
+        std::string timeStr;   ///< Time string like "09:00-10:15"
+        int startMin = 0;      ///< Start time in minutes since midnight
+        int endMin   = 0;      ///< End time in minutes since midnight
     };
     struct DaySchedule { std::vector<Slot> slots; };
 
-    // 读取课程表（形如 { "schedule": { "Mon": [ {course, location, time}, ... ] , ... } }）
+    /**
+     * @brief Load schedule from JSON file.
+     * 
+     * Expected JSON format: { "schedule": { "Mon": [ {course, location, time}, ... ] , ... } }
+     * 
+     * @param jsonPath Path to the schedule JSON file.
+     * @return true if schedule loaded successfully, false otherwise.
+     */
     inline bool loadSchedule(const std::string& jsonPath) {
         using nlohmann::json;
         std::ifstream ifs(jsonPath);
@@ -79,15 +86,30 @@ public:
         return true;
     }
 
-    // 触发结果：用最少枚举 + outHint 说明原因
+     /**
+     * @enum Result
+     * @brief Trigger result enumeration.
+     * 
+     * Use minimal enum + outHint to explain reasons.
+     */
     enum class Result {
-        NoTrigger,              // 没有触发（包括未到/已过/今天没课），请看 outHint
-        TriggeredQuiz,          // 成功打开测验
-        WrongBuildingHintShown, // 时间匹配但楼不对（outHint 告诉去哪里）
-        AlreadyFired            // 这节课测验做过了（outHint 告知）
+        NoTrigger,              ///< No trigger (including not started/already passed/no class today), check outHint
+        TriggeredQuiz,          ///< Successfully opened quiz
+        WrongBuildingHintShown, ///< Time matches but building is wrong (outHint tells where to go)
+        AlreadyFired            ///< This lesson quiz has already been completed (outHint informs)
     };
 
-    // 主调用：weekday("Mon"), heroBuilding(从 EntranceArea 记录到的楼名), minutesSinceMidnight, quizJsonPath
+    /**
+     * @brief Main trigger function.
+     * 
+     * @param weekday Weekday string like "Mon".
+     * @param heroBuilding Building name from EntranceArea record.
+     * @param minutesSinceMidnight Current time in minutes since midnight.
+     * @param quizJsonPath Path to quiz JSON file.
+     * @param tm TaskManager reference.
+     * @param outHint Optional pointer to receive hint message.
+     * @return Result Trigger result.
+     */
     inline Result tryTrigger(const std::string& weekday,
                              const std::string& heroBuilding,
                              int minutesSinceMidnight,
@@ -101,7 +123,7 @@ public:
             return Result::NoTrigger;
         }
 
-        // —— 找到当天与当前分钟匹配的课时（含边界）
+        // Find class slots that match current time (including boundaries)
         std::vector<const Slot*> timeMatched;
         for (const auto& s : it->second.slots) {
             if (minutesSinceMidnight >= s.startMin && minutesSinceMidnight <= s.endMin) {
@@ -109,12 +131,12 @@ public:
             }
         }
 
-        // ★ 没有任何进行中的课：给出“未到时间/已过时间/今天没课”的提示
+        // No ongoing classes: provide "not started/already passed/no class today" hint
         if (timeMatched.empty()) {
             if (outHint) {
-                // 找“下一节尚未开始的课”和“最近已结束的课”
-                const Slot* nextSlot = nullptr; // minutes < startMin 中 startMin 最小者
-                const Slot* prevSlot = nullptr; // minutes > endMin   中 endMin 最大者
+                // Find "next class not started yet" and "most recent ended class"
+                const Slot* nextSlot = nullptr; // Minimum startMin where minutes < startMin
+                const Slot* prevSlot = nullptr; // Maximum endMin where minutes > endMin
                 for (const auto& s : it->second.slots) {
                     if (minutesSinceMidnight < s.startMin) {
                         if (!nextSlot || s.startMin < nextSlot->startMin) nextSlot = &s;
@@ -139,7 +161,7 @@ public:
             return Result::NoTrigger;
         }
 
-        // 有进行中的课，检查楼名是否匹配
+        // Have ongoing classes, check if building name matches
         const std::string heroNorm = normalizeBuilding(heroBuilding);
         for (const Slot* ps : timeMatched) {
             const std::string locNorm = normalizeBuilding(ps->location);
@@ -150,7 +172,7 @@ public:
                     return Result::AlreadyFired;
                 }
 
-                // 打开测验
+                // Open quiz
                 QuizGame quiz(quizJsonPath, ps->course);
                 quiz.run();
                 auto eff = quiz.getResultEffects();
@@ -161,7 +183,7 @@ public:
             }
         }
 
-        // 时间匹配但楼不匹配 → 组织提示文本返回
+        // Time matches but building doesn't → organize hint text
         if (outHint) {
             std::vector<std::string> need;
             need.reserve(timeMatched.size());
@@ -180,7 +202,14 @@ public:
     }
 
 private:
-    // —— 工具函数（全部 inline）
+    /**
+     * @brief Parse time range string like "09:00-10:15".
+     * 
+     * @param s Time range string.
+     * @param startMin Output start time in minutes.
+     * @param endMin Output end time in minutes.
+     * @return true if parsing succeeded, false otherwise.
+     */
     static inline bool parseTimeRange(const std::string& s, int& startMin, int& endMin) {
         auto trim = [](std::string x){
             size_t a = x.find_first_not_of(" \t");
@@ -200,6 +229,12 @@ private:
         return true;
     }
 
+    /**
+     * @brief Normalize building name by removing spaces and converting to uppercase.
+     * 
+     * @param s Building name string.
+     * @return Normalized building name.
+     */
     static inline std::string normalizeBuilding(std::string s) {
         s.erase(std::remove_if(s.begin(), s.end(), [](unsigned char c){ return std::isspace(c); }), s.end());
         std::transform(s.begin(), s.end(), s.begin(),
@@ -207,6 +242,16 @@ private:
         return s;
     }
 
+    /**
+     * @brief Create unique key for a class slot.
+     * 
+     * @param weekday Weekday string.
+     * @param location Building location.
+     * @param startMin Start time in minutes.
+     * @param endMin End time in minutes.
+     * @param course Course name.
+     * @return Unique slot key string.
+     */
     static inline std::string makeSlotKey(const std::string& weekday,
                                           const std::string& location,
                                           int startMin, int endMin,
@@ -216,13 +261,18 @@ private:
         return oss.str();
     }
 
+    /**
+     * @brief Remove duplicates from string vector.
+     * 
+     * @param v Vector to deduplicate.
+     */
     static inline void dedup(std::vector<std::string>& v) {
         std::sort(v.begin(), v.end());
         v.erase(std::unique(v.begin(), v.end()), v.end());
     }
 
 private:
-    std::unordered_map<std::string, DaySchedule> schedules;
-    std::unordered_set<std::string> fired; // 已触发过的(weekday|location|start-end|course)
-    std::string schedulePath;
+    std::unordered_map<std::string, DaySchedule> schedules;    ///< Loaded schedules by weekday
+        std::unordered_set<std::string> fired;     ///< Already triggered slots (weekday|location|start-end|course)
+    std::string schedulePath;    ///< Path to the schedule file
 };
