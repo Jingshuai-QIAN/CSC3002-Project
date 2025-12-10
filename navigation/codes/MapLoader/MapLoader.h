@@ -17,7 +17,7 @@ class Renderer;
 class TileLayer;
 class TileSetManager;
 class TMJMap;
-struct InteractionObject; // 前向声明
+struct InteractionObject; // Forward Declaration
 
 /*
  * File: MapLoader.h
@@ -89,6 +89,7 @@ public:
 
     /**
      * @brief Loads a complete TMJ map including object layers
+     * 
      * @param filepath Path to the TMJ file
      * @param extrude Extrusion amount for texture bleeding prevention
      * @return Shared pointer to loaded TMJMap, or nullptr on failure
@@ -97,15 +98,19 @@ public:
         const std::string& filepath, 
         int extrude = 0
     );
-
-
     
     /**
-     * @brief Gets the last loaded TMJ map
+     * @brief Gets the last loaded TMJ map.
+     * 
+     * @return std::shared_ptr<TMJMap> Shared pointer to the current TMJ map.
      */
     std::shared_ptr<TMJMap> getCurrentTMJMap() const { return currentTMJMap; }
     
-    // 新增：直接获取交互对象（封装，简化上层调用）
+    /**
+     * @brief Directly get interaction objects from the current TMJ map.
+     * 
+     * @return std::vector<InteractionObject> Vector of interaction objects.
+     */
     std::vector<InteractionObject> getCurrentInteractionObjects() const {
         if (currentTMJMap) {
             return currentTMJMap->getInteractionObjects();
@@ -115,11 +120,15 @@ public:
     
     /**
      * @brief Get directory path of the currently loaded map file.
+     * 
+     * @return std::string Directory path of the loaded map.
      */
     std::string getMapDirectory() const { return mapDirectory; }
 
     /**
      * @brief Get the path (key) of the currently loaded TMJ map.
+     * 
+     * @return std::string Path of the current TMJ map.
      */
     std::string getCurrentMapPath() const { return currentMapPath; }
 
@@ -161,8 +170,16 @@ public:
      */
     sf::Vector2f resolveSpawnForMap(const std::string& mapKey, const TMJMap& map, bool consume = false) const;
 
-    // Clear override helpers
+    /**
+     * @brief Clears the spawn override for a specific map.
+     *
+     * @param mapKey Map identifier to clear override for.
+     */
     void clearSpawnOverride(const std::string& mapKey);
+
+    /**
+     * @brief Clears all spawn overrides.
+     */
     void clearAllSpawnOverrides();
     
 private:
@@ -210,10 +227,11 @@ private:
     // Map properties stored as key-value pairs
     std::unordered_map<std::string, std::string> properties; ///< Custom map properties
 
-    std::shared_ptr<TMJMap> currentTMJMap;
-    // current loaded map path (used as key for spawn overrides)
-    std::string currentMapPath;
-    // per-map spawn overrides stored in-memory
-    std::unordered_map<std::string, sf::Vector2f> spawnOverrides;
+    std::shared_ptr<TMJMap> currentTMJMap; ///< Currently loaded TMJ map
 
+    // current loaded map path (used as key for spawn overrides)
+    std::string currentMapPath; ///< Path of the current map file
+
+    // per-map spawn overrides stored in-memory
+    std::unordered_map<std::string, sf::Vector2f> spawnOverrides; ///< Map of spawn override positions
 };
