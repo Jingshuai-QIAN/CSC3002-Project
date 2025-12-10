@@ -57,11 +57,21 @@ struct TextObject {
     std::string valign = "top";
 };
 
+/*
+ * Struct: InteractionObject
+ * Description: Represents an interactive object on the map.
+ *
+ * Fields:
+ *   type    - Interaction type (e.g., "counter").
+ *   name    - Object name.
+ *   rect    - Interaction area rectangle.
+ *   options - List of interaction options (e.g., menu items).
+ */
 struct InteractionObject {
-    std::string type;       // 交互类型（如"counter"）
-    std::string name;       // 对象名称
-    sf::FloatRect rect;     // 交互区域
-    std::vector<std::string> options; // 交互选项（菜品列表）
+    std::string type;       
+    std::string name;       
+    sf::FloatRect rect;     
+    std::vector<std::string> options; 
 };
 
 /*
@@ -81,29 +91,59 @@ struct EntranceArea {
     std::optional<float> targetY;
 };
 
+/*
+ * Struct: GameTriggerArea
+ * Description: Represents a game trigger area on the map.
+ *
+ * Fields:
+ *   x, y          - Top-left corner coordinates of the area.
+ *   width, height - Size of the area.
+ *   name          - Area name (e.g., "bookstore_game").
+ *   gameType      - Mini-game type (used to distinguish different games).
+ *   questionSet   - Optional: question bank ID (e.g., "classroom_basic").
+ *   rect          - Rectangle bounding box for collision detection.
+ */
 struct GameTriggerArea {
-    float x = 0.f, y = 0.f;       // 区域左上角坐标
-    float width = 0.f, height = 0.f; // 区域大小
-    std::string name;             // 区域名称（如"bookstore_game"）
-    std::string gameType;         // 小游戏类型（用于区分不同游戏）
-    std::string questionSet;      // 可选：题库 id（e.g. "classroom_basic"）
-    sf::FloatRect rect;           // 区域的矩形框，用于碰撞检测
+    float x = 0.f, y = 0.f;       
+    float width = 0.f, height = 0.f; 
+    std::string name;             
+    std::string gameType;        
+    std::string questionSet;     
+    sf::FloatRect rect;           
 };
 
-// 添加Chef对象结构
+/*
+ * Struct: Chef
+ * Description: Represents a chef object on the map.
+ *
+ * Fields:
+ *   name - Object name (can be used to distinguish different chefs).
+ *   rect - Rectangle object position and size (exported from Tiled).
+ */
 struct Chef {
-    std::string name;       // 对象名称（可用于区分不同厨师）
-    sf::FloatRect rect;     // 矩形对象的位置和大小（从Tiled导出）
+    std::string name;       
+    sf::FloatRect rect;    
 };
 
+/*
+ * Struct: Professor
+ * Description: Represents a professor NPC on the map.
+ *
+ * Fields:
+ *   name        - Professor name.
+ *   rect        - Position and collision bounding box.
+ *   course      - Course taught by the professor.
+ *   dialogType  - Dialogue type.
+ *   available   - Whether the professor is available for interaction.
+ */
 struct Professor {
     std::string name;
-    sf::FloatRect rect;        // 位置和碰撞框
-    std::string course;        // 教授的课程
-    std::string dialogType;    // 对话类型
-    bool available;           // 是否可交互
+    sf::FloatRect rect;        
+    std::string course;        
+    std::string dialogType;    
+    bool available;           
     
-    // 构造函数
+    // Constructor
     Professor() : available(true) {}
 };
 
@@ -119,61 +159,100 @@ struct BlockPoly {
     std::vector<sf::Vector2f> points; // polygon vertices in world pixels
     sf::FloatRect bounds;             // AABB (SFML 3: position + size)
 
-    // ✅ 1️⃣ 默认构造时强制初始化 bounds，防止野值
+    // Default constructor with forced bounds initialization
     BlockPoly()
         : points(),
           bounds(sf::Vector2f(0.f, 0.f), sf::Vector2f(0.f, 0.f)) {}
 
-    // ✅ 2️⃣ 便捷构造（常用于解析 TMJ）
+    // Convenience constructor for parsing TMJ data
     explicit BlockPoly(std::vector<sf::Vector2f> p)
         : points(std::move(p)),
           bounds(sf::Vector2f(0.f, 0.f), sf::Vector2f(0.f, 0.f)) {}
 
-    // ✅ 3️⃣ 显式允许安全拷贝
+    // Explicit safe copy operations
     BlockPoly(const BlockPoly&) = default;
     BlockPoly& operator=(const BlockPoly&) = default;
 
-    // ✅ 4️⃣ 显式允许安全移动（关键！防止 vector 扩容时崩溃）
+    // Explicit safe move operations
     BlockPoly(BlockPoly&&) noexcept = default;
     BlockPoly& operator=(BlockPoly&&) noexcept = default;
 };
 
-// 桌子对象结构
+/*
+ * Struct: TableObject
+ * Description: Represents a dining table object on the map.
+ *
+ * Fields:
+ *   name          - Must be in format left_table1/right_table1.
+ *   rect          - Table area (left/top/width/height).
+ *   seatPosition  - Chair insertion point coordinates (must be configured, non-zero).
+ */
 struct TableObject {
-    std::string name;          // 必须是 left_table1/right_table1
-    sf::FloatRect rect;        // 餐桌范围（left/top/width/height）
-    sf::Vector2f seatPosition; // 椅子插入点坐标（必须配置，非0）
+    std::string name;          
+    sf::FloatRect rect;      
+    sf::Vector2f seatPosition; 
 };
 
-// 食物显示点结构
+/*
+ * Struct: FoodAnchor
+ * Description: Represents a food display point on the map.
+ *
+ * Fields:
+ *   id          - Unique identifier (e.g., food1, food2...).
+ *   position    - Display position coordinates.
+ *   tableName   - Associated table name (e.g., left_table1, right_table2).
+ */
 struct FoodAnchor {
-    std::string id;            // 唯一标识（food1/food2...）
-    sf::Vector2f position;     // 显示位置
-    std::string tableName;     // 关联的桌子名（left_table1/right_table2等）
+    std::string id;            
+    sf::Vector2f position;     
+    std::string tableName;    
 };
 
-// 草坪
+/*
+ * Struct: LawnArea
+ * Description: Represents a lawn area on the map.
+ *
+ * Fields:
+ *   name - Area name.
+ *   rect - Area bounds (position: x,y; size: width,height).
+ */
 struct LawnArea {
     std::string name;
-    sf::FloatRect rect; // 区域范围（position: x,y; size: width,height）
+    sf::FloatRect rect; 
 
     LawnArea() = default;
     LawnArea(std::string n, float x, float y, float w, float h)
         : name(std::move(n)), rect({x, y}, {w, h}) {}
 };
 
-// ✅ 便利店门口触发区
+/*
+ * Struct: ShopTrigger
+ * Description: Represents a convenience store door trigger area.
+ *
+ * Fields:
+ *   name - Trigger name (e.g., familymart_door_1, familymart_door_2).
+ *   type - Shop type (e.g., convenience).
+ *   rect - Interaction area (world coordinates).
+ */
 struct ShopTrigger {
-    std::string name;      // familymart_door_1 / 2
-    std::string type;      // convenience
-    sf::FloatRect rect;   // 交互区域（世界坐标）
+    std::string name;   
+    std::string type;      
+    sf::FloatRect rect;   
 };
 
-// 重生点结构
+/*
+ * Struct: RespawnPoint
+ * Description: Represents a respawn point on the map.
+ *
+ * Fields:
+ *   name     - Point name (e.g., rebirth_point).
+ *   position - Respawn position coordinates.
+ *   maxCount - Maximum respawn count (read from count property).
+ */
 struct RespawnPoint {
-    std::string name;      // rebirth_point
-    sf::Vector2f position; // 重生位置
-    int maxCount;          // 最大重生次数（从 count 属性读取）
+    std::string name;     
+    sf::Vector2f position; 
+    int maxCount;         
     
-    RespawnPoint() : maxCount(3) {} // 默认3次
+    RespawnPoint() : maxCount(3) {} // Default 3 times
 };
