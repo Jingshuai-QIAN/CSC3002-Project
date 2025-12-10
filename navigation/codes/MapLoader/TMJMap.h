@@ -24,17 +24,15 @@ class TileSetManager;
  * The texture field owns the SFML texture used to draw tiles from this set.
  */
 struct TilesetInfo {
-    int firstGid = 1;   // first global tile id in this tileset
-    int tileCount = 0;  // number of tiles in the source tileset
-    int columns = 0;    // number of columns in the tileset image
+    int firstGid = 1;  
+    int tileCount = 0; 
+    int columns = 0;    
 
-    // Effective tile dimensions in the texture after extrusion.
     int tileWidth = 0;
     int tileHeight = 0;
     int spacing = 0;
     int margin = 0;
 
-    // Original (source) tileset parameters from TMJ.
     int origTileW = 0;
     int origTileH = 0;
     int origSpacing = 0;
@@ -42,7 +40,7 @@ struct TilesetInfo {
 
     std::string name;
     std::string imagePath;
-    sf::Texture texture; // owned texture (extruded or original)
+    sf::Texture texture; 
 };
 
 /*
@@ -60,10 +58,21 @@ struct TilesetInfo {
  */
 class TMJMap : public sf::Drawable {
 public:
+    /**
+     * @brief Load a TMJ map from a JSON file.
+     * 
+     * @param filepath Path to the TMJ JSON file.
+     * @param extrude Number of extruded border pixels for tileset textures.
+     * @return true if the map was successfully loaded, false otherwise.
+     */
     bool loadFromFile(
         const std::string& filepath, 
         int extrude = 1
     );
+
+    /**
+     * @brief Clean up all resources associated with the loaded map.
+     */
     void cleanup();
     
     // Getters
@@ -74,7 +83,6 @@ public:
     int getWorldPixelWidth() const { return mapWidthTiles * tileWidth; }
     int getWorldPixelHeight() const { return mapHeightTiles * tileHeight; }
     const std::vector<InteractionObject>& getInteractionObjects() const { return interactionObjects; }
-    
     const std::vector<sf::Sprite>& getTiles() const { return tiles; }
     const std::vector<TextObject>& getTextObjects() const { return textObjects; }
     const std::vector<EntranceArea>& getEntranceAreas() const { return entranceAreas; }
@@ -88,51 +96,106 @@ public:
     const std::vector<LawnArea>& getLawnAreas() const { return lawnAreas; }
     const std::vector<ShopTrigger>& getShopTriggers() const { return m_shopTriggers; }
     const RespawnPoint& getRespawnPoint() const { return respawnPoint; }
-    
+
+    /**
+     * @brief Set the spawn point coordinates.
+     * 
+     * @param x X coordinate of spawn point.
+     * @param y Y coordinate of spawn point.
+     */
     void setSpawnPoint(float x, float y) { spawnX = x; spawnY = y; }
     
-    // Collision query: check whether a feet point is blocked by NotWalkable regions
+    /**
+     * @brief Check whether a feet point is blocked by NotWalkable regions.
+     * 
+     * @param feet The point to check (player's feet position).
+     * @return true if the point is inside any non-walkable area, false otherwise.
+     */
     bool feetBlockedAt(const sf::Vector2f& feet) const;
 
-    // 手动渲染方法（备用，若 draw 重载失效时调用）
+    /**
+     * @brief Manual rendering method (fallback if draw override fails).
+     * 
+     * @param target Render target to draw to.
+     */
     void render(sf::RenderTarget& target) const {
         for (const auto& tile : tiles) {
             target.draw(tile);
         }
     }
 
-    // 添加 addShopTrigger 和 addGameTrigger 方法的声明
+    /**
+     * @brief Add a shop trigger area to the map.
+     * 
+     * @param shopTrigger Shop trigger area to add.
+     */
     void addShopTrigger(const ShopTrigger& shopTrigger) {
         m_shopTriggers.push_back(shopTrigger);
     }
 
+    /**
+     * @brief Add a game trigger area to the map.
+     * 
+     * @param gameTrigger Game trigger area to add.
+     */
     void addGameTrigger(const GameTriggerArea& gameTrigger) {
-        gameTriggers.push_back(gameTrigger); // 修正为正确的成员变量名称
+        gameTriggers.push_back(gameTrigger); 
     }
 
-
 private:
-
-    // 重载 sf::Drawable 的 draw 方法（被 window.draw(map) 自动调用）
+    /**
+     * @brief Override sf::Drawable's draw method (automatically called by window.draw(map)).
+     * 
+     * @param target Render target to draw to.
+     * @param states Render states to apply.
+     */
     void draw(sf::RenderTarget& target, sf::RenderStates states) const override {
-        // 遍历所有瓦片并绘制
         for (const auto& tile : tiles) {
             target.draw(tile, states);
         }
     }
 
+    /**
+     * @brief Parse the top-level TMJ JSON structure into internal map data.
+     * 
+     * @param j Parsed JSON object representing the TMJ file.
+     * @param baseDir Base directory used to resolve relative tileset image paths.
+     * @param extrude Extrusion amount passed to tileset texture creation.
+     * @return true on success, false on parse or resource errors.
+     */
     bool parseMapData(
         const nlohmann::json& j, 
         const std::string& baseDir, 
         int extrude
     );
 
+    /**
+     * @brief Load tileset definitions and build textures (optionally extruded).
+     *
+     * @param tilesetsData JSON array of tileset descriptors.
+     * @param baseDir Base directory for resolving tileset image paths.
+     * @param extrude Extrusion pixel count to add around tiles when building textures.
+     * @return true if tilesets loaded successfully; false if critical resources are missing.
+     */
     bool loadTilesets(
         const nlohmann::json& tilesetsData, 
         const std::string& baseDir, 
         int extrude
     );
 
+    /**
+     * @brief Create an extruded texture image from a tileset source image.
+     *
+     * @param src Source image containing the tileset.
+     * @param srcTileW Original tile width in pixels.
+     * @param srcTileH Original tile height in pixels.
+     * @param columns Number of tile columns in the source image.
+     * @param spacing Pixel spacing between tiles in the source.
+     * @param margin Pixel margin around tiles in the source.
+     * @param extrude Number of pixels to extrude around each tile.
+     * @param outTex Output texture to populate from the generated image.
+     * @return true if the extruded texture was created successfully.
+     */
     bool makeExtrudedTexture(
         const sf::Image& src, 
         int srcTileW, 
@@ -144,8 +207,19 @@ private:
         sf::Texture& outTex
     );
 
+    /**
+     * @brief Parse object layers from TMJ JSON and populate runtime object lists.
+     *
+     * @param layers JSON array containing TMJ layer objects.
+     */
     void parseObjectLayers(const nlohmann::json& layers);
-    
+
+    /**
+     * @brief Find the tileset information that contains a given global tile ID (gid).
+     *
+     * @param gid Global tile ID to lookup.
+     * @return Pointer to matching TilesetInfo or nullptr if not found.
+     */
     TilesetInfo* findTilesetForGid(int gid);
     
 private:
@@ -162,19 +236,16 @@ private:
     std::vector<Chef> m_chefs;
     std::vector<Professor> m_professors;
     std::vector<InteractionObject> interactionObjects;
-    
-    // Not-walkable regions parsed from object layers
-    std::vector<sf::FloatRect> notWalkRects; // rectangle blocking regions
-    std::vector<BlockPoly>     notWalkPolys; // polygonal blocking regions
+    std::vector<sf::FloatRect> notWalkRects; 
+    std::vector<BlockPoly>     notWalkPolys; 
     
     std::optional<float> spawnX;
     std::optional<float> spawnY;
 
-    // 新增：桌子和食物锚点存储（对应 TMJMap.cpp 中的解析逻辑）
     std::vector<TableObject> m_tables;
     std::vector<FoodAnchor> m_foodAnchors;
 
     std::vector<LawnArea> lawnAreas;
     std::vector<ShopTrigger> m_shopTriggers;
-    RespawnPoint respawnPoint;  // 重生点
+    RespawnPoint respawnPoint;  
 };
