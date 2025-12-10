@@ -52,7 +52,7 @@ MapLoader::~MapLoader() {
 
 /**
  * @brief Loads a map from the specified file path.
- * 
+ *
  * @param filepath The path to the map file to load.
  * @return true if the map was loaded successfully, false otherwise.
  */
@@ -221,7 +221,7 @@ std::shared_ptr<TMJMap> MapLoader::loadTMJMap(
     
     applySpawnFromSidecar(filepath, *currentTMJMap);
 
-    // 新增：打印交互对象解析结果（关键调试日志）
+    // Print the results of the interaction object parsing (critical debug log)
     auto interactionObjs = currentTMJMap->getInteractionObjects();
     Logger::info("Loaded " + std::to_string(interactionObjs.size()) + " interaction objects from TMJ map");
     for (const auto& io : interactionObjs) {
@@ -265,10 +265,6 @@ void MapLoader::applySpawnFromSidecar(const std::string& tmjPath, TMJMap& map) {
         nlohmann::json j;
         file >> j;
 
-        // Try several keys in order:
-        // 1) the exact tmjPath passed in (e.g. "maps/lower_campus_map.tmj")
-        // 2) the filename only (e.g. "lower_campus_map.tmj")
-        // 3) the filesystem generic string (useful if JSON keys use forward slashes)
         std::string key_full = tmjPath;
         std::string key_file = tmjFilePath.filename().string();
         std::string key_generic = tmjFilePath.generic_string();
@@ -297,7 +293,7 @@ void MapLoader::applySpawnFromSidecar(const std::string& tmjPath, TMJMap& map) {
             map.setSpawnPoint(px, py);
         }
 
-        // 确保 familymart 和 bookstore 的触发区域被正确加载
+        // Ensure that the trigger areas for familymart and bookstore are loaded correctly
         if (j.contains("familymart")) {
             auto shopData = j["familymart"];
             ShopTrigger shopTrigger;
@@ -378,3 +374,4 @@ void MapLoader::clearSpawnOverride(const std::string& mapKey) {
 void MapLoader::clearAllSpawnOverrides() {
     spawnOverrides.clear();
 }
+
