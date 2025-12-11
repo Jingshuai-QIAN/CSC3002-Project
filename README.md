@@ -108,6 +108,8 @@ navigation/
 └── tiles/
 │   ├── exterior.png
 │   ├── F_01.png
+│   ├── F_05.png
+│   ├── M_10.png
 │   ├── free_overview.png
 │   ├── Interior.png
 │   ├── Modern_City.png
