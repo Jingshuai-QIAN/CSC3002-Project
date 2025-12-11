@@ -26,7 +26,7 @@
 #include <fstream>
 #include "QuizGame/LessonTrigger.h"
 
-// --- Global variables for Achievement System ---
+// Global variables for Achievement System 
 static std::string g_achievementText = "";
 static float g_achievementTimer = 0.0f;
 
@@ -38,7 +38,7 @@ static void handleTaskCompletion(TaskManager& taskManager, const std::string& ta
     if (!achievement.empty()) {
         g_achievementText = "Achievement Unlocked: " + achievement;
         g_achievementTimer = 3.0f; // Show for 3 seconds
-        Logger::info("🏆 Achievement Unlocked: " + achievement);
+        Logger::info("Achievement Unlocked: " + achievement);
     }
 }
 
@@ -48,13 +48,12 @@ namespace {
     bool     g_modalFontReady = false;
 
     std::string g_hintText;
-    float       g_hintTimer = 0.f;   // 秒数，>0 就显示
+    float       g_hintTimer = 0.f;   // number of seconds
 }
 
-// 确保字体加载一次即可
+// make sure the typeface only loaded once
 static bool ensureModalFont() {
     if (g_modalFontReady) return true;
-    // 按你的字体路径改；常见是 "fonts/arial.ttf" 或项目里的某个字体
     if (g_modalFont.openFromFile("fonts/arial.ttf")) {
         g_modalFontReady = true;
     } else {
@@ -63,7 +62,7 @@ static bool ensureModalFont() {
     return g_modalFontReady;
 }
 
-// 外部调用：入队一个提示，显示若干秒
+// enqueue a prompt displaying for several seconds
 static void queueHint(const std::string& text, float seconds = 2.8f) {
     g_hintText  = text;
     g_hintTimer = seconds;
@@ -79,9 +78,7 @@ static bool detectEntranceTrigger(const Character& character, const TMJMap* map,
     sf::Vector2f feet = character.getFeetPoint();
     for (const auto& a : map->getEntranceAreas()) {
         sf::FloatRect rect(sf::Vector2f(a.x, a.y), sf::Vector2f(a.width, a.height));
-        
-        // 完全移除朝向要求：只要角色在入口区域内就触发
-        // 这样可以避免加速时因为朝向不对或移动过快而无法触发的问题
+
         if (rect.contains(feet)) {
             outArea = a;
             return true;
@@ -90,7 +87,6 @@ static bool detectEntranceTrigger(const Character& character, const TMJMap* map,
     return false;
 }
 
-// 修复 GameTriggerArea 的 rect 使用问题
 static bool detectGameTrigger(const Character& character, const TMJMap* map, GameTriggerArea& outArea) {
     if (!map) return false;
 
@@ -106,18 +102,18 @@ static bool detectGameTrigger(const Character& character, const TMJMap* map, Gam
     return false;
 }
 
-// 教授交互检测函数（从App.cpp补充）
+// Detect the interaction with professors
 static bool detectProfessorInteraction(const Character& character, const TMJMap* map, Professor& outProf) {
     if (!map) return false;
 
-    sf::Vector2f center = character.getPosition();  // ✅ 用人物中心
+    sf::Vector2f center = character.getPosition();  // character center
     const auto& professors = map->getProfessors();
 
     for (const auto& prof : professors) {
         if (!prof.available) continue;
 
         if (prof.rect.contains(center)) {
-            Logger::info("🎯 SUCCESS: Player touched Professor: " + prof.name);
+            Logger::info("SUCCESS: Player touched Professor: " + prof.name);
             outProf = prof;
             return true;
         }
@@ -126,7 +122,7 @@ static bool detectProfessorInteraction(const Character& character, const TMJMap*
     return false;
 }
 
-// 检测商店触发区域（用于自动触发对话框）
+// Detect the area of store interaction
 static bool detectShopTrigger(const Character& character, const TMJMap* map, ShopTrigger& outShop) {
     if (!map) {
         Logger::debug("detectShopTrigger: map is null");
@@ -137,7 +133,7 @@ static bool detectShopTrigger(const Character& character, const TMJMap* map, Sho
     const auto& shopTriggers = map->getShopTriggers();
 
     for (const auto& shop : shopTriggers) {
-        // 检测所有商店触发区域，包括 familymart
+        // detect all areas of store interaction
         if (shop.rect.contains(feet)) {
             outShop = shop;
             Logger::info("Detected shop trigger area: " + shop.name);
@@ -148,7 +144,7 @@ static bool detectShopTrigger(const Character& character, const TMJMap* map, Sho
     return false;
 }
 
-// Helper: show the full-map modal (blocking) 
+// show the full-map modal (blocking) 
 static void showFullMapModal(Renderer& renderer, const std::shared_ptr<TMJMap>& tmjMap, const ConfigManager& configManager) {
     auto dm = sf::VideoMode::getDesktopMode();
     sf::RenderWindow mapWin(dm, sf::String("Full Map"), sf::State::Windowed); 
@@ -166,7 +162,6 @@ static void showFullMapModal(Renderer& renderer, const std::shared_ptr<TMJMap>& 
     float scale = 1.f;
     if (mapW > 0 && mapH > 0) scale = std::min(winW / mapWf, winH / mapHf);
 
-    // 修复 displayW/displayH 未定义
     float displayW = mapWf * scale;
     float displayH = mapHf * scale;
 
@@ -192,18 +187,18 @@ static void showFullMapModal(Renderer& renderer, const std::shared_ptr<TMJMap>& 
     sf::View view = fullView;
 
     while (mapWin.isOpen()) {
-        // SFML 3.0.2 事件轮询
+        // event polling
         std::optional<sf::Event> evOpt = mapWin.pollEvent();
         while (evOpt.has_value()) {
             sf::Event& ev = evOpt.value();
             
-            // 关闭窗口事件
+            // window closing event 
             if (auto closed = ev.getIf<sf::Event::Closed>()) {
                 mapWin.close(); 
                 break; 
             }
             
-            // 键盘按下事件 — 统一使用 Key 枚举（解决 Scan/Key 不匹配）
+            // keyboard pressing events
             if (auto keyPressed = ev.getIf<sf::Event::KeyPressed>()) {
                 if (keyPressed->code == sf::Keyboard::Key::Escape) {
                     mapWin.close(); 
@@ -211,7 +206,7 @@ static void showFullMapModal(Renderer& renderer, const std::shared_ptr<TMJMap>& 
                 }
             }
 
-            // 鼠标滚轮事件
+            // mouse wheel events
             if (auto mouseWheel = ev.getIf<sf::Event::MouseWheelScrolled>()) {
                 float delta = mouseWheel->delta;
                 if (delta > 0) zoomFactor *= 1.1f;
@@ -224,7 +219,7 @@ static void showFullMapModal(Renderer& renderer, const std::shared_ptr<TMJMap>& 
                 mapWin.setView(view);
             }
 
-            // 鼠标按下事件
+            // mouse pressing events
             if (auto mousePressed = ev.getIf<sf::Event::MouseButtonPressed>()) {
                 if (mousePressed->button == sf::Mouse::Button::Left) {
                     dragging = true;
@@ -232,14 +227,14 @@ static void showFullMapModal(Renderer& renderer, const std::shared_ptr<TMJMap>& 
                 }
             }
             
-            // 鼠标释放事件
+            // mouse release events
             if (auto mouseReleased = ev.getIf<sf::Event::MouseButtonReleased>()) {
                 if (mouseReleased->button == sf::Mouse::Button::Left) {
                     dragging = false;
                 }
             }
             
-            // 鼠标移动事件
+            // mouse movement events
             if (auto mouseMoved = ev.getIf<sf::Event::MouseMoved>()) {
                 if (dragging) {
                     sf::Vector2i curPixel = mouseMoved->position;
@@ -274,7 +269,7 @@ static void showFullMapModal(Renderer& renderer, const std::shared_ptr<TMJMap>& 
     }
 }
 
-// Helper: show the schedule image in a blocking modal window
+// show the schedule image in a blocking modal window
 static void showScheduleModal(Renderer& renderer, const ConfigManager& configManager) {
     auto dm = sf::VideoMode::getDesktopMode();
     sf::RenderWindow schedWin(dm, sf::String("Schedule"), sf::State::Windowed);
@@ -384,7 +379,7 @@ static void cancelEntranceMove(Character& character, const TMJMap& map) {
     character.setPosition(pos);
 }
 
-// 修复：交互检测函数（添加日志）
+// detect interactions
 static bool detectInteraction(const Character& character, const TMJMap* map, InteractionObject& outObj) {
     if (!map) {
         Logger::debug("detectInteraction: map is null");
@@ -397,7 +392,7 @@ static bool detectInteraction(const Character& character, const TMJMap* map, Int
     Logger::debug("detectInteraction: " + std::to_string(interactionObjs.size()) + " interaction objects total");
     
     for (const auto& obj : interactionObjs) {
-        if (obj.type != "counter") continue; // 只检测Counter
+        if (obj.type != "counter") continue; // detect counter
         Logger::debug("detectInteraction: checking Counter '" + obj.name + "' rect (" + 
                      std::to_string(obj.rect.position.x) + "," + std::to_string(obj.rect.position.y) + 
                      ") size (" + std::to_string(obj.rect.size.x) + "," + std::to_string(obj.rect.size.y) + ")");
@@ -426,7 +421,7 @@ static bool detectInteraction(const Character& character, const TMJMap* map, Int
     return false;
 }
 
-// 餐桌交互检测函数
+// detect interactions with tables
 static bool detectTableInteraction(const Character& character, const TMJMap* map, TableObject& outTable) {
     if (!map) {
         Logger::error("detectTableInteraction: map is null");
@@ -436,7 +431,6 @@ static bool detectTableInteraction(const Character& character, const TMJMap* map
     Logger::info("detectTableInteraction: feet coordinates = (" + std::to_string(feet.x) + "," + std::to_string(feet.y) + ")");
     
     const auto& tables = map->getTables();
-    // 新增日志：打印解析到的餐桌数量
     Logger::info("detectTableInteraction: Total tables in map: " + std::to_string(tables.size()));
     if (tables.empty()) {
         Logger::warn("detectTableInteraction: No tables found in map");
@@ -444,7 +438,7 @@ static bool detectTableInteraction(const Character& character, const TMJMap* map
     }
 
     for (const auto& table : tables) {
-        // 2. 加5px容差（解决SFML坐标精度问题）
+        // 5 pixels tolerance
         sf::FloatRect tolerantRect = table.rect;
         tolerantRect.position.x -= 5;  // 替代 left
         tolerantRect.position.y -= 5;  // 替代 top
@@ -455,7 +449,7 @@ static bool detectTableInteraction(const Character& character, const TMJMap* map
                      " | original rect: (" + std::to_string(table.rect.position.x) + "," + std::to_string(table.rect.position.y) + 
                      ") | tolerant rect: (" + std::to_string(tolerantRect.position.x) + "," + std::to_string(tolerantRect.position.y) + ")");
 
-        // 3. 检测脚部是否在容差范围内
+        //Check whether the foot is within the tolerance range
         if (tolerantRect.contains(feet)) {
             outTable = table;
             Logger::info("detectTableInteraction: matched → table name: " + table.name + 
@@ -468,7 +462,7 @@ static bool detectTableInteraction(const Character& character, const TMJMap* map
     return false;
 }
 
-// 食物纹理加载函数
+// load food textures
 static std::unordered_map<std::string, sf::Texture> loadFoodTextures() {
     std::unordered_map<std::string, sf::Texture> textures;
     sf::Texture tex;
@@ -497,8 +491,7 @@ static std::unordered_map<std::string, sf::Texture> loadFoodTextures() {
     return textures;
 }
 
-// Scan → Key 转换函数（来自你的代码）
-// 手动实现 Scan → Key 转换（SFML 3.0.2 无内置方法）
+// Scan → Key trasformation
 static sf::Keyboard::Key scanToKey(sf::Keyboard::Scan scanCode) {
     switch (scanCode) {
         case sf::Keyboard::Scan::E:      return sf::Keyboard::Key::E;
@@ -508,7 +501,7 @@ static sf::Keyboard::Key scanToKey(sf::Keyboard::Scan scanCode) {
     }
 }
 
-// 草坪休息检测函数
+// detect whether the character is in the lawn
 static bool isCharacterInLawn(const Character& character, const TMJMap* map) {
     if (!map) return false;
     sf::Vector2f feet = character.getFeetPoint();
@@ -520,13 +513,12 @@ static bool isCharacterInLawn(const Character& character, const TMJMap* map) {
     return false;
 }
 
-// 当前地图的 Entrance 区域缓存
 struct EntranceZone {
-    sf::FloatRect rect;      // 入口的 Axis-Aligned 矩形
-    std::string   building;  // 该入口的 building property
+    sf::FloatRect rect;      //  Axis-Aligned rectangle
+    std::string   building;  //  building property
 };
 
-// 将 TimeManager::getWeekday() 的数值映射为字符串
+// map the values of TimeManager::getWeekday() into strings
 static std::string weekdayStringFrom(TimeManager& tm) {
     static const char* wk[] = {"Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"};
     int w = tm.getWeekday();
@@ -534,7 +526,7 @@ static std::string weekdayStringFrom(TimeManager& tm) {
     return wk[w];
 }
 
-// --- util: basename without extension ---
+// util: basename without extension 
 static std::string basenameNoExt(const std::string& path) {
     size_t p = path.find_last_of("/\\");
     std::string name = (p == std::string::npos) ? path : path.substr(p + 1);
@@ -544,9 +536,9 @@ static std::string basenameNoExt(const std::string& path) {
 }
 
 // ------------------------------------------------------------
-// 读当前地图的 entrance 层（只认小写 "entrance"！）
-// - 仅矩形；多边形自动取其包围盒
-// - outZones 读到的每个对象必须包含 string 属性 "building"
+// search for the entrance layer of the current map
+// rectangle only
+// Each object read by outZones must contain a "building" attribute of type string
 // ------------------------------------------------------------
 static bool reloadEntranceZonesForMap(const std::string& tmjPath,
                                       const std::string& /*layerName_ignored*/,
@@ -580,7 +572,6 @@ static bool reloadEntranceZonesForMap(const std::string& tmjPath,
         if (!L.is_object()) continue;
         if (L.value("type", std::string{}) != "objectgroup") continue;
 
-        // 只认小写 "entrance"
         const std::string lname = L.value("name", std::string{});
         if (lname != "entrance") continue;
         foundLayer = true;
@@ -596,7 +587,7 @@ static bool reloadEntranceZonesForMap(const std::string& tmjPath,
             float w = obj.value("width", 0.0f);
             float h = obj.value("height", 0.0f);
 
-            // 多边形 -> 包围盒
+            // polygon -> enclosing box
             if ((w == 0.f || h == 0.f) && obj.contains("polygon") && obj["polygon"].is_array()) {
                 float minx = x, miny = y, maxx = x, maxy = y;
                 for (const auto& p : obj["polygon"]) {
@@ -610,12 +601,11 @@ static bool reloadEntranceZonesForMap(const std::string& tmjPath,
                 h = std::max(1.f, maxy - miny);
             }
 
-            // 读取 building 属性
+            // read the properties of building
             std::string building;
             if (obj.contains("properties") && obj["properties"].is_array()) {
                 for (const auto& prop : obj["properties"]) {
                     if (prop.value("name", std::string{}) == "building") {
-                        // Tiled 导出一般在 "value" 字段
                         if (prop.contains("value") && prop["value"].is_string())
                             building = prop["value"].get<std::string>();
                         else if (prop.contains("string") && prop["string"].is_string())
@@ -625,7 +615,7 @@ static bool reloadEntranceZonesForMap(const std::string& tmjPath,
                 }
             }
             if (building.empty()) {
-                // 没写 building 就跳过
+                // if no building, skip
                 continue;
             }
 
@@ -634,7 +624,7 @@ static bool reloadEntranceZonesForMap(const std::string& tmjPath,
             ez.building = building;
             outZones.push_back(std::move(ez));
         }
-        // 只用一个名为 entrance 的层，找到后就不再看其他层
+        // only read entrance layer once
         break;
     }
 
@@ -649,9 +639,9 @@ static bool reloadEntranceZonesForMap(const std::string& tmjPath,
 }
 
 // ------------------------------------------------------------
-// 每帧：根据“脚底点”更新最近一次通过入口的楼名
-// - 脚底点/feet：建议用 character.getFeetPoint()
-// - 会在地图切换时自动重载入口缓存
+// Each frame: Update the name of the building that passed through the entrance most recently based on the "footprint point"
+// Feet point: character.getFeetPoint()
+// Automatically reload the entrance cache when the map is switched
 // ------------------------------------------------------------
 static void updateEntranceHitByPlayer(const sf::Vector2f& playerFeet,
                                       const std::string& tmjPath,
@@ -681,19 +671,19 @@ static void updateEntranceHitByPlayer(const sf::Vector2f& playerFeet,
         }
     }
 
-    // 如果没踩在任何入口区，就不改 lastEntranceBuilding，但你可以选择清空：
+    // If not step on any of the entrance areas, keep the "lastEntranceBuilding" unchanged
     // if (!hit) { lastEntranceBuilding.clear(); }
 }
 
 
 
 
-// 新增：计算最终评级
+// calculate grades
 FinalResult calculateFinalResult(int totalPoints) {
     FinalResult result;
     result.totalPoints = totalPoints;
 
-    // 计算星级（1-5）
+    // number of stars（1-5）
     if (totalPoints >= 300) {
         result.starCount = 5;
         result.grade = Grade::A;
@@ -713,10 +703,8 @@ FinalResult calculateFinalResult(int totalPoints) {
     return result;
 }
 
-bool isFinalResultShown = false;     // 结算面板显示标记
+bool isFinalResultShown = false;     // whether show the result panel
 
-
-// 直接接收主循环计算好的参数：等级字符、星星数、完整描述文本
 bool showFinalResultScreen(Renderer& renderer, char grade, int starCount, const std::string& resultText) {
     sf::RenderWindow& window = renderer.getWindow();
     sf::Font font;
@@ -725,7 +713,7 @@ bool showFinalResultScreen(Renderer& renderer, char grade, int starCount, const 
         return true;
     }
 
-    // 背景加载、缩放、居中（原有逻辑不变）
+    // Background loading, scaling, centering
     sf::Texture bgTexture;
     if (!bgTexture.loadFromFile("textures/dialog_bg.png")) {
         Logger::error("Failed to load dialog_bg.png");
@@ -744,7 +732,7 @@ bool showFinalResultScreen(Renderer& renderer, char grade, int starCount, const 
     float bgY = (windowSize.y - bgBounds.size.y) / 2.0f; 
     bgSprite.setPosition(sf::Vector2f(bgX, bgY));
 
-    // 等级文本（直接用主循环传的grade，删除switch逻辑）
+    // texts of results
     sf::Text gradeText(font, "", 36);
     std::string article = (grade == 'A') ? "an" : "a";
     gradeText.setString("You got " + article + " " + std::string(1, grade) + " in the game!");
@@ -754,10 +742,10 @@ bool showFinalResultScreen(Renderer& renderer, char grade, int starCount, const 
     gradeText.setOrigin(sf::Vector2f(gradeBounds.size.x / 2, gradeBounds.size.y / 2));
     gradeText.setPosition(sf::Vector2f(
         windowSize.x / 2.0f,          
-        bgY + bgBounds.size.y * 0.25f // 上移留空间给健康文本
+        bgY + bgBounds.size.y * 0.25f 
     ));
 
-    // 健康状态文本（直接用主循环传的resultText，删除拼接逻辑）
+    // texts of health condition
     sf::Text healthText(font, resultText, 28);
     healthText.setFillColor(sf::Color(255, 215, 0)); // 金色突出
     healthText.setCharacterSize(28);
@@ -768,7 +756,7 @@ bool showFinalResultScreen(Renderer& renderer, char grade, int starCount, const 
         bgY + bgBounds.size.y * 0.35f
     ));
 
-    // 星星显示（原有逻辑不变，直接用传的starCount）
+    // show stars
     const float starSize = 50.f;
     sf::Texture starYTexture, starGTexture;
     if (!starYTexture.loadFromFile("textures/star_y.png") || !starGTexture.loadFromFile("textures/star_g.png")) {
@@ -791,7 +779,7 @@ bool showFinalResultScreen(Renderer& renderer, char grade, int starCount, const 
         stars.push_back(star);
     }
 
-    // 按钮布局、交互（原有逻辑不变）
+    // Button layout, interaction
     const float btnWidth = 180.f;
     const float btnHeight = 60.f;
     sf::RectangleShape exitBtn(sf::Vector2f(btnWidth, btnHeight));
@@ -811,7 +799,7 @@ bool showFinalResultScreen(Renderer& renderer, char grade, int starCount, const 
         exitBtn.getPosition().y + btnHeight / 2
     ));
 
-    // 事件循环（原有逻辑不变）
+    // Event polling
     sf::View originalView = window.getView();
     window.setView(window.getDefaultView());
     bool shouldExit = false;
@@ -838,7 +826,7 @@ bool showFinalResultScreen(Renderer& renderer, char grade, int starCount, const 
             }
         }
 
-        // 鼠标悬停效果
+        // Mouse hover effect
         sf::Vector2i mousePixelPos = sf::Mouse::getPosition(window);
         sf::Vector2f mouseWorldPos = window.mapPixelToCoords(mousePixelPos);
         if (exitBtn.getGlobalBounds().contains(mouseWorldPos)) {
@@ -847,7 +835,7 @@ bool showFinalResultScreen(Renderer& renderer, char grade, int starCount, const 
             exitBtn.setFillColor(sf::Color(139, 69, 19));
         }
 
-        // 渲染（原有逻辑不变，新增healthText绘制）
+        // render
         window.clear(sf::Color(40, 40, 40));
         window.draw(bgSprite);
         window.draw(gradeText);
@@ -862,7 +850,6 @@ bool showFinalResultScreen(Renderer& renderer, char grade, int starCount, const 
     return shouldExit;
 }
 
-// 教授回应状态结构体（从App.cpp补充）
 struct ProfessorResponseState {
     bool pending = false;
     std::string professorName;
@@ -872,7 +859,7 @@ struct ProfessorResponseState {
     std::string selectedText;
 };
 
-// NEW: Struct to store clickable task areas for the Event Loop
+// Struct to store clickable task areas for the Event Loop
 struct TaskHitbox {
     sf::FloatRect bounds;
     std::string detailText;
@@ -888,7 +875,7 @@ SettlementData calculateSettlementData(long long points, int faintCount) {
     SettlementData data;
     int baseStarCount = 1;
 
-    // 1. 计算评级和基础星星
+    // Calculate the rating and stars
     if (points >= 450) {
         data.grade = 'A';
         baseStarCount = 5;
@@ -906,7 +893,7 @@ SettlementData calculateSettlementData(long long points, int faintCount) {
         baseStarCount = 1;
     }
 
-    // 2. 计算健康状态
+    // calculate the health condition score
     std::string healthCondition;
     if (faintCount <= 1) {
         healthCondition = "good";
@@ -916,10 +903,10 @@ SettlementData calculateSettlementData(long long points, int faintCount) {
         healthCondition = "bad";
     }
 
-    // 3. 计算最终星星数
+    // calculate the final number of stars
     data.finalStarCount = std::max(baseStarCount - faintCount, 0);
 
-    // 4. 构建结算文本
+    // result texts
     std::string article = (data.grade == 'A') ? "an" : "a";
     data.resultText = "You are " + article + " " + std::string(1, data.grade) + 
                       " student with " + healthCondition + " health condition!";
@@ -937,10 +924,10 @@ AppResult runApp(
     ConfigManager& configManager
 ) {
 
-    int currentDay = 1;               // 初始天数
-    bool isFinalResultShown = false;  // 是否显示过最终结果
+    int currentDay = 1;               // initialize the date
+    bool isFinalResultShown = false;  // whether showed the final result
     auto& inputManager = InputManager::getInstance();
-    // === NEW: Initialize Systems (Time & Tasks) ===
+    //Initialize time & tasks
     TimeManager timeManager;
     TaskManager taskManager;
 
@@ -949,13 +936,13 @@ AppResult runApp(
     // === Lesson trigger system ===
     LessonTrigger lessonTrigger;
 
-    std::string lastEntranceBuilding;   // 最近一次通过的入口的楼名（来自 entrance 的 property）
-    int         lastEntranceMinutes = -1; // 记录时间戳，方便需要时做过期处理（可选）
+    std::string lastEntranceBuilding;   // The name of the building at the most recent entrance that was passed through
+    int         lastEntranceMinutes = -1; // Record timestamp
 
     std::vector<EntranceZone> entranceZones;
-    std::string cachedEntranceMapPath;    // 已缓存入口的地图 tmj 路径
+    std::string cachedEntranceMapPath;    // path of the map that has cached entrances
 
-    // 读取你的课表 JSON（你说放在 navigation/config/quiz 目录）
+    // read the coure schedule
     if (!lessonTrigger.loadSchedule("config/quiz/course_schedule.json")) {
         Logger::error("[LessonTrigger] failed to load course_schedule.json");
     }
@@ -1004,24 +991,23 @@ AppResult runApp(
         return AppResult::QuitGame;
     }
     
-    // 教授纹理初始化（从App.cpp补充）
+    // initialize the professor textures
     if (!renderer.initializeProfessorTexture()) {
         Logger::error("Failed to initialize professor texture");
         return AppResult::QuitGame;
     }
     
-    // 加载模态字体
+    // Load the modal font
     sf::Font modalFont;
     if (!modalFont.openFromFile(configManager.getRenderConfig().text.fontPath)) {
         Logger::error("Failed to load modal font!");
         return AppResult::QuitGame;
     }
     
-    // ：只初始化一次对话框（避免重复加载）
+    // initialize the dialogue box
     DialogSystem dialogSys(modalFont, 24);
     bool dialogInitSuccess = false;
     try {
-        // 拼接完整的素材路径（根据你的项目目录调整）
         std::string dialogBgPath ="textures/dialog/dialog_bg.png";
         std::string btnPath ="textures/dialog/btn.png";
         
@@ -1038,12 +1024,12 @@ AppResult runApp(
         dialogInitSuccess = false;
     }
 
-    // 加载食物贴图
+    // load the texture of food
     auto foodTextures = loadFoodTextures();
-    // 游戏状态（进食相关）
+    // game state
     struct GameState {
         bool isEating = false;
-        bool hasOrderedFood = false; // 从App.cpp补充：标记是否已点餐
+        bool hasOrderedFood = false; 
         std::string currentTable;
         std::string selectedFood;
         float eatingProgress = 0.0f;
@@ -1053,46 +1039,41 @@ AppResult runApp(
     struct ShoppingState {
     bool isShopping = false;
 
-    // 一级分类 & 二级商品
     std::string selectedCategory;
     std::string selectedItem;
 
-    // 购物进度
     float shoppingProgress = 0.0f;
 
-    // ===== 控制"下一步要弹什么对话"的核心状态 =====
+    // a state that control what dialogue to play next
     bool requestNextDialog = false;
 
     std::string nextDialogTitle;
     std::vector<std::string> nextDialogOptions;
 
-    // ✅ ✅ ✅ 你必须新增的成员（本问题的关键）
     enum class NextDialogKind {
         None,
-        ShowFirstLevel,    // 显示 FamilyMart 一级分类
-        ShowSecondLevel,  // 显示 某一分类下的商品
-        ConfirmPurchase   // 显示 购买确认框
+        ShowFirstLevel,    // show FamilyMart fist level
+        ShowSecondLevel,  // show the items under each level
+        ConfirmPurchase   // show the confirm box of purchasing
     };
 
     NextDialogKind nextDialogKind = NextDialogKind::None;
 };
     ShoppingState shoppingState;
 
-    // 教授回应状态（从App.cpp补充）
     static ProfessorResponseState profResponseState;
 
-    // === NEW: Fainting State ===
+    // Fainting State
     bool isFainted = false;
     float faintTimer = 0.0f;
-    bool isBlackScreen = false;  // 黑屏状态
-    float blackScreenTimer = 0.0f;  // 黑屏计时器
-    int faintCount = 0;  // 晕倒次数
-    bool showFaintReminder = false;  // 是否显示晕倒提醒
-    float faintReminderTimer = 0.0f;  // 提醒显示计时器（5秒后自动关闭）
-    bool isExpelled = false;  // 是否被退学
-    // ==========================
+    bool isBlackScreen = false;  // black screen state
+    float blackScreenTimer = 0.0f;  
+    int faintCount = 0;  // times of faint
+    bool showFaintReminder = false;  // whether show the faint reminder
+    float faintReminderTimer = 0.0f;  // close the reminder after 5 seconds
+    bool isExpelled = false;  // whether dropping out
 
-    // 入口确认状态
+    // confirm entrances states
     bool waitingForEntranceConfirmation = false;
     EntranceArea pendingEntrance;
     bool hasSuppressedEntrance = false;
@@ -1101,20 +1082,20 @@ AppResult runApp(
     // Vector to store hitboxes of tasks drawn in the previous frame
     std::vector<TaskHitbox> activeTaskHitboxes;
 
-    // === NEW: Unstuck State ===
+    // Unstuck State 
     sf::Vector2f lastFramePos = character.getPosition();
     float stuckTimer = 0.0f;
 
-    // 主循环
+    // main loop
     sf::Clock clock;
     while (renderer.isRunning()) {
-        // ✅✅✅ 在"新的一帧刚开始"时安全执行对话回调（从App.cpp补充）
+        // Execute the dialog callback safely when the new frame begins
         if (dialogSys.hasPendingCallback()) {
-            Logger::info("🔄 Executing pending dialog callback...");
+            Logger::info("Executing pending dialog callback...");
             auto cb = dialogSys.consumePendingCallback();
             cb();
-            Logger::info("🔄 Dialog callback executed");
-            // 回调执行后关闭对话框
+            Logger::info("Dialog callback executed");
+            // Close the dialog box after the callback is executed
             dialogSys.close();
             renderer.setModalActive(false);
         }
@@ -1128,7 +1109,7 @@ AppResult runApp(
             g_achievementTimer -= deltaTime;
         }
 
-        // 每帧递减 Hint 计时器
+        // Decrement per frame Hint timer
         if (g_hintTimer > 0.f) {
             g_hintTimer -= deltaTime;
             if (g_hintTimer < 0.f) g_hintTimer = 0.f;
@@ -1136,9 +1117,8 @@ AppResult runApp(
 
         const float PASSIVE_DEPLETION_RATE = 10.0f / 30.0f;
         taskManager.modifyEnergy(-PASSIVE_DEPLETION_RATE * deltaTime);
-        // =====================================
 
-        // 处理提醒计时器（5秒后自动关闭）
+        // close the reminder after 5 seconds
         if (showFaintReminder) {
             faintReminderTimer += deltaTime;
             if (faintReminderTimer >= 5.0f) {
@@ -1149,16 +1129,16 @@ AppResult runApp(
         }
 
     
-        // ========== 处理教授回应的逻辑（从App.cpp补充） ==========
+        // deal with the professor's respond
         if (profResponseState.pending && !dialogSys.isActive()) {
-            Logger::info("🔄 Processing professor response - pending: true, option: " + 
+            Logger::info("Processing professor response - pending: true, option: " + 
                 std::to_string(profResponseState.selectedOption));
             std::string response;
             std::string profName = profResponseState.professorName;
             std::string profCourse = profResponseState.professorCourse;
             std::string profDialogType = profResponseState.dialogType;
             int optionIndex = profResponseState.selectedOption;
-            Logger::info("📋 Professor info: " + profName + ", course: " + profCourse + 
+            Logger::info("Professor info: " + profName + ", course: " + profCourse + 
                 ", dialogType: " + profDialogType);
             switch (optionIndex) {
                 case 0:
@@ -1189,12 +1169,11 @@ AppResult runApp(
             
             Logger::info("Professor " + profName + " responds: " + response);
             
-            // === NEW: Trigger Task Completion & Deduct Energy ===
+            // Trigger Task Completion & Deduct Energy 
             handleTaskCompletion(taskManager, "talk_professor");
             taskManager.modifyEnergy(-2.0f);            
-            // ====================================================
 
-            // 显示回应对话框
+            // show the response dialog
             dialogSys.setDialog(
                 response,
                 {"OK"},
@@ -1210,26 +1189,25 @@ AppResult runApp(
             Logger::info("🔄 Professor response state reset");
         }
 
-        // ========== 处理商店购物二级菜单（新增） ==========
+        // deal with the list of items (second level) in stores
         if (shoppingState.requestNextDialog && !dialogSys.isActive()) {
-            Logger::info("🛒 requestNextDialog handling | kind = " + std::to_string(static_cast<int>(shoppingState.nextDialogKind)));
+            Logger::info("requestNextDialog handling | kind = " + std::to_string(static_cast<int>(shoppingState.nextDialogKind)));
 
-            // 1) 如果是展示二级菜单（例如 Food/Drink/…）
+            // if presenting the second level list
             if (shoppingState.nextDialogKind == ShoppingState::NextDialogKind::ShowSecondLevel) {
                 dialogSys.setDialog(
                     shoppingState.nextDialogTitle,
                     shoppingState.nextDialogOptions,
-                    // 回调：只写状态，不直接调用 dialogSys.setDialog()
                     [&shoppingState](const std::string& selected) {
-                        Logger::info("🔔 second-level callback selected: " + selected);
+                        Logger::info("second-level callback selected: " + selected);
                         if (selected == "Back") {
-                            // 请求显示一级菜单（通过设置 nextDialogKind）
+                            // request for showing the first level list
                             shoppingState.nextDialogKind = ShoppingState::NextDialogKind::ShowFirstLevel;
                             shoppingState.nextDialogTitle = "Welcome to FamilyMart! Which section would you like to browse?";
                             shoppingState.nextDialogOptions = {"Food", "Drink", "Daily Necessities", "Cancel"};
                             shoppingState.requestNextDialog = true;
                         } else {
-                            // 选中具体商品，准备弹出确认对话
+                            // choose the item
                             shoppingState.selectedItem = selected;
                             shoppingState.nextDialogKind = ShoppingState::NextDialogKind::ConfirmPurchase;
                             shoppingState.nextDialogTitle = "\n\nPrice:15yuan\n\nProceed with purchase?";
@@ -1239,18 +1217,17 @@ AppResult runApp(
                     }
                 );
 
-                // 完成请求处理
+                // request finished
                 shoppingState.requestNextDialog = false;
                 renderer.setModalActive(true);
             }
-            // 2) 如果是显示一级菜单
+            // if presenting the first level list
             else if (shoppingState.nextDialogKind == ShoppingState::NextDialogKind::ShowFirstLevel) {
                 dialogSys.setDialog(
                     shoppingState.nextDialogTitle,
                     shoppingState.nextDialogOptions,
-                    // 回调：处理用户选一级菜单（仍然只写状态）
                     [&shoppingState](const std::string& selected) {
-                        Logger::info("🛒 Category Selected: " + selected);
+                        Logger::info("Category Selected: " + selected);
                         if (selected == "Cancel") {
                             shoppingState.isShopping = false;
                             shoppingState.nextDialogKind = ShoppingState::NextDialogKind::None;
@@ -1259,7 +1236,7 @@ AppResult runApp(
                         }
 
                         shoppingState.selectedCategory = selected;
-                        // 根据分类准备二级菜单选项
+                        // Prepare the secondary list options based on the classification.
                         shoppingState.nextDialogKind = ShoppingState::NextDialogKind::ShowSecondLevel;
                         if (selected == "Food") {
                             shoppingState.nextDialogTitle = "Choose your food:";
@@ -1271,7 +1248,7 @@ AppResult runApp(
                             shoppingState.nextDialogTitle = "Choose your item:";
                             shoppingState.nextDialogOptions = {"Tissue", "Battery", "Umbrella", "Back"};
                         } else {
-                            // Fallback：回到一级菜单
+                            // Fallback: go back to the first level list
                             shoppingState.nextDialogKind = ShoppingState::NextDialogKind::ShowFirstLevel;
                             shoppingState.nextDialogTitle = "Welcome to FamilyMart! Which section would you like to browse?";
                             shoppingState.nextDialogOptions = {"Food", "Drink", "Daily Necessities", "Cancel"};
@@ -1283,30 +1260,28 @@ AppResult runApp(
                 shoppingState.requestNextDialog = false;
                 renderer.setModalActive(true);
             }
-            // 3) 如果是显示购买确认对话
+            // If it is a display of the purchase confirmation dialog
             else if (shoppingState.nextDialogKind == ShoppingState::NextDialogKind::ConfirmPurchase) {
                 dialogSys.setDialog(
                     shoppingState.nextDialogTitle,
                     shoppingState.nextDialogOptions,
-                    // 购买确认回调：不要直接生成新的 dialog，直接修改状态
                     [&shoppingState, &taskManager](const std::string& choice) {
-                        Logger::info("🛒 Purchase Choice: " + choice + " for item " + shoppingState.selectedItem);
+                        Logger::info("Purchase Choice: " + choice + " for item " + shoppingState.selectedItem);
                         if (choice == "Yes, buy it") {
-                            // 执行购买逻辑
-                            Logger::info("🛒 Purchased: " + shoppingState.selectedItem);
+                            // Implement the purchase
+                            Logger::info("Purchased: " + shoppingState.selectedItem);
                             
-                            // === NEW: Trigger Task Completion & Deduct Energy ===
+                            // Trigger Task Completion & Deduct Energy
                             handleTaskCompletion(taskManager, "buy_item");
                             taskManager.modifyEnergy(-5.0f);      
-                            // ====================================================
 
                             shoppingState.isShopping = false;
                             shoppingState.nextDialogKind = ShoppingState::NextDialogKind::None;
                             shoppingState.requestNextDialog = false;
                         } else {
-                            // 回到二级商品选择（同类）
+                            // Return to the secondary item selection (of the same type)
                             shoppingState.nextDialogKind = ShoppingState::NextDialogKind::ShowSecondLevel;
-                            // 重新构建 second-level 的 title/options（基于 selectedCategory）
+                            // reconstruct the title/options of second-level
                             if (shoppingState.selectedCategory == "Food") {
                                 shoppingState.nextDialogTitle = "Choose your food:";
                                 shoppingState.nextDialogOptions = {"Sandwich", "Bento", "Onigiri", "Back"};
@@ -1317,7 +1292,7 @@ AppResult runApp(
                                 shoppingState.nextDialogTitle = "Choose your item:";
                                 shoppingState.nextDialogOptions = {"Tissue", "Battery", "Umbrella", "Back"};
                             } else {
-                                // 保险回到一级菜单
+                                // return to the fist level list
                                 shoppingState.nextDialogKind = ShoppingState::NextDialogKind::ShowFirstLevel;
                                 shoppingState.nextDialogTitle = "Welcome to FamilyMart! Which section would you like to browse?";
                                 shoppingState.nextDialogOptions = {"Food", "Drink", "Daily Necessities", "Cancel"};
@@ -1330,14 +1305,13 @@ AppResult runApp(
                 shoppingState.requestNextDialog = false;
                 renderer.setModalActive(true);
             }
-            // 其他情况：忽略
             else {
                 shoppingState.requestNextDialog = false;
                 shoppingState.nextDialogKind = ShoppingState::NextDialogKind::None;
             }
         }
 
-        // === NEW: Fainting Logic Check ===
+        //  Fainting Logic Check 
         // Must not be currently eating/interacting/fainted
         if (!isFainted && !isBlackScreen && !gameState.isEating && !dialogSys.isActive() && !isExpelled) {
             if (taskManager.getEnergy() <= 0) {
@@ -1345,12 +1319,12 @@ AppResult runApp(
                 faintTimer = 0.0f;
                 isBlackScreen = false;
                 blackScreenTimer = 0.0f;
-                faintCount++;  // 增加晕倒次数
+                faintCount++;  // count faint time
                 // Force character direction Up (Visual for passing out)
                 character.setCurrentDirection(Character::Direction::Up);
                 Logger::info("Character passed out due to lack of energy! Faint count: " + std::to_string(faintCount));
                 
-                // 检查是否超过最大次数
+                // whether faint time excess the maximum time
                 const auto& respawnPoint = tmjMap->getRespawnPoint();
                 if (faintCount > respawnPoint.maxCount) {
                     isExpelled = true;
@@ -1363,32 +1337,31 @@ AppResult runApp(
         if (isFainted) {
             faintTimer += deltaTime;
             
-            // 显示消息4秒后，进入黑屏状态
+            // After displaying the message for 4 seconds, enter a black screen state
             if (faintTimer > 4.0f && !isBlackScreen) {
                 isBlackScreen = true;
                 blackScreenTimer = 0.0f;
                 Logger::info("Entering black screen...");
             }
             
-            // 黑屏2秒后，重生到 clinic 门口
+            // After a black screen for 2 seconds, respawn at the clinic entrance
             if (isBlackScreen) {
                 blackScreenTimer += deltaTime;
                 
                 if (blackScreenTimer >= 2.0f) {
-                    // 检查是否被退学
+                    // check whether dropped out
                     if (isExpelled) {
-                        // 显示退学消息，游戏结束
+                        // show the message of expulsion, exit the game
                         Logger::error("Character expelled! Game over.");
-                        // 游戏结束逻辑将在渲染部分处理
                     } else {
-                        // 检查当前地图是否是 LG_campus_map，如果不是则切换
+                        // Check if the current map is LG_campus_map. If not, switch to it.
                         std::string currentMapPath = mapLoader.getCurrentMapPath();
                         bool needSwitchMap = false;
                         if (currentMapPath.find("LG_campus_map") == std::string::npos) {
                             needSwitchMap = true;
                             Logger::info("Not in LG_campus_map, switching to LG_campus_map for respawn");
                             
-                            // 加载 LG_campus_map
+                            // load LG_campus_map
                             std::string campusMapPath = mapLoader.getMapDirectory() + "LG_campus_map.tmj";
                             auto campusMap = mapLoader.loadTMJMap(campusMapPath);
                             if (campusMap) {
@@ -1399,17 +1372,17 @@ AppResult runApp(
                             }
                         }
                         
-                        // 阻止入口确认对话框显示
+                        // Prevent the entrance confirmation dialog from displaying
                         waitingForEntranceConfirmation = false;
                         hasSuppressedEntrance = true;
                         
-                        // 重生到重生点
+                        // go back to the respawn place
                         const auto& respawnPoint = tmjMap->getRespawnPoint();
                         sf::Vector2f respawnPos = respawnPoint.position;
                         
                         Logger::info("Respawn point position: (" + std::to_string(respawnPos.x) + ", " + std::to_string(respawnPos.y) + ")");
                         
-                        // 如果重生点位置无效（为0或未设置），使用默认spawn点
+                        // if the respawn place is invalit, use the default spawn point
                         if (respawnPos.x == 0.0f && respawnPos.y == 0.0f) {
                             Logger::warn("Respawn point is at (0,0), using default spawn point");
                             if (tmjMap->getSpawnX() && tmjMap->getSpawnY()) {
@@ -1419,28 +1392,28 @@ AppResult runApp(
                             }
                         }
                         
-                        // 计算脚部到中心的偏移量（用于从脚部位置反推中心位置）
+                        // Calculate the offset from the foot to the center
                         sf::Vector2f currentFeet = character.getFeetPoint();
                         sf::Vector2f currentCenter = character.getPosition();
                         sf::Vector2f feetToCenterOffset = currentCenter - currentFeet;
                         
-                        // 在重生点周围搜索可行走的位置
+                        // Search for walkable positions around the respawn point
                         float tileSize = static_cast<float>(std::max(tmjMap->getTileWidth(), tmjMap->getTileHeight()));
                         float step = tileSize * 0.5f;
                         
                         std::vector<sf::Vector2f> offsets = {
-                            sf::Vector2f(0, -step * 2),      // 上
-                            sf::Vector2f(0, step * 2),        // 下
-                            sf::Vector2f(-step * 2, 0),      // 左
-                            sf::Vector2f(step * 2, 0),       // 右
-                            sf::Vector2f(-step, -step),     // 左上
-                            sf::Vector2f(step, -step),      // 右上
-                            sf::Vector2f(-step, step),       // 左下
-                            sf::Vector2f(step, step),       // 右下
-                            sf::Vector2f(0, -step),          // 上（更近）
-                            sf::Vector2f(0, step),           // 下（更近）
-                            sf::Vector2f(-step, 0),          // 左（更近）
-                            sf::Vector2f(step, 0),           // 右（更近）
+                            sf::Vector2f(0, -step * 2),      // up
+                            sf::Vector2f(0, step * 2),        // down
+                            sf::Vector2f(-step * 2, 0),      // left
+                            sf::Vector2f(step * 2, 0),       // right
+                            sf::Vector2f(-step, -step),     // upper-left
+                            sf::Vector2f(step, -step),      // upper-right
+                            sf::Vector2f(-step, step),       // lower-left
+                            sf::Vector2f(step, step),       // lower-right
+                            sf::Vector2f(0, -step),          // up (closer)
+                            sf::Vector2f(0, step),           // down (closer)
+                            sf::Vector2f(-step, 0),          // left (closer)
+                            sf::Vector2f(step, 0),           // right (closer)
                         };
                         
                         bool foundWalkable = false;
@@ -1461,33 +1434,33 @@ AppResult runApp(
                         }
                         
                         if (!foundWalkable) {
-                            // 如果找不到可行走位置，尝试使用默认 spawn 点
+                            // If there is no walkable place found, try using the default spawn point.
                             if (tmjMap->getSpawnX() && tmjMap->getSpawnY()) {
                                 respawnPos = sf::Vector2f(*tmjMap->getSpawnX(), *tmjMap->getSpawnY());
                                 Logger::warn("Could not find walkable position at respawn point, using default spawn");
                             }
                         }
                         
-                        // 设置角色位置
+                        // set character positon
                         character.setPosition(respawnPos);
                         
-                        // 时间增加2小时
+                        // increase the time by two hours
                         timeManager.addHours(2);
                         
-                        // 恢复精力到一定值
+                        // restore the energy to 50
                         taskManager.modifyEnergy(50.0f);
                         
-                        // 重置状态
+                        // reset status
                         isFainted = false;
                         isBlackScreen = false;
                         faintTimer = 0.0f;
                         blackScreenTimer = 0.0f;
                         
-                        // 显示提醒（5秒后自动关闭）
+                        // show reminder
                         showFaintReminder = true;
                         faintReminderTimer = 0.0f;
                         
-                        // 更新相机位置
+                        // update camera position
                         renderer.updateCamera(respawnPos, tmjMap->getWorldPixelWidth(), tmjMap->getWorldPixelHeight());
                         
                         Logger::info("Character respawned at respawn point (" + 
@@ -1499,12 +1472,12 @@ AppResult runApp(
         }
         // =================================
 
-        //统一事件处理（只轮询一次）
+        // Unified event handling (polling only once)
         std::optional<sf::Event> eventOpt;
         while ((eventOpt = renderer.pollEvent()).has_value()) {
             sf::Event& event = eventOpt.value();
 
-            // 优先处理对话框事件
+            // Prioritize handling of dialog box events
             if (dialogSys.isActive()) {
                 dialogSys.handleEvent(event, renderer.getWindow());
                 continue;
@@ -1518,25 +1491,25 @@ AppResult runApp(
             }
 
 
-            // 全屏地图按钮（原有逻辑）
+            // Full-screen map button
             if (event.is<sf::Event::MouseButtonPressed>()) {
                 auto mb = event.getIf<sf::Event::MouseButtonPressed>();
                 if (mb && mb->button == sf::Mouse::Button::Left) {
                     sf::Vector2i mpos = mb->position;
                     
-                    // 检查是否点击了 Game Over 按钮
+                    // check whether clicked the Game Over button
                     if (isExpelled) {
                         sf::Vector2u windowSize = renderer.getWindow().getSize();
                         float uiWidth = static_cast<float>(windowSize.x);
                         float uiHeight = static_cast<float>(windowSize.y);
                         
-                        // Game Over 按钮位置：屏幕中心下方
+                        // Game Over button position: Bottom of the center of the screen
                         float btnX = uiWidth / 2.0f - 100.f;
                         float btnY = uiHeight / 2.0f + 40.f;
                         float btnW = 200.f;
                         float btnH = 60.f;
                         
-                        // 检查鼠标点击是否在按钮范围内（使用屏幕坐标）
+                        // Check whether the mouse click is within the range of the button.
                         if (mpos.x >= static_cast<int>(btnX) && mpos.x <= static_cast<int>(btnX + btnW) &&
                             mpos.y >= static_cast<int>(btnY) && mpos.y <= static_cast<int>(btnY + btnH)) {
                             result = AppResult::QuitGame;
@@ -1553,7 +1526,7 @@ AppResult runApp(
                     else if (renderer.mapButtonContainsPoint(mpos)) {
                         showFullMapModal(renderer, tmjMap, configManager);
                     }
-                    // === NEW: Check Task Clicks ===
+                    //  Check Task Clicks
                     else {
                         sf::Vector2f mouseUiPos(static_cast<float>(mpos.x), static_cast<float>(mpos.y));
                         for (const auto& hit : activeTaskHitboxes) {
@@ -1574,17 +1547,17 @@ AppResult runApp(
             }
         }
 
-        // 更新输入（只更一次） 
+        // update the input
         inputManager.update();
 
-        // E键检测（移到主循环，非事件轮询内）
+        // E key detection
         // === NEW: Block interactions if Fainted ===
         if (!isFainted && !waitingForEntranceConfirmation && !dialogSys.isActive() && inputManager.isKeyJustPressed(sf::Keyboard::Key::E)) {
             Logger::debug("E key pressed - checking for interaction");
             if (!gameState.isEating) {
-                // 优先检测吧台（counter）交互
+                // detect counter interaction
                 InteractionObject counterObj;
-                Professor professor;  // 教授对象（从App.cpp补充）
+                Professor professor;  
                 
                 bool foundCounter = detectInteraction(character, tmjMap.get(), counterObj);
                 bool foundProfessor = detectProfessorInteraction(character, tmjMap.get(), professor);  // 教授检测（从App.cpp补充）
@@ -1593,29 +1566,29 @@ AppResult runApp(
                 Logger::debug("   foundProfessor: " + std::to_string(foundProfessor));
                 
                 if (foundCounter) {
-                    Logger::info("🎯 Triggering Counter interaction - show food select dialog");
+                    Logger::info("Triggering Counter interaction - show food select dialog");
                     if (dialogInitSuccess) {
                         dialogSys.setDialog(
-                            "What do you want to eat?",  // 对话框标题
-                            {"Chicken Steak", "Pasta", "Beef Noodles"}, // 食物选项（匹配贴图名）
-                            [&gameState](const std::string& selected) { // 选中回调
-                                Logger::error("🔥🔥🔥 FOOD CALLBACK EXECUTED 🔥🔥🔥");
-                                Logger::info("🍽️ Selected: " + selected);
-                                gameState.selectedFood = selected; // 赋值给游戏状态，供餐桌使用
-                                gameState.hasOrderedFood = true; // 标记已点餐
+                            "What do you want to eat?",  // texts in the dialog box
+                            {"Chicken Steak", "Pasta", "Beef Noodles"}, // food choices
+                            [&gameState](const std::string& selected) { 
+                                Logger::error("FOOD CALLBACK EXECUTED ");
+                                Logger::info("Selected: " + selected);
+                                gameState.selectedFood = selected; // Assign to the game state
+                                gameState.hasOrderedFood = true; // mark oerdered
                                 Logger::info("Selected food from counter: " + selected);
                             }
                         );
-                        renderer.setModalActive(true); // 激活模态（遮挡其他交互）
+                        renderer.setModalActive(true); // Activate mode
                     } else {
                         Logger::error("Dialog system not initialized - cannot show food select dialog");
                         renderer.renderModalPrompt("Dialog system not initialized", modalFont, 24, std::nullopt);
                     }
-                    continue; // 优先处理吧台，跳过原有逻辑
+                    continue; 
                 }
-                // 教授交互部分（从App.cpp补充）
+                // professor interaction
                 else if (foundProfessor) {
-                    Logger::info("🎓 Triggering Professor interaction - showing dialog");
+                    Logger::info("Triggering Professor interaction - showing dialog");
                     if (dialogInitSuccess) {
                         std::vector<std::string> options;
                         if (professor.dialogType == "lecture") {
@@ -1626,7 +1599,7 @@ AppResult runApp(
                         
                         std::string greeting = "Hello! I'm " + professor.name + ". How can I help you today?";
                         
-                        // 存储教授信息到回应状态
+                        // Store the professor's information in the response state.
                         profResponseState.professorName = professor.name;
                         profResponseState.professorCourse = professor.course;
                         profResponseState.dialogType = professor.dialogType;
@@ -1637,10 +1610,10 @@ AppResult runApp(
                             [](int optionIndex, const std::string& optionText) {
                                 Logger::info("Player chose option " + std::to_string(optionIndex) + ": " + optionText);
                                 
-                                // 存储用户选择到回应状态
+                                // Store the user's selection as the response state
                                 profResponseState.selectedOption = optionIndex;
                                 profResponseState.selectedText = optionText;
-                                profResponseState.pending = true; // 标记需要显示回应
+                                profResponseState.pending = true; // label the needs to show responses
                             }
                         );
                         renderer.setModalActive(true);
@@ -1648,16 +1621,16 @@ AppResult runApp(
                     continue;
                 }
 
-                // 2. 新增：检测商店触发区域
+                // detect the trigger zone of stores
                 ShopTrigger shopTrigger;
                 bool foundShop = detectShopTrigger(character, tmjMap.get(), shopTrigger);
                 
                 Logger::debug("   foundShop: " + std::to_string(foundShop));
                 
                 if (foundShop) {
-                    Logger::info("🛒 Triggering Shop interaction - showing FamilyMart menu");
+                    Logger::info("Triggering Shop interaction - showing FamilyMart menu");
                     
-                    // 只有在商店触发区域内才显示商店菜单
+                    // The store menu will only be displayed within the trigger area of the store.
                     DialogSystem* ds = &dialogSys;
                     Renderer* rd = &renderer;
                     auto state = &shoppingState;
@@ -1666,17 +1639,17 @@ AppResult runApp(
                         "Welcome to FamilyMart! Which section would you like to browse?",
                         {"Food", "Drink", "Daily Necessities", "Cancel"},
                         [ds, rd, state](const std::string& selected) {
-                            Logger::info("🛒 Category Selected: " + selected);
+                            Logger::info("Category Selected: " + selected);
                             
                             if (selected == "Cancel") {
                                 state->isShopping = false;
                                 return;
                             }
                             
-                            // 记录第一层分类
+                            // secord the first level category
                             state->selectedCategory = selected;
                             
-                            // 设置下一步对话请求
+                            // Set the request for the next conversation step
                             state->requestNextDialog = true;
                             state->nextDialogKind = ShoppingState::NextDialogKind::ShowSecondLevel;
                             state->nextDialogTitle.clear();
@@ -1695,15 +1668,15 @@ AppResult runApp(
                                 state->nextDialogOptions = {"Tissue", "Battery", "Umbrella", "Back"};
                             }
                             
-                            // 让主循环在安全位置处理这个请求
+                            // handle this request in the main loop
                             rd->setModalActive(true);
                         }
                     );
                     rd->setModalActive(true);
-                    continue; // 跳过后续的餐桌检测
+                    continue; // skip table detection
                 }
 
-                // ⭐⭐⭐⭐ 修复点：在餐桌检测前执行任何待处理的回调 ⭐⭐⭐⭐
+                // Execute any pending callbacks before conducting the table detection
                 if (dialogSys.hasPendingCallback()) {
                     Logger::info("Executing pending dialog callback before table check");
                     auto cb = dialogSys.consumePendingCallback();
@@ -1713,12 +1686,12 @@ AppResult runApp(
                     }
                 }
                 
-                // 添加食物选择状态验证
+                // verify food selection status
                 Logger::info("Food selection status before table check: " + 
                             (gameState.selectedFood.empty() ? "[EMPTY]" : gameState.selectedFood));
         
 
-                // 检测餐桌交互
+                // detect table interaction
                 TableObject currentTable;
                 if (detectTableInteraction(character, tmjMap.get(), currentTable)) {
                     Logger::info("table interaction detected → selected food: " + (gameState.selectedFood.empty() ? "空" : gameState.selectedFood));
@@ -1727,33 +1700,33 @@ AppResult runApp(
                         Logger::info("Didn't select food");
                         renderer.renderModalPrompt("Please order food first!", modalFont, 24, std::nullopt);
                     } else {
-                        // 1. 验证seatPosition有效性（核心：避免移动到(0,0)）
+                        // Verify the validity of seatPosition
                         if (currentTable.seatPosition.x == 0 && currentTable.seatPosition.y == 0) {
                             Logger::error("table " + currentTable.name + " has no valid seatPosition");
                             renderer.renderModalPrompt("No valid seatPosition!", modalFont, 24, std::nullopt);
                             continue;
                         }
 
-                        // 2. 解析left/right_table命名，设置朝向
+                        // read the name of each table and set the orientation of them
                         Character::Direction facingDir;
                         bool isLeftTable = currentTable.name.find("left_table") != std::string::npos;
                         bool isRightTable = currentTable.name.find("right_table") != std::string::npos;
 
                         if (isLeftTable) {
-                            facingDir  = Character::Direction::Right; // 左桌朝右
+                            facingDir  = Character::Direction::Right; // tables facing right
                         } else if (isRightTable) {
-                            facingDir  = Character::Direction::Left;  // 右桌朝左
+                            facingDir  = Character::Direction::Left;  // tables facing left
                         } else {
-                            facingDir  = Character::Direction::Down;  // 兜底默认朝向
+                            facingDir  = Character::Direction::Down;  // default orientation
                         }
 
-                        // 3. 移动角色到椅子插入点 + 强制设置朝向
+                        // Move the character to the insertion point of the chair + Force the orientation setting
                         character.setPosition(currentTable.seatPosition);
-                        character.setCurrentDirection(facingDir); // 同步朝向
+                        character.setCurrentDirection(facingDir); 
                         Logger::info("Character has been moved to the seatPosition:(" + std::to_string(currentTable.seatPosition.x) + "," + std::to_string(currentTable.seatPosition.y) + 
                                     ") | direction: " + (isLeftTable ? "right" : "left"));
 
-                        // 4. 激活进食状态
+                        // Activate the feeding state
                         gameState.isEating = true;
                         gameState.currentTable = currentTable.name;
                         gameState.eatingProgress = 0.0f;
@@ -1762,28 +1735,27 @@ AppResult runApp(
                     }
                     continue;
                 }
-                //草坪休息触发
+                // trigger lawn resting
                 if (isCharacterInLawn(character, tmjMap.get()) && !character.getIsResting()) {
-                    character.startResting(); // 进入休息状态
-                    // 强制设置角色朝向为「下」
+                    character.startResting(); // start resting
+                    // Force the character's orientation to be set as "down"
                     character.setCurrentDirection(Character::Direction::Down);
                     Logger::info("Character started resting on lawn (facing down)");
-                    // === NEW: Complete Lawn Task ===
+                    // Complete Lawn Task
                     handleTaskCompletion(taskManager, "rest_lawn");
-                    // ===============================
                 }
             }
         }
 
-        // 在此处添加游戏触发检测代码
+        // game trigger detection
         static bool  gameTriggerLocked = false;
         static float gameTriggerCooldown = 0.0f;
         static sf::FloatRect activeTriggerRect;   // the rect we’re currently inside
 
-        // --- 每帧先把冷却时间往下减（就在检测前！） ---
+        // Reduce the cooling time for each frame
         if (gameTriggerCooldown > 0.f) gameTriggerCooldown -= deltaTime;
 
-        // --- Game trigger detection with cooldown & leave-to-unlock ---
+        // Game trigger detection with cooldown & leave-to-unlock 
         GameTriggerArea detectedTrigger;
         bool insideAnyTrigger = false;
 
@@ -1800,7 +1772,7 @@ AppResult runApp(
                 activeTriggerRect   = thisRect;
                 gameTriggerCooldown = 0.6f;
 
-                Logger::info("🎮 Game Triggered: " + detectedTrigger.name + " | type = " + detectedTrigger.gameType);
+                Logger::info("Game Triggered: " + detectedTrigger.name + " | type = " + detectedTrigger.gameType);
 
                 if (detectedTrigger.gameType == "bookstore_puzzle") {
                     QuizGame quizGame;
@@ -1808,40 +1780,37 @@ AppResult runApp(
                     handleTaskCompletion(taskManager, "bookstore_quiz");
 
                 } else if (detectedTrigger.gameType == "classroom_quiz") {
-                    // —— 关键：统一用 Monday/Tuesday/...；你已有 weekdayStringFrom 正确返回
+                    // Use "Monday/Tuesday/..." uniformly
                     const std::string weekday = weekdayStringFrom(timeManager);
                     const int minutesNow = timeManager.getHour() * 60 + timeManager.getMinute();
 
-                    // 建议把 quiz JSON 路径写成可用的相对路径（见下方说明）
                     std::string quizJsonPath = "config/quiz/classroom_basic.json";
 
-                    // 记录一下现场，方便定位
                     Logger::info("[Classroom] weekday=" + weekday +
                                 " minutes=" + std::to_string(minutesNow) +
                                 " building(lastEntrance)=" + lastEntranceBuilding);
 
-                    // ★★★ 最重要：拿出提示文本，并渲染 ★★★
+                    // Present the prompt text and render
                     std::string hint;
                     auto r = lessonTrigger.tryTrigger(
                         weekday,
-                        lastEntranceBuilding,   // 由 entrance 检测出的“楼名”
+                        lastEntranceBuilding,   // detect the building name using entrance
                         minutesNow,
                         quizJsonPath,
                         taskManager,
-                        &hint                   // 让 LessonTrigger 写出具体原因
+                        &hint                   // let LessonTrigger provide specific reasons
                     );
 
-                    // 把结果打印出来便于调试
                     Logger::info(std::string("[Classroom] tryTrigger result=") +
                                 (r == LessonTrigger::Result::TriggeredQuiz ? "TriggeredQuiz" :
                                 r == LessonTrigger::Result::WrongBuildingHintShown ? "WrongBuildingHintShown" :
                                 r == LessonTrigger::Result::AlreadyFired ? "AlreadyFired" : "NoTrigger") +
                                 (hint.empty() ? "" : (" | hint=" + hint)));
 
-                    // 只要不是成功开测验，都把 hint 弹出来
+                    // if quiz not available, show the hint
                     if (r != LessonTrigger::Result::TriggeredQuiz) {
                         if (!hint.empty()) {
-                            queueHint(hint, 3.0f);  // 显示 3 秒
+                            queueHint(hint, 3.0f);  // show for 3s
                         } else {
                             queueHint("No class quiz available now.", 2.5f);
                         }
@@ -1850,7 +1819,7 @@ AppResult runApp(
             }
         }
 
-        // 离开触发区才解锁，避免每帧重新触发
+        // Unlock only when leaving the trigger area to avoid triggering every frame.
         if (gameTriggerLocked) {
             sf::Vector2f feet = character.getFeetPoint();
             if (!activeTriggerRect.contains(feet)) {
@@ -1859,20 +1828,20 @@ AppResult runApp(
         }
 
 
-        // ========== 商店触发区域自动检测（类似 bookstore quiz game） ==========
-        static bool shopTriggerLocked = false;   // ✅ 防止一帧触发 60 次
+        // Automatic detection of the store's triggering area
+        static bool shopTriggerLocked = false;   // prevent from triggering 60 time each frame
 
 
         ShopTrigger detectedShop;
         if (!isFainted && detectShopTrigger(character, tmjMap.get(), detectedShop)) {
             if (!shopTriggerLocked && !shoppingState.isShopping && !dialogSys.isActive()) {
-                shopTriggerLocked = true; // ✅ 立刻上锁
+                shopTriggerLocked = true; // lock
 
-                std::cout << "🛒 Shop Triggered: " << detectedShop.name << std::endl;
+                std::cout << "Shop Triggered: " << detectedShop.name << std::endl;
 
-                // 自动显示 FamilyMart 对话框
+                // Automatically display the FamilyMart dialog box
                 if (detectedShop.name == "familymart") {
-                    Logger::info("🛒 Auto-triggering FamilyMart dialog");
+                    Logger::info("Auto-triggering FamilyMart dialog");
                     
                     DialogSystem* ds = &dialogSys;
                     auto state = &shoppingState;
@@ -1882,17 +1851,17 @@ AppResult runApp(
                         "Welcome to FamilyMart! Which section would you like to browse?",
                         {"Food", "Drink", "Daily Necessities", "Cancel"},
                         [ds, state](const std::string& selected) {
-                            Logger::info("🛒 Category Selected: " + selected);
+                            Logger::info("Category Selected: " + selected);
                             
                             if (selected == "Cancel") {
                                 state->isShopping = false;
                                 return;
                             }
                             
-                            // 记录第一层分类
+                            // record the first level category
                             state->selectedCategory = selected;
                             
-                            // 设置下一步对话请求
+                            // Set the request for the next conversation
                             state->requestNextDialog = true;
                             state->nextDialogKind = ShoppingState::NextDialogKind::ShowSecondLevel;
                             state->nextDialogTitle.clear();
@@ -1916,15 +1885,15 @@ AppResult runApp(
             }
         } 
         else {
-            // ✅ 角色离开触发区后自动解锁（允许下次再触发）
+            // automatically unlock once the character leaves the trigger area
             shopTriggerLocked = false;
         }
 
-        // 角色更新（只更一次，避免重复） 
-        // === NEW: Block movement if Fainted ===
+        // update the character
+        // Block movement if Fainted
         if (!isFainted && !isExpelled && !waitingForEntranceConfirmation && !dialogSys.isActive() && !gameState.isEating) {
             sf::Vector2f moveInput = inputManager.getMoveInput();
-            // === NEW: Sprint Feature (Z Key) ===
+            // Sprint Feature (Z Key) 
             float speedMultiplier = 1.0f;
             if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Z)) {
                 speedMultiplier = 3.0f; // Walk 3x faster
@@ -1935,9 +1904,8 @@ AppResult runApp(
                             tmjMap->getWorldPixelWidth(), 
                             tmjMap->getWorldPixelHeight(),
                             tmjMap.get());
-            // ===================================
 
-            // === NEW: Unstuck Failsafe Logic ===
+            // Unstuck Failsafe Logic
             // Check if player is trying to move but position isn't changing
             if ((moveInput.x != 0.f || moveInput.y != 0.f)) {
                 sf::Vector2f currentPos = character.getPosition();
@@ -1949,7 +1917,7 @@ AppResult runApp(
                 if (dist < 0.1f) {
                     stuckTimer += deltaTime;
                     if (stuckTimer > 3.0f) {
-                        Logger::warn("⚠️ Character appears stuck! Attempting emergency unstuck...");
+                        Logger::warn("Character appears stuck! Attempting emergency unstuck...");
                         
                         // Attempt to find a safe spot nearby
                         bool foundSafe = false;
@@ -1967,7 +1935,7 @@ AppResult runApp(
                                 
                                 if (!tmjMap->feetBlockedAt(candidate)) {
                                     character.setPosition(candidate);
-                                    Logger::info("✅ Unstuck successful! Moved to: " + 
+                                    Logger::info("Unstuck successful! Moved to: " + 
                                         std::to_string(candidate.x) + ", " + std::to_string(candidate.y));
                                     foundSafe = true;
                                     stuckTimer = 0.0f;
@@ -1977,7 +1945,7 @@ AppResult runApp(
                         }
 
                         if (!foundSafe) {
-                            Logger::error("❌ Failed to find safe spot. Resetting to spawn.");
+                            Logger::error("Failed to find safe spot. Resetting to spawn.");
                             if (tmjMap->getSpawnX() && tmjMap->getSpawnY()) {
                                 character.setPosition(sf::Vector2f(*tmjMap->getSpawnX(), *tmjMap->getSpawnY()));
                             }
@@ -1992,10 +1960,9 @@ AppResult runApp(
             }
             // Update last pos for next frame
             lastFramePos = character.getPosition();
-            // ======================================
         }
 
-        // ******** [ADD-ENTRANCE-SCAN] 入口层扫描：请粘贴在这里（角色更新后、休息判定前） ********
+        // entrance scanning
         sf::Vector2f feet = character.getFeetPoint();
         std::string  tmj  = mapLoader.getCurrentMapPath();
         int minutesNow = timeManager.getHour()*60 + timeManager.getMinute();
@@ -2006,21 +1973,19 @@ AppResult runApp(
             entranceZones, cachedEntranceMapPath,
             minutesNow
         );
-        // ******** [ADD-ENTRANCE-SCAN] 结束 ********
+        // entrance scanning end
 
 
         if (character.getIsResting()) {
             taskManager.modifyEnergy(2.0f * deltaTime);
         }
-        // ====================================
 
-        // 进食状态更新
+        // update the eating status
         if (gameState.isEating) {
             gameState.eatingProgress += deltaTime * 10;
             Logger::debug("Eating progress: " + std::to_string(gameState.eatingProgress) + "%");
 
             taskManager.modifyEnergy(3.0f * deltaTime);
-            // ===================================
 
             if (gameState.eatingProgress >= 100.0f) {
                 gameState.isEating = false;
@@ -2030,11 +1995,10 @@ AppResult runApp(
                 Logger::info("Eating finished - reset state");
                 // === NEW: Trigger Task Completion (Bonus Reward) ===
                 handleTaskCompletion(taskManager, "eat_food");
-                // =================================
             }
         }
 
-        // ========== 重置入口抑制标志 ==========
+        // reset the hasSupperssedEntrance label
         if (hasSuppressedEntrance) {
             // 检查角色是否离开了抑制的入口区域
             sf::Vector2f feet = character.getFeetPoint();
@@ -2043,8 +2007,7 @@ AppResult runApp(
                 Logger::info("Character left suppressed entrance area, re-enabling entrance detection");
             }
         }
-        // ========== 原有入口检测逻辑（保留） ==========
-        // 如果正在显示晕倒提醒或被退学，不显示入口确认对话框
+        // if fainting or expulsion is being displayed, do not show the entry confirmation dialog box
         if (!waitingForEntranceConfirmation && !hasSuppressedEntrance && !showFaintReminder && !isExpelled) {
             EntranceArea detected;
             if (detectEntranceTrigger(character, tmjMap.get(), detected)) {
@@ -2055,9 +2018,9 @@ AppResult runApp(
             }
         }
 
-        // ========== 入口确认逻辑（原有） ==========
+        // Entrance confirmation
         if (waitingForEntranceConfirmation) {
-            // 如果被退学，按 Enter 退出游戏
+            // If expelled, press Enter to exit the game.
             if (isExpelled && inputManager.isKeyJustPressed(sf::Keyboard::Key::Enter)) {
                 result = AppResult::QuitGame;
                 renderer.quit();
@@ -2129,14 +2092,14 @@ AppResult runApp(
                     waitingForEntranceConfirmation = false;
                 }
             } else if (inputManager.isKeyJustPressed(sf::Keyboard::Key::Escape)) {
-                // 关闭提醒对话框
+                // Close the reminder dialog box
                 if (showFaintReminder) {
                     showFaintReminder = false;
                     faintReminderTimer = 0.0f;
                     continue;
                 }
                 
-                // 如果被退学，按 Escape 退出游戏
+                // If expelled, press "Escape" to exit the game.
                 if (isExpelled) {
                     result = AppResult::QuitGame;
                     renderer.quit();
@@ -2148,7 +2111,7 @@ AppResult runApp(
             }
         }
 
-        // 新增：检查是否达到7天
+        // check if finished 7 days
         if (currentDay > 7 && !isFinalResultShown) {
             isFinalResultShown = true;
             SettlementData data = calculateSettlementData(taskManager.getPoints(), faintCount);
@@ -2157,18 +2120,18 @@ AppResult runApp(
                 return AppResult::QuitGame;
             }
         }
-        // 新增：检测天数变化（假设TimeManager有获取当前天数的方法）
+        // detect the change of day
         if (timeManager.getDay() > currentDay) {
             currentDay = timeManager.getDay();
             Logger::info("Day " + std::to_string(currentDay) + " started");
         }
 
-        // ========== 相机更新（改进：始终以角色为中心，避免弹窗时切换到地图中心） ==========
+        // =update camera
         renderer.updateCamera(character.getPosition(),
                               tmjMap->getWorldPixelWidth(),
                               tmjMap->getWorldPixelHeight());
 
-        // ========== 渲染逻辑（原有+修复） ==========
+        // render
         renderer.clear();
         mapLoader.render(&renderer);
         renderer.renderTextObjects(tmjMap->getTextObjects());
@@ -2179,7 +2142,7 @@ AppResult runApp(
         renderer.renderShopTriggerAreas(tmjMap->getShopTriggers()); // 渲染便利店门口触发区域
 
         
-        // 教授位置调试信息（从App.cpp补充）
+        // adjustment information of professor's position
         static bool showProfessorDebug = true;
         if (showProfessorDebug) {
             for (const auto& prof : tmjMap->getProfessors()) {
@@ -2187,12 +2150,12 @@ AppResult runApp(
                             "' at: (" + std::to_string((int)prof.rect.position.x) + 
                             ", " + std::to_string((int)prof.rect.position.y) + ")");
             }
-            showProfessorDebug = false; // 只显示一次
+            showProfessorDebug = false; // only show once
         }
         
         renderer.drawSprite(character.getSprite());
 
-        //休息状态文本渲染
+        // render the text "resting"
         if (character.getIsResting()) {
         sf::Text restingText(modalFont, "Resting......", 16);
         restingText.setFillColor(sf::Color::Green);
@@ -2210,9 +2173,8 @@ AppResult runApp(
     
         renderer.getWindow().draw(restingText);
     }
-        // ------------------------------------------------
-    // ==========================================================
-    // === FIXED: UI & OVERLAY RENDER (SCREEN SPACE) ===
+    // ==============================================
+    // FIXED: UI & OVERLAY RENDER (SCREEN SPACE)
         // 1. Save the current Game Camera (View)
         sf::View gameView = renderer.getWindow().getView();
         
@@ -2264,7 +2226,7 @@ AppResult runApp(
         renderer.getWindow().draw(energyBarBg);
         renderer.getWindow().draw(energyBarFg);
 
-        // === NEW: Numerical Display on Energy Bar ===
+        // === Numerical Display on Energy Bar ===
         sf::Text energyNumText(modalFont, "Energy: " + std::to_string(taskManager.getEnergy()) + "/" + std::to_string(taskManager.getMaxEnergy()), 14);
         energyNumText.setFillColor(sf::Color::White);
         energyNumText.setOutlineColor(sf::Color::Black);
@@ -2303,7 +2265,6 @@ AppResult runApp(
             sf::Vector2i mpos = sf::Mouse::getPosition(renderer.getWindow());
             sf::FloatRect bounds = taskText.getGlobalBounds();
             
-            // === FIXED SFML 3 CHECK HERE ===
             if (bounds.contains(sf::Vector2f(static_cast<float>(mpos.x), static_cast<float>(mpos.y)))) {
                 taskText.setFillColor(sf::Color::Yellow);
             } else {
@@ -2337,7 +2298,7 @@ AppResult runApp(
         
         // --- F. BLACK SCREEN ---
         if (isBlackScreen) {
-            // 绘制全屏黑色覆盖层
+            // Draw a full-screen black overlay layer
             sf::RectangleShape blackOverlay(sf::Vector2f(uiWidth, uiHeight));
             blackOverlay.setPosition(sf::Vector2f(0.f, 0.f));
             blackOverlay.setFillColor(sf::Color::Black);
@@ -2346,13 +2307,13 @@ AppResult runApp(
         
         // --- G. EXPULSION MESSAGE ---
         if (isExpelled) {
-            // 绘制半透明背景
+            // Draw a translucent background
             sf::RectangleShape expelBg(sf::Vector2f(uiWidth, uiHeight));
             expelBg.setPosition(sf::Vector2f(0.f, 0.f));
             expelBg.setFillColor(sf::Color(0, 0, 0, 200));
             renderer.getWindow().draw(expelBg);
             
-            // 显示退学消息
+            // Display the message of expulsion
             sf::Text expelText(modalFont, "Unfortunately, you have fainted too many times\nand have been expelled. Please go home!", 36);
             expelText.setFillColor(sf::Color::Red);
             expelText.setOutlineColor(sf::Color::Black);
@@ -2363,11 +2324,11 @@ AppResult runApp(
             expelText.setPosition(sf::Vector2f(uiWidth / 2.0f, uiHeight / 2.0f - 60.0f));
             renderer.getWindow().draw(expelText);
             
-            // 显示 Game Over 按钮
+            // display Game Over button
             sf::RectangleShape gameOverBtn(sf::Vector2f(200.f, 60.f));
             gameOverBtn.setPosition(sf::Vector2f(uiWidth / 2.0f - 100.f, uiHeight / 2.0f + 40.f));
             
-            // 检查鼠标是否在按钮上
+            // Check if the cursor is on the button
             sf::Vector2i mousePos = sf::Mouse::getPosition(renderer.getWindow());
             sf::Vector2f mouseWorldPos = renderer.getWindow().mapPixelToCoords(mousePos);
             if (gameOverBtn.getGlobalBounds().contains(mouseWorldPos)) {
@@ -2379,7 +2340,7 @@ AppResult runApp(
             gameOverBtn.setOutlineColor(sf::Color::White);
             renderer.getWindow().draw(gameOverBtn);
             
-            // 按钮文字
+            // texts on the button
             sf::Text btnText(modalFont, "Game Over", 28);
             btnText.setFillColor(sf::Color::White);
             sf::FloatRect btnBounds = btnText.getLocalBounds();
@@ -2399,7 +2360,7 @@ AppResult runApp(
         }
         // =======================
 
-        // === NEW: Achievement Popup ===
+        // === Achievement Popup ===
         if (g_achievementTimer > 0.0f) {
             sf::RectangleShape popBg(sf::Vector2f(uiWidth, 60.f));
             popBg.setPosition(sf::Vector2f(0.f, uiHeight / 2.0f - 30.f));
@@ -2416,10 +2377,9 @@ AppResult runApp(
             renderer.getWindow().draw(achText);
         }
 
-        // --- HINT TOAST (屏幕底部居中) ---
-        // 位置：已 setView(defaultView) 的 UI 渲染阶段，恢复 gameView 之前
+        // --- HINT TOAST  ---
         if (g_hintTimer > 0.f && !g_hintText.empty()) {
-            // 取屏幕尺寸（你上面已算过 uiWidth / uiHeight，如果同作用域可直接用）
+            // Select screen size
             sf::Vector2u _sz = renderer.getWindow().getSize();
             float uiWidth  = static_cast<float>(_sz.x);
             float uiHeight = static_cast<float>(_sz.y);
@@ -2427,29 +2387,28 @@ AppResult runApp(
             const float PADDING_X = 24.f;
             const float PADDING_Y = 14.f;
 
-            // 用你现成的 modalFont，不再单独加载字体
             sf::Text hintText(modalFont, g_hintText, 22);
             hintText.setFillColor(sf::Color::White);
             hintText.setOutlineColor(sf::Color::Black);
             hintText.setOutlineThickness(2.f);
 
-            // 文本包围盒（注意 SFML3 的 position/size 字段）
+            // Text bounding box
             sf::FloatRect tb = hintText.getLocalBounds();
             float boxW = tb.size.x + PADDING_X * 2.f;
             float boxH = tb.size.y + PADDING_Y * 2.f;
 
-            // 屏幕底部居中，距底 60px
+            // Centered at the bottom of the screen, 60 pixels away from the bottom
             float boxX = (uiWidth  - boxW) * 0.5f;
             float boxY = (uiHeight - boxH) - 60.f;
 
-            // 半透明背景条
+            // Translucent background bar
             sf::RectangleShape bg(sf::Vector2f(boxW, boxH));
             bg.setPosition(sf::Vector2f(boxX, boxY));
             bg.setFillColor(sf::Color(0, 0, 0, 170));
             bg.setOutlineThickness(2.f);
             bg.setOutlineColor(sf::Color(255, 255, 255, 60));
 
-            // 文字位置：减去 localBounds.position，避免基线偏移
+            // Text position: Subtract localBounds.position to avoid baseline offset
             hintText.setPosition(sf::Vector2f(
                 boxX + PADDING_X - tb.position.x,
                 boxY + PADDING_Y - tb.position.y
@@ -2545,11 +2504,9 @@ AppResult runApp(
     return AppResult::QuitGame;
 }
 
-// 修复日志记录中的字段访问问题
 void showShopDialog(const ShopTrigger& shop) {
     Logger::info("Displaying shop dialog for: " + shop.name);
     Logger::info("Shop rect: (" + std::to_string(shop.rect.position.x) + ", " + std::to_string(shop.rect.position.y) + ") " +
                  std::to_string(shop.rect.size.x) + "x" + std::to_string(shop.rect.size.y));
-    // 示例实现：显示商店对话框的逻辑
     std::cout << "Welcome to " << shop.name << "!" << std::endl;
 }
