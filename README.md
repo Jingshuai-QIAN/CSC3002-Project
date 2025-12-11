@@ -84,10 +84,13 @@ navigation/
 │   │   ├── Logger.h
 │   │   ├── FileUtils.h
 │   │   └── StringUtils.h
+│   └──  QuizGame/                   # Quiz from bookstore and classroom
+│   │   ├── LessonTrigger.h
+│   │   ├── QuizGame.h
+│   │   ├── QuizGame.cpp
 │   └──  Login/                   # Login screen
 │   │   ├── LoginScreen.cpp
 │   │   ├── LoginScreen.h
-│   │   ├── LoginScreen.o
 │   │   ├── MapGuideScreen.cpp
 │   │   └── MapGuideScreen.h
 ├── config/                      # Configuration files
