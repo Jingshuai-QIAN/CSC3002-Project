@@ -16,9 +16,7 @@ bool runMapGuideScreen(Renderer& renderer)
     const float winW = static_cast<float>(winSize.x);
     const float winH = static_cast<float>(winSize.y);
 
-    // ----------------------------------------------------
-    // 1. Load map screenshot (your UI screenshot)
-    // ----------------------------------------------------
+    // 1. Load map screenshot
     sf::Texture mapTexture;
     if (!mapTexture.loadFromFile("assets/ui_map_guide.png")) {
         std::cerr << "[MapGuide] Failed to load assets/ui_map_guide.png\n";
@@ -36,9 +34,7 @@ bool runMapGuideScreen(Renderer& renderer)
         mapSprite.setPosition(sf::Vector2f{0.f, 0.f});
     }
 
-    // ----------------------------------------------------
     // 2. Dialog background (use panelInset_brown.png)
-    // ----------------------------------------------------
     sf::Texture dialogTexture;
     if (!dialogTexture.loadFromFile("assets/panelInset_brown.png")) {
         std::cerr << "[MapGuide] Failed to load assets/panelInset_brown.png\n";
@@ -67,9 +63,7 @@ bool runMapGuideScreen(Renderer& renderer)
     });
 
 
-    // ----------------------------------------------------
     // 3. Font
-    // ----------------------------------------------------
     sf::Font font;
     if (!font.openFromFile("fonts/arial.ttf")) {
         std::cerr << "[MapGuide] Failed to load font: fonts/arial.ttf\n";
@@ -79,9 +73,7 @@ bool runMapGuideScreen(Renderer& renderer)
     const unsigned int textSize = 24;
 
         
-    // ----------------------------------------------------
     // 4. UI hint data (normalized coords + text)
-    // ----------------------------------------------------
     struct UiHint {
         sf::FloatRect normRect;  // (x,y,w,h) in 0..1 relative to window
         std::string   text;
@@ -89,9 +81,9 @@ bool runMapGuideScreen(Renderer& renderer)
 
     std::vector<UiHint> hints;
 
-    // Hint 1: Player character（小人）
+    //  Player character
     hints.push_back(UiHint{
-        // 大致框住图中右上方的小人
+        // mark out the character
         sf::FloatRect{ sf::Vector2f{0.48f, 0.16f}, sf::Vector2f{0.04f, 0.04f} },
         "Player\n\nThis is your character. Use WASD or the arrow keys\n"
         "to move around the campus. You can walk on roads and\n"
@@ -99,7 +91,7 @@ bool runMapGuideScreen(Renderer& renderer)
         "[Press Enter to view the next hint...]\n"
     });
 
-    // Hint 2: Time + Energy 条（左上角黄底面板）
+    // Time & Energy bar
     hints.push_back(UiHint{
         sf::FloatRect{ sf::Vector2f{0.01f, 0.03f}, sf::Vector2f{0.22f, 0.08f} },
         "Time & Energy Bar\n\nThe top-left panel shows the current in-game time\n"
@@ -109,7 +101,7 @@ bool runMapGuideScreen(Renderer& renderer)
         "[Press Enter to view the next hint...]\n"
     });
 
-    // Hint 3: Points + Tasks（左侧任务列表）
+    // Points & Tasks
     hints.push_back(UiHint{
         sf::FloatRect{ sf::Vector2f{0.01f, 0.12f}, sf::Vector2f{0.22f, 0.26f} },
         "Points & Tasks\n\n\"Points\" shows your current score for the game.\n"
@@ -120,7 +112,7 @@ bool runMapGuideScreen(Renderer& renderer)
         "[Press Enter to view the next hint...]\n"
     });
 
-    // Hint 4: Schedule 按钮
+    //  Schedule button
     hints.push_back(UiHint{
         sf::FloatRect{ sf::Vector2f{0.71f, 0.01f}, sf::Vector2f{0.12f, 0.08f} },
         "Schedule Button\n\nClick \"Schedule\" to open your timetable.\n"
@@ -130,7 +122,7 @@ bool runMapGuideScreen(Renderer& renderer)
         "[Press Enter to view the next hint...]\n"
     });
 
-    // Hint 5: Map 按钮（右上角）
+    // Map button
     hints.push_back(UiHint{
         sf::FloatRect{ sf::Vector2f{0.85f, 0.01f}, sf::Vector2f{0.09f, 0.08f} },
         "Map Button\n\nClick \"Map\" to open the full campus map.\n"
@@ -140,9 +132,9 @@ bool runMapGuideScreen(Renderer& renderer)
         "[Press Enter to view the next hint...]\n"
     });
 
-    // Hint 6: Building Entrances（蓝色方框）
+    // Building Entrances
     hints.push_back(UiHint{
-        // 取一块包含蓝色入口方框的区域
+        // take a section that contains the blue entrance frame
         sf::FloatRect{ sf::Vector2f{0.44f, 0.11f}, sf::Vector2f{0.08f, 0.12f} },
         "Building Entrances\n\nBlue squares mark the entrances of buildings.\n"
         "Walk your character into a blue square and press Enter\n"
@@ -151,7 +143,7 @@ bool runMapGuideScreen(Renderer& renderer)
         "[Press Enter to view the next hint...]\n"
     });
 
-    // Hint 7: Buildings, roads & open ground
+    //Buildings, roads & open ground
     hints.push_back(UiHint{
         sf::FloatRect{ sf::Vector2f{0.41f, 0.32f}, sf::Vector2f{0.24f, 0.25f} },
         "Campus Buildings & Roads\n\nGrey areas with building names like \"Shaw College\"\n"
@@ -161,7 +153,7 @@ bool runMapGuideScreen(Renderer& renderer)
         "[Press Enter to view the next hint...]\n"
     });
 
-    // Hint 8: Plants / Trees（右侧绿色、橙色的一片）
+    //  Plants / Trees
     hints.push_back(UiHint{
         sf::FloatRect{ sf::Vector2f{0.80f, 0.13f}, sf::Vector2f{0.18f, 0.12f} },
         "Plants & Trees\n\nThe colourful dots represent plants and trees.\n"
@@ -175,9 +167,7 @@ bool runMapGuideScreen(Renderer& renderer)
 
 
 
-    // ----------------------------------------------------
     // 5. Main loop: A/Left prev, D/Right next, Enter to finish
-    // ----------------------------------------------------
     while (window.isOpen()) {
         // Events
         while (const std::optional event = window.pollEvent()) {
