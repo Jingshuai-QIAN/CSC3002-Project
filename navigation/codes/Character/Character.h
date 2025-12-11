@@ -55,7 +55,7 @@ public:
      * @param mapWidth Map width in pixels (for boundary checks).
      * @param mapHeight Map height in pixels (for boundary checks).
      */
-    // Modified: accepts an optional TMJMap pointer for map collision queries (may be nullptr)
+    // accepts an optional TMJMap pointer for map collision queries (may be nullptr)
     void update(float deltaTime, const sf::Vector2f& moveInput, int mapWidth, int mapHeight, const TMJMap* map);
     
     /**
@@ -103,24 +103,24 @@ public:
      */
     bool isInitialized() const { return sprite != nullptr; }
 
-    // 新增：设置朝向
+    // set direction
     void setCurrentDirection(Direction dir);
 
-    // 添加状态控制方法
+    // Control states
     bool getIsResting() const { return isResting; }
     void startResting() { 
         isResting = true; 
         restTimer = 0.0f; 
-        moving = false; // 强制停止移动
+        moving = false; // stop movement
     }
     void stopResting();
 
-    // 设置休息状态
+    // set resting states
     void setResting(bool resting) { 
         isResting = resting; 
         if (!resting) {
-            // 结束休息时重置透明度
-            sprite->setColor(sf::Color(255, 255, 255, 255)); // 白色+完全不透明
+            // reset the transparency when end resting
+            sprite->setColor(sf::Color(255, 255, 255, 255));
             flashTimer = 0.0f;
             flashState = false;
         }
@@ -168,12 +168,13 @@ private:
     float collisionHalfWidth = 0.0f;
     float collisionHalfHeight = 0.0f;
 
-    // 休息状态相关成员变量
-    bool isResting = false;          // 是否处于休息状态
-    float restTimer = 0.0f;          // 休息计时器
-    const float REST_DURATION = 5.0f; // 休息持续时间（5秒）
-    float flashTimer = 0.0f;       // 闪烁计时器
-    bool flashState = false;       // 闪烁状态（true为半透明，false为不透明）
-    float flashInterval = 0.3f;    // 闪烁间隔（秒）
+    // Resting states
+    bool isResting = false;          
+    float restTimer = 0.0f;         
+    const float REST_DURATION = 5.0f; // rest lasting time: 5 min 
+    float flashTimer = 0.0f;     
+    bool flashState = false;       // flasing states
+    float flashInterval = 0.3f;  
 };
+
 
