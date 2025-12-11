@@ -92,7 +92,7 @@ static bool detectGameTrigger(const Character& character, const TMJMap* map, Gam
 
     sf::Vector2f feet = character.getFeetPoint();
     for (const auto& gta : map->getGameTriggers()) {
-        sf::FloatRect rect(sf::Vector2f(gta.x, gta.y), sf::Vector2f(gta.width, gta.height)); // 修正构造方式
+        sf::FloatRect rect(sf::Vector2f(gta.x, gta.y), sf::Vector2f(gta.width, gta.height)); 
         if (rect.contains(feet)) {
             outArea = gta;
             return true;
@@ -440,10 +440,10 @@ static bool detectTableInteraction(const Character& character, const TMJMap* map
     for (const auto& table : tables) {
         // 5 pixels tolerance
         sf::FloatRect tolerantRect = table.rect;
-        tolerantRect.position.x -= 5;  // 替代 left
-        tolerantRect.position.y -= 5;  // 替代 top
-        tolerantRect.size.x += 10;     // 替代 width
-        tolerantRect.size.y += 10;     // 替代 height
+        tolerantRect.position.x -= 5;  
+        tolerantRect.position.y -= 5;  
+        tolerantRect.size.x += 10;    
+        tolerantRect.size.y += 10;    
 
         Logger::debug("detectTableInteraction: detact table → name: " + table.name + 
                      " | original rect: (" + std::to_string(table.rect.position.x) + "," + std::to_string(table.rect.position.y) + 
@@ -747,7 +747,7 @@ bool showFinalResultScreen(Renderer& renderer, char grade, int starCount, const 
 
     // texts of health condition
     sf::Text healthText(font, resultText, 28);
-    healthText.setFillColor(sf::Color(255, 215, 0)); // 金色突出
+    healthText.setFillColor(sf::Color(255, 215, 0));
     healthText.setCharacterSize(28);
     sf::FloatRect healthBounds = healthText.getLocalBounds();
     healthText.setOrigin(sf::Vector2f(healthBounds.size.x / 2, healthBounds.size.y / 2));
@@ -839,7 +839,7 @@ bool showFinalResultScreen(Renderer& renderer, char grade, int starCount, const 
         window.clear(sf::Color(40, 40, 40));
         window.draw(bgSprite);
         window.draw(gradeText);
-        window.draw(healthText); // 绘制主循环传的健康文本
+        window.draw(healthText);
         for (const auto& star : stars) window.draw(star);
         window.draw(exitBtn);
         window.draw(exitText);
@@ -1183,10 +1183,10 @@ AppResult runApp(
             );
             renderer.setModalActive(true);
             
-            // 重置状态
+            // reset the status
             profResponseState.pending = false;
             profResponseState.selectedOption = -1;
-            Logger::info("🔄 Professor response state reset");
+            Logger::info("Professor response state reset");
         }
 
         // deal with the list of items (second level) in stores
@@ -1551,7 +1551,7 @@ AppResult runApp(
         inputManager.update();
 
         // E key detection
-        // === NEW: Block interactions if Fainted ===
+        // === Block interactions if Fainted ===
         if (!isFainted && !waitingForEntranceConfirmation && !dialogSys.isActive() && inputManager.isKeyJustPressed(sf::Keyboard::Key::E)) {
             Logger::debug("E key pressed - checking for interaction");
             if (!gameState.isEating) {
@@ -1560,7 +1560,7 @@ AppResult runApp(
                 Professor professor;  
                 
                 bool foundCounter = detectInteraction(character, tmjMap.get(), counterObj);
-                bool foundProfessor = detectProfessorInteraction(character, tmjMap.get(), professor);  // 教授检测（从App.cpp补充）
+                bool foundProfessor = detectProfessorInteraction(character, tmjMap.get(), professor);  
                 
                 Logger::debug("   foundCounter: " + std::to_string(foundCounter));
                 Logger::debug("   foundProfessor: " + std::to_string(foundProfessor));
@@ -1694,7 +1694,7 @@ AppResult runApp(
                 // detect table interaction
                 TableObject currentTable;
                 if (detectTableInteraction(character, tmjMap.get(), currentTable)) {
-                    Logger::info("table interaction detected → selected food: " + (gameState.selectedFood.empty() ? "空" : gameState.selectedFood));
+                    Logger::info("table interaction detected → selected food: " + (gameState.selectedFood.empty() ? "Empty" : gameState.selectedFood));
                     
                     if (!gameState.hasOrderedFood) {
                         Logger::info("Didn't select food");
@@ -2000,7 +2000,7 @@ AppResult runApp(
 
         // reset the hasSupperssedEntrance label
         if (hasSuppressedEntrance) {
-            // 检查角色是否离开了抑制的入口区域
+            // check if the character leaved the suppresed entrance area
             sf::Vector2f feet = character.getFeetPoint();
             if (!suppressedEntranceRect.contains(feet)) {
                 hasSuppressedEntrance = false;
@@ -2136,17 +2136,17 @@ AppResult runApp(
         mapLoader.render(&renderer);
         renderer.renderTextObjects(tmjMap->getTextObjects());
         renderer.renderEntranceAreas(tmjMap->getEntranceAreas());
-        renderer.renderGameTriggerAreas(tmjMap->getGameTriggers());  // 新增：渲染游戏触发区域
+        renderer.renderGameTriggerAreas(tmjMap->getGameTriggers());
         renderer.renderChefs(tmjMap->getChefs());
-        renderer.renderProfessors(tmjMap->getProfessors());  // 教授渲染（从App.cpp补充）
-        renderer.renderShopTriggerAreas(tmjMap->getShopTriggers()); // 渲染便利店门口触发区域
+        renderer.renderProfessors(tmjMap->getProfessors());  
+        renderer.renderShopTriggerAreas(tmjMap->getShopTriggers()); 
 
         
         // adjustment information of professor's position
         static bool showProfessorDebug = true;
         if (showProfessorDebug) {
             for (const auto& prof : tmjMap->getProfessors()) {
-                Logger::debug("📍 Professor '" + prof.name + 
+                Logger::debug("Professor '" + prof.name + 
                             "' at: (" + std::to_string((int)prof.rect.position.x) + 
                             ", " + std::to_string((int)prof.rect.position.y) + ")");
             }
