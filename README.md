@@ -50,6 +50,8 @@ navigation/
 │   ├── main.cpp
 │   ├── App.h
 │   ├── App.cpp
+│   ├── DialogSystem.cpp
+│   ├── DialogSystem.h
 │   ├── Character/               # Player character module
 │   │   ├── Character.h
 │   │   ├── Character.cpp
@@ -80,20 +82,24 @@ navigation/
 │   │   ├── Renderer.cpp
 │   │   ├── TextRenderer.h
 │   │   └── TextRenderer.cpp
-│   └── Utils/                   # Utility helpers
+│   ├── Utils/                   # Utility helpers
 │   │   ├── Logger.h
 │   │   ├── FileUtils.h
 │   │   └── StringUtils.h
-│   └──  QuizGame/                   # Quiz from bookstore and classroom
-│   │   ├── LessonTrigger.h
-│   │   ├── QuizGame.h
-│   │   ├── QuizGame.cpp
-│   └──  Login/                   # Login screen
+│   ├── Login/                   # Login screen
 │   │   ├── LoginScreen.cpp
 │   │   ├── LoginScreen.h
 │   │   ├── MapGuideScreen.cpp
 │   │   └── MapGuideScreen.h
+│   └── QuizGame/
+│       ├── QuizGame.cpp
+│       ├── QuizGame.h
+│       ├── LessonTrigger.h
 ├── config/                      # Configuration files
+|   ├── quiz/
+|   |   ├── classroom_basic.json
+|   |   ├── course_schedule.json
+|   |   ├── course_schedule.png
 │   ├── app_config.json
 │   ├── render_config.json
 │   └── character_config.json
@@ -108,13 +114,24 @@ navigation/
 │   ├── shaw.tmj
 │   ├── teaching_building.tmj
 │   └── spawns.json
-└── tiles/
+├── textures/
+│   ├── dialog/
+│   |   ├── btn.png
+│   |   ├── dialog_bg.png
+│   ├── beef_noodles.png
+│   ├── chicken_steak.png
+│   ├── dialog_bg.png
+│   ├── dialog_btn.png
+│   ├── pasta.png
+│   ├── star_g.png
+│   ├── star_y.png
+├── tiles/
 │   ├── exterior.png
 │   ├── F_01.png
 │   ├── F_05.png
-│   ├── M_10.png
 │   ├── free_overview.png
 │   ├── Interior.png
+│   ├── M_10.png
 │   ├── Modern_City.png
 │   ├── roguelikeIndoor_transparent.png
 │   ├── Small_Battle.png
