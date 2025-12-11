@@ -20,18 +20,14 @@ bool runLoginScreen(Renderer& renderer)
     const float winW = static_cast<float>(winSize.x);
     const float winH = static_cast<float>(winSize.y);
 
-    // ----------------------------------------------------
     // 1. Load UI spritesheet (panels, buttons)
-    // ----------------------------------------------------
     sf::Texture uiTexture;
     if (!uiTexture.loadFromFile("assets/uipack_rpg_sheet.png")) {
         std::cerr << "[Login] Failed to load assets/uipack_rpg_sheet.png\n";
         return false;
     }
 
-    // ----------------------------------------------------
     // 2. Load keyboard & mouse control sheet
-    // ----------------------------------------------------
     sf::Texture controlTexture;
     if (!controlTexture.loadFromFile("assets/keyboard-&-mouse_sheet_default.png")) {
         std::cerr << "[Login] Failed to load assets/keyboard-&-mouse_sheet_default.png\n";
@@ -47,9 +43,7 @@ bool runLoginScreen(Renderer& renderer)
         };
     };
 
-    // ----------------------------------------------------
     // 3. Background panel from UI sheet
-    // ----------------------------------------------------
     const sf::IntRect BG_PANEL_RECT{
         sf::Vector2i{0, 376},      // position in the spritesheet
         sf::Vector2i{100, 100}     // size in the spritesheet
@@ -67,9 +61,7 @@ bool runLoginScreen(Renderer& renderer)
 
     const sf::Color deepBrown(150, 100, 60);
 
-    // ----------------------------------------------------
-    // 4. Font (SFML 3 uses openFromFile)
-    // ----------------------------------------------------
+    // 4. Font 
     sf::Font font;
     if (!font.openFromFile("fonts/arial.ttf")) {
         std::cerr << "[Login] Failed to load font: fonts/arial.ttf\n";
@@ -85,9 +77,7 @@ bool runLoginScreen(Renderer& renderer)
     const float gameTitleY = winH * 0.18f;
     const float homeTitleY = winH * 0.40f;
 
-    // ----------------------------------------------------
     // 5. Game title
-    // ----------------------------------------------------
     sf::Text gameTitle(font);
     gameTitle.setString("Daily Life in CUHKSZ");
     gameTitle.setCharacterSize(gameTitleSize);
@@ -101,9 +91,7 @@ bool runLoginScreen(Renderer& renderer)
         gameTitle.setPosition(sf::Vector2f{winW * 0.5f, gameTitleY});
     }
 
-    // ----------------------------------------------------
     // 6. "Home" title
-    // ----------------------------------------------------
     sf::Text homeTitle(font);
     homeTitle.setString("Home");
     homeTitle.setCharacterSize(pageTitleSize);
@@ -117,9 +105,7 @@ bool runLoginScreen(Renderer& renderer)
         homeTitle.setPosition(sf::Vector2f{winW * 0.5f, homeTitleY});
     }
 
-    // ----------------------------------------------------
     // 7. Buttons on Home screen
-    // ----------------------------------------------------
     const sf::IntRect BUTTON_KHAKI_RECT{
         sf::Vector2i{2, 240},
         sf::Vector2i{188, 40}
@@ -174,9 +160,7 @@ bool runLoginScreen(Renderer& renderer)
         exitText.setPosition(exitButtonSprite.getPosition());
     }
 
-    // ----------------------------------------------------
     // 8. Intro text page
-    // ----------------------------------------------------
     sf::Text introText(font);
     introText.setString(
         "Background Introduction\n\n"
@@ -194,9 +178,7 @@ bool runLoginScreen(Renderer& renderer)
         introText.setPosition(sf::Vector2f{winW * 0.5f, winH * 0.5f});
     }
 
-    // ----------------------------------------------------
     // 9. Controls page: icons and labels
-    // ----------------------------------------------------
 
     // Title for controls page
     sf::Text controlsTitle(font);
@@ -390,16 +372,12 @@ bool runLoginScreen(Renderer& renderer)
     }
 
 
-    // ----------------------------------------------------
     // 10. Screen state machine: Home -> Intro -> Controls
-    // ----------------------------------------------------
     enum class ScreenState { Home, Intro, Controls };
     ScreenState screen = ScreenState::Home;
     bool wantStartGame = false;
 
-    // ----------------------------------------------------
-    // 11. Main loop (SFML 3 event API)
-    // ----------------------------------------------------
+    // 11. Main loop
     while (window.isOpen() && !wantStartGame) {
         while (const std::optional event = window.pollEvent()) {
             if (event->is<sf::Event::Closed>()) {
@@ -430,17 +408,17 @@ bool runLoginScreen(Renderer& renderer)
             if (const auto* keyPressed = event->getIf<sf::Event::KeyPressed>()) {
                 if (keyPressed->code == sf::Keyboard::Key::Enter) {
                     if (screen == ScreenState::Home) {
-                        screen = ScreenState::Intro;       // first: show intro
+                        screen = ScreenState::Intro;       // show intro
                     } else if (screen == ScreenState::Intro) {
-                        screen = ScreenState::Controls;    // second: show controls
+                        screen = ScreenState::Controls;    // show controls
                     } else if (screen == ScreenState::Controls) {
-                        wantStartGame = true;              // third: start game
+                        wantStartGame = true;              // start game
                     }
                 }
             }
         }
 
-        // ---------------- Draw current screen ----------------
+        // Draw current screen
         window.clear(deepBrown);
         window.draw(bgPanel);
 
